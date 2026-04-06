@@ -16,17 +16,13 @@ for vul in root.findall('.//vul'):
     else:
         cve_id = "Нет CVE"
         ident_type = "Нет типа"
-    
-    print(f"CVE ID: {cve_id}, Тип: {ident_type}")
 
 for vul in root.findall('.//vul'):
-    name_element = vul.find('name')
-    if name_element is not None:
-        name = name_element.text
-    else:
-        name = "Нет названия"
+    name = vul.findtext('name') or "Нет названия"
+    description = vul.findtext('description') or "Нет описания"
+
     
-    print(f"Имя уязвимости: {name}")
+
 
 
 
