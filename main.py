@@ -3,31 +3,29 @@ import zipfile
 import xml.etree.ElementTree as ET
 
 # Чтение из файла
-tree = ET.parse('export/vulxml.xml')
+tree = ET.parse('/home/kali/Desktop/BDU/export')
 root = tree.getroot()
 
 
-# Чтение из файла
-tree = ET.parse('export/vulxml.xml')
-root = tree.getroot()
 
 # Поиск всех уязвимостей
 for vul in root.findall('.//vul'):
-    # Ищем cve_id внутри identifiers/identifier
+    # Получаем cve_id (с проверкой, что тег существует)
+    cve_element = vul.find('cve_id')
+    cve_id = cve_element.text if cve_element is not None else "Нет CVE"
+    
+    # Получаем тип идентификатора
     identifiers_element = vul.find('identifiers')
     if identifiers_element is not None:
         identifier_element = identifiers_element.find('identifier')
         if identifier_element is not None:
-            cve_id = identifier_element.text if identifier_element.text else "Нет CVE"
             ident_type = identifier_element.get('type')
         else:
-            cve_id = "Нет CVE"
             ident_type = "Нет типа"
     else:
-        cve_id = "Нет CVE"
         ident_type = "Нет идентификаторов"
     
-    print(f"CVE ID: {cve_id}, Тип идентификатора: {ident_type}")
+    print(f"CVE ID: {cve_id}, Тип: {ident_type}")
 
 
 
