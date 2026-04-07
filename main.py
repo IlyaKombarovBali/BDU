@@ -2,6 +2,10 @@ import sqlite3
 import zipfile
 import xml.etree.ElementTree as ET
 
+def get_db():
+    con = sqlite3.connect("bdu.db")
+    return con, con.cursor()
+
 # Чтение из файла
 tree = ET.parse('/home/kali/Desktop/BDU/export/vulxml.xml')
 root = tree.getroot()
@@ -40,7 +44,18 @@ for vul in root.findall('.//vul'):
         if match:
             cvss_v3_score = float(match.group(1))
 
+    #Записываем в БД
+
+    con, cursor = get_db()
+    cursor.execute("SELECT * FROM cve WHERE cve_id = ?", (cve_id,))
+    records = cursor.fetchall()
+    if not records:
+        cursor.execute("INSERT INTO cve (vul_id, cve_id, name, description, severity, cvss_v3_score, solution, vul_status, exploit_status, fix_status, vul_elimination, vul_class, sources, identifiers, published_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (vul_id, cve_id, name, description, severity, cvss_v3_score, solution, vul_status, exploit_status, fix_status, vul_elimination, vul_class, sources, ident_type, published_date))
+        con.commit()
     
+con.close()
+
+
 
 
 

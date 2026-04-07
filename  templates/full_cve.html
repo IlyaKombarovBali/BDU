@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Список уязвимостей</title>
+</head>
+<body>
+    <h1>База уязвимостей БДУ</h1>
+    
+    {% for vuln in vulns %}
+        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+            <h3>{{ vuln['cve_id'] }}</h3>
+            <p><strong>{{ vuln['name'] }}</strong></p>
+            <p>{{ vuln['description']|truncate(300) }}</p>
+            <p>CVSS: {{ vuln['cvss_v3_score'] or 'Нет' }}</p>
+            <a href="/cve/{{ vuln['cve_id'] }}">Подробнее</a>
+        </div>
+    {% endfor %}
+</body>
+</html>
