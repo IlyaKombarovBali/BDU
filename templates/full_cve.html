@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Список уязвимостей</title>
+<style>
+    body {
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        background: #f2f4f8;
+        padding: 20px;
+        margin: 0;
+    }
+    h1 {
+        font-size: 1.8rem;
+        color: #1e2a3e;
+        border-left: 5px solid #d32f2f;
+        padding-left: 15px;
+        margin-bottom: 25px;
+    }
+    div[style*="border: 1px solid #ccc"] {
+        background: white;
+        border-radius: 16px !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        transition: all 0.2s;
+        border: 1px solid #e0e0e0 !important;
+    }
+    div[style*="border: 1px solid #ccc"]:hover {
+        box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+    h3 {
+        color: #c62828;
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin: 0 0 5px 0;
+    }
+    p strong {
+        font-size: 1.2rem;
+        color: #1e2a3e;
+    }
+    .small-text {
+    font-size: 12px;
+    }
+    a {
+        display: inline-block;
+        margin-top: 8px;
+        background: #c62828;
+        color: white;
+        padding: 6px 14px;
+        border-radius: 25px;
+        text-decoration: none;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    a:hover {
+        background: #8b0000;
+    }
+</style>
+</head>
+<body>
+    <h1>База уязвимостей БДУ</h1>
+    
+    {% for vuln in vuln %}
+        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+            <h3>{{ vuln['identifier'] }}</h3>
+            <p><strong>{{ vuln['name'] }}</strong></p>
+            <!--<p>{{ vuln['description']|truncate(300) }}</p>-->
+            <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
+            <!--<p>CVSS: {{ vuln['severity'] or 'Нет' }}</p>-->
+            <a href="/cve/{{ vuln['identifier'] }}">Подробнее</a>
+        </div>
+    {% endfor %}
+</body>
+</html>

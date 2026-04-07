@@ -8,7 +8,8 @@ def get_db():
 def get_recent_vulns(limit=10):
     con = get_db()
     cursor = con.cursor()
-    cursor.execute("SELECT cve_id, name FROM cve LIMIT ?", (limit,))
+    cursor.execute("SELECT identifier, name, severity, description, published_date FROM cve ORDER BY published_date_iso DESC LIMIT ?", (limit,))
+    #cursor.execute("SELECT cve_id, name FROM cve LIMIT ?", (limit,))
     vulns = cursor.fetchall()
     con.close()
     return vulns

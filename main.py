@@ -13,10 +13,17 @@ root = tree.getroot()
 
 
 for vul in root.findall('.//vul'):
-    # CVE и тип из identifier
+    # CVE из identifier
     identifier = vul.find('.//identifier')
     if identifier is not None:
-        cve_id = identifier.text or "Нет CVE"
+        # Пытаемся взять CVE из атрибута link (самый надёжный способ)
+        link = identifier.get('link')
+        if link and 'CVE-' in link:
+            # Извлекаем CVE ID из конца URL (например, .../CVE-2026-27951)
+            cve_id = link.split('/')[-1]
+        else:
+            # Если ссылки нет, берём текст из тега
+            cve_id = identifier.text or "Нет CVE"
         ident_type = identifier.get('type') or "Нет типа"
     else:
         cve_id = "Нет CVE"
@@ -36,14 +43,15 @@ for vul in root.findall('.//vul'):
     sources = vul.findtext('sources') or "Нет ссылок"
     published_date = vul.findtext('published_date') or "Нет даты"
     
-    # CVSS из severity
+    # CVSS из severity (просто ищем число)
     cvss_v3_score = None
     if severity != "Нет оценки":
         import re
-        match = re.search(r'CVSS 3\.1 составляет ([0-9.]+)', severity)
+        # Ищем число, после которого идет запятая или точка (как в CVSS)
+        # Ищем паттерн: цифра, точка, цифра (например, 7.5)
+        match = re.search(r'([0-9]+\.[0-9]+)', severity)
         if match:
             cvss_v3_score = float(match.group(1))
-
     #Записываем в БД
 
     con, cursor = get_db()
