@@ -1,9 +1,9 @@
 import sqlite3
 
-# 1. Скачиваем файл (если есть прямая ссылка)
+#Скачиваем файл
 URL = "https://bdu.fstec.ru/files/documents/vullist.xlsx"  
 FILE_PATH = "vullist.xlsx"
-
+#Переименовываем колонки
 def rename_columns(df):
     return df.rename(columns={
         'Идентификатор': 'bdu_id',
@@ -39,12 +39,12 @@ def rename_columns(df):
         'Идентификатор': 'identifier',
         'Наименование': 'title'
     })
-
+#Подключаемся к БД
 def get_db():
-    con = sqlite3.connect("bdu.db")
+    con = sqlite3.connect("bdu.db") #Создайте файл в корне (bdu.db)
     con.row_factory = sqlite3.Row
     return con
-
+#Получаем даные с БД по временной сортировки
 def get_recent_vulns(limit=10):
     con = get_db()
     cursor = con.cursor()
@@ -54,11 +54,10 @@ def get_recent_vulns(limit=10):
     con.close()
     return vulns
 
+# Записываем таблицу в БД и добавлляем дату по ISO для сортировки 
 def bdu_con(df):
-    con = sqlite3.connect("bdu.db") #Создайте файл БД
+    con = get_db() 
     df.to_sql("cve", con, if_exists="replace", index=False)
-
-    # 5. Добавляем поле published_date_iso для сортировки
     con.execute("ALTER TABLE cve ADD COLUMN published_date_iso TEXT;")
     con.execute("""
         UPDATE cve 

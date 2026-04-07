@@ -16,7 +16,7 @@ except Exception as e:
         exit(1)
 # 2. Читаем Excel
 df = pd.read_excel(config.FILE_PATH)
-# 3. Переименовываем колонки (твой код)
+# 3. Переименовываем колонки 
 df = config.rename_columns(df)
 # 4. Записываем в SQLite (таблица пересоздаётся)
 config.bdu_con(df)
