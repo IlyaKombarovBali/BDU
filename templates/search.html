@@ -1,149 +1,570 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-    <title>Список уязвимостей</title>
-<style>
-    body {
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-        background: #f2f4f8;
-        padding: 20px;
-        margin: 0;
-    }
-    h1 {
-        font-size: 1.8rem;
-        color: #1e2a3e;
-        border-left: 5px solid #d32f2f;
-        padding-left: 15px;
-        margin-bottom: 25px;
-    }
-    div[style*="border: 1px solid #ccc"] {
-        background: white;
-        border-radius: 16px !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        transition: all 0.2s;
-        border: 1px solid #e0e0e0 !important;
-    }
-    div[style*="border: 1px solid #ccc"]:hover {
-        box-shadow: 0 6px 14px rgba(0,0,0,0.1);
-        transform: translateY(-2px);
-    }
-    h3 {
-        color: #c62828;
-        font-size: 0.9rem;
-        font-weight: 600;
-        margin: 0 0 5px 0;
-    }
-    p strong {
-        font-size: 1.2rem;
-        color: #1e2a3e;
-    }
-    .small-text {
-    font-size: 12px;
-    }
-    a {
-        display: inline-block;
-        margin-top: 8px;
-        background: #c62828;
-        color: white;
-        padding: 6px 14px;
-        border-radius: 25px;
-        text-decoration: none;
-        font-size: 0.8rem;
-        font-weight: 500;
-    }
-    a:hover {
-        background: #8b0000;
-    }
-     /* Адаптация для мобильных устройств */
-    @media (max-width: 640px) {
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Поиск — БДУ Уязвимости</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
         body {
-            padding: 12px;
+            background: #0a0d17;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 16px;
+        }
+
+        /* мобильный контейнер */
+        .mobile-app {
+            max-width: 400px;
+            width: 100%;
+            background-color: #0b0e16;
+            border-radius: 44px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 8px #1a1d2b;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* статус бар */
+        .status-bar {
+            padding: 14px 20px 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0b0e16;
+            border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
+        }
+        .time {
+            font-size: 16px;
+            font-weight: 590;
+            color: #f1f5f9;
+            letter-spacing: 0.2px;
+        }
+        .battery-icons {
+            display: flex;
+            gap: 6px;
+            color: #e2e8f0;
+            font-size: 12px;
+        }
+
+        /* хедер */
+        .nav-header {
+            padding: 8px 20px 4px;
+            background: #0b0e16;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #7e8a98;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .breadcrumb a {
+            color: #4f9eff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb span {
+            color: #cbd5e1;
+        }
+        .title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
         }
         h1 {
-            font-size: 1.4rem;
-            padding-left: 12px;
-            margin-bottom: 20px;
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #b9c8ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+            word-break: break-word;
         }
-        .card {
-            margin: 8px;
-            padding: 12px;
+        .query-highlight {
+            font-size: 18px;
+            color: #ffb4a2;
+            font-weight: 500;
+            margin-top: 4px;
         }
-        h3 {
-            font-size: 0.75rem;
+        .bot-badge {
+            background: #1e293b;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+
+        /* лимит строки */
+        .limit-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 8px 20px 4px;
+            gap: 8px;
+        }
+        .limit-label {
+            font-size: 13px;
+            color: #7e8a98;
+            font-weight: 500;
+        }
+        .limit-buttons {
+            display: flex;
+            gap: 8px;
+            background: #0f121c;
+            padding: 4px;
+            border-radius: 40px;
+        }
+        .limit-btn {
+            background: transparent;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 32px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            transition: 0.1s;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .limit-btn.active {
+            background: #d32f2f;
+            color: white;
+            box-shadow: 0 2px 8px rgba(211, 47, 47, 0.3);
+        }
+        .limit-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* форма поиска */
+        .search-container {
+            padding: 12px 20px 16px;
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+            background: #11141f;
+            border-radius: 44px;
+            padding: 4px 4px 4px 18px;
+            border: 0.5px solid rgba(255,255,255,0.08);
+        }
+        .search-form input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 0;
+            font-size: 16px;
+            color: #f1f5f9;
+            outline: none;
+        }
+        .search-form input::placeholder {
+            color: #5b677b;
+            font-weight: 400;
+        }
+        .search-form button {
+            background: #d32f2f;
+            border: none;
+            padding: 0 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .search-form button:active {
+            opacity: 0.8;
+            transform: scale(0.96);
+        }
+
+        /* счётчик результатов */
+        .results-count {
+            padding: 4px 20px 8px;
+            font-size: 13px;
+            color: #7e8a98;
+        }
+
+        /* карточки уязвимостей */
+        .vuln-list {
+            padding: 8px 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .vuln-card {
+            background: #11151f;
+            border-radius: 28px;
+            padding: 18px;
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease;
+            box-shadow: 0 6px 12px -6px rgba(0, 0, 0, 0.3);
+        }
+        .vuln-card:active {
+            transform: scale(0.99);
+            background: #161c2a;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .identifier {
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 600;
+            background: #1f2a3e;
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 30px;
+            color: #ffb4a2;
+            letter-spacing: 0.3px;
+        }
+        .severity-tag {
+            font-size: 11px;
+            font-weight: 600;
+            background: #2d2f3e;
+            padding: 4px 10px;
+            border-radius: 30px;
+            color: #b9c3d4;
         }
         .vuln-name {
-            font-size: 1rem;
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 8px 0 10px 0;
+            line-height: 1.3;
         }
-        .small-text {
-            font-size: 10px;
+        .vuln-description {
+            font-size: 14px;
+            color: #a0abc0;
+            line-height: 1.4;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .btn {
-            padding: 5px 12px;
-            font-size: 0.75rem;
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
         }
-        .pagination a, .pagination span {
-            padding: 6px 12px;
-            font-size: 0.75rem;
+        .date-badge {
+            font-size: 12px;
+            color: #6f7c93;
+            background: #0e121c;
+            padding: 4px 12px;
+            border-radius: 40px;
         }
-    }
-</style>
+        .detail-link {
+            background: #252e42;
+            padding: 8px 16px;
+            border-radius: 40px;
+            text-decoration: none;
+            color: #d9e2ff;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+        .detail-link:active {
+            background: #3a4460;
+        }
+
+        /* пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7e8a98;
+        }
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+        .empty-text {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+        }
+        .empty-hint {
+            font-size: 14px;
+        }
+
+        /* пагинация */
+        .pagination-wrapper {
+            padding: 10px 20px 28px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            align-items: center;
+        }
+        .pagination-btn {
+            background: #1a1f2e;
+            padding: 10px 20px;
+            border-radius: 44px;
+            text-decoration: none;
+            color: #e2e8f0;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .pagination-btn:active {
+            transform: scale(0.96);
+            background: #2a3148;
+        }
+        .pagination-btn.disabled {
+            background: #0f131e;
+            color: #4a5568;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .page-indicator {
+            background: #d32f2f;
+            padding: 8px 22px;
+            border-radius: 44px;
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        /* нижний таб-бар */
+        .bottom-tab-bar {
+            background: #0c0f18;
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(255,255,255,0.06);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 20px 18px;
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #6c7a91;
+            font-size: 11px;
+            font-weight: 500;
+            transition: 0.1s;
+            text-decoration: none;
+        }
+        .tab-item.active {
+            color: #ff5c5c;
+        }
+        .tab-icon {
+            font-size: 22px;
+        }
+
+        /* кнопка назад в стиле */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #1e293b;
+            padding: 10px 18px;
+            border-radius: 40px;
+            text-decoration: none;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0 20px 20px;
+            transition: 0.2s;
+        }
+        .back-link:active {
+            transform: scale(0.96);
+            background: #2d3a4e;
+        }
+    </style>
 </head>
 <body>
-    <div style="margin-bottom: 20px; font-size: 0.85rem;">
-    <a href="/full_cve" style="color: #ffffff; text-decoration: none;">Главная</a>
-    <span style="color: #888;"> → </span>
-    <a href="/search?q={{ query }}" style="color: #ffffff; text-decoration: none;">Поиск: {{ query }}</a>
-    <span style="color: #888;"> → </span>
-    <span style="color: #1e2a3e;">Страница {{ page }}</span>
+<div class="mobile-app">
+    <!-- статус бар -->
+    <div class="status-bar">
+        <div class="time" id="liveTime">4:02</div>
+        <div class="battery-icons">
+            <span>📶</span> <span>🔋 96%</span>
+        </div>
     </div>
-    <h1>Результаты поиска: {{ query }}</h1>
-    <a href="https://t.me/pdn_dtg_bot" target="_blank" style="color: #ffffff; text-decoration: none; font-size: 0.8rem;">
-        🤖 ПРО ИБ БОТ тг @pdn_dtg_bot
-    </a>
-    <!-- Выбор количества записей на страницу -->
-    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px;">
-        <span style="font-size: 0.85rem;">Выводить по:</span>
-        {% for count in [10, 20, 50, 100] %}
-            {% if count == limit %}
-                <span style="background: #c62828; color: white; padding: 4px 12px; border-radius: 20px;">{{ count }}</span>
-            {% else %}
-                <a href="/search?q={{ query }}&page=1&limit={{ count }}" style="background: #e0e0e0; color: #1e2a3e; padding: 4px 12px; border-radius: 20px; text-decoration: none;">{{ count }}</a>
-            {% endif %}
-        {% endfor %}
-    </div>
-    
-    {% if results %}
-        {% for vuln in results %}
-            <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
-                <h3>{{ vuln['identifier'] }}</h3>
-                <p><strong>{{ vuln['name'] }}</strong></p>
-                <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
-                <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}">Подробнее</a>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p>Ничего не найдено</p>
-    {% endif %}
 
-        <!-- Пагинация -->
-    <div style="display: flex; justify-content: center; gap: 15px; margin-top: 30px;">
-        {% if page > 1 %}
-            <a href="/search?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" style="background: #1e2a3e; padding: 8px 16px;">← Назад</a>
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="breadcrumb">
+            <a href="/full_cve">Главная</a>
+            <span>→</span>
+            <a href="/search?q={{ query }}">Поиск</a>
+            <span>→</span>
+            <span style="color:#cbd5e1;">Страница {{ page }}</span>
+        </div>
+        <div class="title-section">
+            <h1>Результаты поиска</h1>
+            <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                🤖 PRO ИБ БОТ
+            </a>
+        </div>
+        <div class="query-highlight">«{{ query }}»</div>
+    </div>
+
+    <!-- выбор количества на страницу -->
+    <div class="limit-row">
+        <span class="limit-label">Выводить по:</span>
+        <div class="limit-buttons">
+            {% for count in [10, 20, 50, 100] %}
+                {% if count == limit %}
+                    <span class="limit-btn active">{{ count }}</span>
+                {% else %}
+                    <a href="/search?q={{ query }}&page=1&limit={{ count }}" class="limit-btn">{{ count }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- поисковая строка (повторный поиск) -->
+    <div class="search-container">
+        <form action="/search" method="get" class="search-form">
+            <input type="text" name="q" placeholder="BDU, CVE ID или название ПО..." value="{{ query }}">
+            <button type="submit">🔍 Найти</button>
+        </form>
+    </div>
+
+    <!-- счётчик результатов -->
+    <div class="results-count">
+        {% if results %}
+            Найдено: {{ results|length }} из {{ total_count if total_count else results|length }}
+        {% endif %}
+    </div>
+
+    <!-- список уязвимостей -->
+    <div class="vuln-list">
+        {% if results %}
+            {% for vuln in results %}
+            <div class="vuln-card">
+                <div class="card-header">
+                    <span class="identifier">{{ vuln['identifier'] }}</span>
+                    {% set severity_val = vuln['severity'] if vuln['severity'] else '—' %}
+                    <span class="severity-tag">CVSS {{ severity_val }}</span>
+                </div>
+                <div class="vuln-name">{{ vuln['name'] }}</div>
+                {% set desc = vuln['description'] if vuln['description'] else 'Описание отсутствует' %}
+                <div class="vuln-description">{{ desc[:110] }}{% if desc|length > 110 %}...{% endif %}</div>
+                <div class="meta-row">
+                    {% set date_str = vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' %}
+                    <span class="date-badge">📅 {{ date_str }}</span>
+                    <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
+                </div>
+            </div>
+            {% endfor %}
         {% else %}
-            <span style="background: #ccc; padding: 8px 16px; color: #666;">← Назад</span>
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div class="empty-text">Ничего не найдено</div>
+                <div class="empty-hint">Попробуйте изменить поисковый запрос</div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- пагинация (только если есть результаты и больше 1 страницы) -->
+    {% if results and total_pages > 1 %}
+    <div class="pagination-wrapper">
+        {% if page > 1 %}
+            <a href="/search?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+        {% else %}
+            <span class="pagination-btn disabled">← Назад</span>
         {% endif %}
         
-        <span style="background: #c62828; padding: 8px 16px; color: white;">Страница {{ page }} из {{ total_pages }}</span>
+        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
         
         {% if page < total_pages %}
-            <a href="/search?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" style="background: #1e2a3e; padding: 8px 16px;">Вперёд →</a>
+            <a href="/search?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
         {% else %}
-            <span style="background: #ccc; padding: 8px 16px; color: #666;">Вперёд →</span>
+            <span class="pagination-btn disabled">Вперёд →</span>
         {% endif %}
     </div>
-    
-    <a href="/full_cve">← Назад к списку</a>
+    {% endif %}
 
- 
+    <!-- кнопка назад к списку -->
+    <a href="/full_cve" class="back-link">← Назад к списку уязвимостей</a>
+
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/full_cve" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <div class="tab-item active">
+            <div class="tab-icon">🔍</div>
+            <span>Поиск</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">📊</div>
+            <span>Аналитика</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Живое время
+    function updateTime() {
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        const timeEl = document.getElementById('liveTime');
+        if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+
+    // Подсветка активного фильтра (если есть параметры фильтрации в поиске, опционально)
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    if (filterParam) {
+        const filterChips = document.querySelectorAll('.filter-chip');
+        filterChips.forEach(chip => {
+            const chipUrl = chip.getAttribute('href');
+            if (chipUrl && chipUrl.includes(`filter=${filterParam}`)) {
+                chip.style.background = '#d32f2f';
+                chip.style.color = 'white';
+            }
+        });
+    }
+</script>
 </body>
 </html>
