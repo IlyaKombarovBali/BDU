@@ -54,6 +54,38 @@
     a:hover {
         background: #8b0000;
     }
+     /* Адаптация для мобильных устройств */
+    @media (max-width: 640px) {
+        body {
+            padding: 12px;
+        }
+        h1 {
+            font-size: 1.4rem;
+            padding-left: 12px;
+            margin-bottom: 20px;
+        }
+        .card {
+            margin: 8px;
+            padding: 12px;
+        }
+        h3 {
+            font-size: 0.75rem;
+        }
+        .vuln-name {
+            font-size: 1rem;
+        }
+        .small-text {
+            font-size: 10px;
+        }
+        .btn {
+            padding: 5px 12px;
+            font-size: 0.75rem;
+        }
+        .pagination a, .pagination span {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+    }
 </style>
 </head>
 <body>
@@ -65,6 +97,9 @@
     <span style="color: #1e2a3e;">Страница {{ page }}</span>
     </div>
     <h1>Результаты поиска: {{ query }}</h1>
+    <a href="https://t.me/pdn_dtg_bot" target="_blank" style="color: #ffffff; text-decoration: none; font-size: 0.8rem;">
+        🤖 ПРО ИБ БОТ тг @pdn_dtg_bot
+    </a>
     <!-- Выбор количества записей на страницу -->
     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px;">
         <span style="font-size: 0.85rem;">Выводить по:</span>
