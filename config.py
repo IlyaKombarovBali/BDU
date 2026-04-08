@@ -38,7 +38,7 @@ def save_file():
         con = sqlite3.connect("bdu.db")
         con.close()
 
-    
+print("Идет создание БД....")
 
 #Переименовываем колонки
 def rename_columns(df):
