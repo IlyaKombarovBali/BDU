@@ -12,14 +12,12 @@ FILE_PATH = "vullist.xlsx"
 BDU_PATH = "bdu.db"
 
 def save_file():
-    # --- Этот блок как раз решает проблему с сертификатами ---
     # Создаем контекст, который не проверяет SSL-сертификат (аналог --no-check-certificate)
     ssl_context = ssl._create_unverified_context()
     # Создаем "открывашку" (opener) с нашим контекстом и устанавливаем её по умолчанию
     opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
     urllib.request.install_opener(opener)
     # -------------------------------------------------------
-
     if not os.path.exists(FILE_PATH):
         print(f"Скачиваю {FILE_PATH}...")
         urllib.request.urlretrieve(URL, FILE_PATH)

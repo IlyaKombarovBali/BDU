@@ -6,7 +6,13 @@ from urllib.parse import urlencode
 
 app = Flask(__name__)
 
-
+@app.route('/')
+def index():
+    # Перенаправляем на full_cve или показываем index.html
+    return redirect('/full_cve')
+    
+    # Или если хотите использовать существующий index.html:
+    # return render_template('index.html')
 
 @app.route('/cve/<identifier>')
 def cve_detail(identifier):
