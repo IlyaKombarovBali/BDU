@@ -14,50 +14,25 @@
 
         body {
             background: #0a0d17;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
-            padding: 16px;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
         }
 
-        /* мобильный контейнер */
-        .mobile-app {
-            max-width: 400px;
+        /* основной контейнер */
+        .app-container {
+            max-width: 100%;
             width: 100%;
             background-color: #0b0e16;
-            border-radius: 44px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 8px #1a1d2b;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* статус бар */
-        .status-bar {
-            padding: 14px 20px 8px;
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #0b0e16;
-            border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
-        }
-        .time {
-            font-size: 16px;
-            font-weight: 590;
-            color: #f1f5f9;
-            letter-spacing: 0.2px;
-        }
-        .battery-icons {
-            display: flex;
-            gap: 6px;
-            color: #e2e8f0;
-            font-size: 12px;
+            flex-direction: column;
         }
 
         /* хедер */
         .nav-header {
-            padding: 8px 20px 4px;
+            padding: 20px 20px 4px;
             background: #0b0e16;
         }
         .breadcrumb {
@@ -111,6 +86,9 @@
             gap: 6px;
             color: #94a3b8;
             text-decoration: none;
+        }
+        .bot-badge:active {
+            transform: scale(0.96);
         }
 
         /* лимит строки */
@@ -197,6 +175,11 @@
         .search-form button:active {
             opacity: 0.8;
             transform: scale(0.96);
+        }
+
+        /* основной контент */
+        .main-content {
+            flex: 1;
         }
 
         /* счётчик результатов */
@@ -362,7 +345,7 @@
             font-size: 15px;
         }
 
-        /* нижний таб-бар */
+        /* нижний таб-бар — статически закреплён внизу */
         .bottom-tab-bar {
             background: #0c0f18;
             backdrop-filter: blur(20px);
@@ -371,6 +354,10 @@
             justify-content: space-around;
             align-items: center;
             padding: 10px 20px 18px;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
         }
         .tab-item {
             display: flex;
@@ -388,6 +375,9 @@
         }
         .tab-icon {
             font-size: 22px;
+        }
+        .tab-item:active {
+            transform: scale(0.95);
         }
 
         /* кнопка назад в стиле */
@@ -412,16 +402,8 @@
     </style>
 </head>
 <body>
-<div class="mobile-app">
-    <!-- статус бар -->
-    <div class="status-bar">
-        <div class="time" id="liveTime">4:02</div>
-        <div class="battery-icons">
-            <span>📶</span> <span>🔋 96%</span>
-        </div>
-    </div>
-
-    <!-- хедер -->
+<div class="app-container">
+    <!-- хедер (без статус-бара) -->
     <div class="nav-header">
         <div class="breadcrumb">
             <a href="/full_cve">Главная</a>
@@ -456,70 +438,73 @@
     <!-- поисковая строка (повторный поиск) -->
     <div class="search-container">
         <form action="/search" method="get" class="search-form">
-            <input type="text" name="q" placeholder="BDU, CVE ID или название ПО..." value="{{ query }}">
+            <input type="text" name="q" placeholder="BDU, CVE ID, ПО..." value="{{ query }}">
             <button type="submit">🔍 Найти</button>
         </form>
     </div>
 
-    <!-- счётчик результатов -->
-    <div class="results-count">
-        {% if results %}
-            Найдено: {{ results|length }} из {{ total_count if total_count else results|length }}
-        {% endif %}
-    </div>
+    <!-- основной контент -->
+    <div class="main-content">
+        <!-- счётчик результатов -->
+        <div class="results-count">
+            {% if results %}
+                Найдено: {{ results|length }} из {{ total_count if total_count else results|length }}
+            {% endif %}
+        </div>
 
-    <!-- список уязвимостей -->
-    <div class="vuln-list">
-        {% if results %}
-            {% for vuln in results %}
-            <div class="vuln-card">
-                <div class="card-header">
-                    <span class="identifier">{{ vuln['identifier'] }}</span>
-                    {% set severity_val = vuln['severity'] if vuln['severity'] else '—' %}
-                    <span class="severity-tag">CVSS {{ severity_val }}</span>
+        <!-- список уязвимостей -->
+        <div class="vuln-list">
+            {% if results %}
+                {% for vuln in results %}
+                <div class="vuln-card">
+                    <div class="card-header">
+                        <span class="identifier">{{ vuln['identifier'] }}</span>
+                        {% set severity_val = vuln['severity'] if vuln['severity'] else '—' %}
+                        <span class="severity-tag">CVSS {{ severity_val }}</span>
+                    </div>
+                    <div class="vuln-name">{{ vuln['name'] }}</div>
+                    {% set desc = vuln['description'] if vuln['description'] else 'Описание отсутствует' %}
+                    <div class="vuln-description">{{ desc[:110] }}{% if desc|length > 110 %}...{% endif %}</div>
+                    <div class="meta-row">
+                        {% set date_str = vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' %}
+                        <span class="date-badge">📅 {{ date_str }}</span>
+                        <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
+                    </div>
                 </div>
-                <div class="vuln-name">{{ vuln['name'] }}</div>
-                {% set desc = vuln['description'] if vuln['description'] else 'Описание отсутствует' %}
-                <div class="vuln-description">{{ desc[:110] }}{% if desc|length > 110 %}...{% endif %}</div>
-                <div class="meta-row">
-                    {% set date_str = vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' %}
-                    <span class="date-badge">📅 {{ date_str }}</span>
-                    <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <div class="empty-text">Ничего не найдено</div>
+                    <div class="empty-hint">Попробуйте изменить поисковый запрос</div>
                 </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">🔍</div>
-                <div class="empty-text">Ничего не найдено</div>
-                <div class="empty-hint">Попробуйте изменить поисковый запрос</div>
-            </div>
+            {% endif %}
+        </div>
+
+        <!-- пагинация (только если есть результаты и больше 1 страницы) -->
+        {% if results and total_pages > 1 %}
+        <div class="pagination-wrapper">
+            {% if page > 1 %}
+                <a href="/search?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+            {% else %}
+                <span class="pagination-btn disabled">← Назад</span>
+            {% endif %}
+            
+            <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+            
+            {% if page < total_pages %}
+                <a href="/search?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
+            {% else %}
+                <span class="pagination-btn disabled">Вперёд →</span>
+            {% endif %}
+        </div>
         {% endif %}
+
+        <!-- кнопка назад к списку -->
+        <a href="/full_cve" class="back-link">← Назад к списку уязвимостей</a>
     </div>
 
-    <!-- пагинация (только если есть результаты и больше 1 страницы) -->
-    {% if results and total_pages > 1 %}
-    <div class="pagination-wrapper">
-        {% if page > 1 %}
-            <a href="/search?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
-        {% else %}
-            <span class="pagination-btn disabled">← Назад</span>
-        {% endif %}
-        
-        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
-        
-        {% if page < total_pages %}
-            <a href="/search?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
-        {% else %}
-            <span class="pagination-btn disabled">Вперёд →</span>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- кнопка назад к списку -->
-    <a href="/full_cve" class="back-link">← Назад к списку уязвимостей</a>
-
-    <!-- нижний таб-бар -->
+    <!-- нижний таб-бар — статически закреплён внизу -->
     <div class="bottom-tab-bar">
         <a href="/full_cve" class="tab-item">
             <div class="tab-icon">🏠</div>
@@ -541,17 +526,6 @@
 </div>
 
 <script>
-    // Живое время
-    function updateTime() {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        const timeEl = document.getElementById('liveTime');
-        if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
-    }
-    updateTime();
-    setInterval(updateTime, 60000);
-
     // Подсветка активного фильтра (если есть параметры фильтрации в поиске, опционально)
     const urlParams = new URLSearchParams(window.location.search);
     const filterParam = urlParams.get('filter');

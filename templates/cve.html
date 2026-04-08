@@ -14,50 +14,24 @@
 
         body {
             background: #0a0d17;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
-            padding: 16px;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
         }
 
-        /* мобильный контейнер */
-        .mobile-app {
-            max-width: 400px;
+        .app-container {
+            max-width: 100%;
             width: 100%;
             background-color: #0b0e16;
-            border-radius: 44px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 8px #1a1d2b;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* статус бар */
-        .status-bar {
-            padding: 14px 20px 8px;
+            min-height: 100vh;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #0b0e16;
-            border-bottom: 0.5px solid rgba(255, 255, 255, 0.05);
-        }
-        .time {
-            font-size: 16px;
-            font-weight: 590;
-            color: #f1f5f9;
-            letter-spacing: 0.2px;
-        }
-        .battery-icons {
-            display: flex;
-            gap: 6px;
-            color: #e2e8f0;
-            font-size: 12px;
+            flex-direction: column;
         }
 
         /* хедер */
         .nav-header {
-            padding: 8px 20px 4px;
+            padding: 20px 20px 4px;
             background: #0b0e16;
         }
         .breadcrumb {
@@ -105,8 +79,15 @@
             color: #94a3b8;
             text-decoration: none;
         }
+        .bot-badge:active {
+            transform: scale(0.96);
+        }
 
-        /* основная карточка уязвимости */
+        .main-content {
+            flex: 1;
+        }
+
+        /* основная карточка */
         .vuln-detail-card {
             background: #11151f;
             border-radius: 28px;
@@ -191,6 +172,50 @@
             word-break: break-word;
         }
 
+        /* CVSS горизонтальный скролл */
+        .cvss-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            display: flex;
+            gap: 12px;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+        }
+        .cvss-scroll::-webkit-scrollbar {
+            height: 3px;
+        }
+        .cvss-card {
+            background: #0e121c;
+            border-radius: 20px;
+            padding: 14px 18px;
+            min-width: 260px;
+            flex-shrink: 0;
+            border: 0.5px solid rgba(255, 255, 255, 0.06);
+        }
+        .cvss-version {
+            font-size: 11px;
+            font-weight: 600;
+            color: #ff8a7a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .cvss-score {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffb4a2;
+            margin-bottom: 8px;
+        }
+        .cvss-vector {
+            font-size: 11px;
+            font-family: monospace;
+            color: #94a3b8;
+            word-break: break-all;
+            white-space: normal;
+            line-height: 1.4;
+        }
+
         /* карточка вендора */
         .vendor-card {
             background: #0e121c;
@@ -212,7 +237,7 @@
             color: #cbd5e1;
         }
 
-        /* список ссылок */
+        /* ссылки */
         .links-list {
             display: flex;
             flex-direction: column;
@@ -266,6 +291,10 @@
             justify-content: space-around;
             align-items: center;
             padding: 10px 20px 18px;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
         }
         .tab-item {
             display: flex;
@@ -284,29 +313,13 @@
         .tab-icon {
             font-size: 22px;
         }
-
-        /* cvss акценты */
-        .cvss-score {
-            font-size: 20px;
-            font-weight: 700;
-            color: #ffb4a2;
-        }
-        hr {
-            border-color: rgba(255,255,255,0.05);
-            margin: 12px 0;
+        .tab-item:active {
+            transform: scale(0.95);
         }
     </style>
 </head>
 <body>
-<div class="mobile-app">
-    <!-- статус бар -->
-    <div class="status-bar">
-        <div class="time" id="liveTime">4:02</div>
-        <div class="battery-icons">
-            <span>📶</span> <span>🔋 94%</span>
-        </div>
-    </div>
-
+<div class="app-container">
     <!-- хедер -->
     <div class="nav-header">
         <div class="breadcrumb">
@@ -330,146 +343,156 @@
         </div>
     </div>
 
-    <!-- основная карточка -->
-    <div class="vuln-detail-card">
-        <div class="identifier-badge">{{ vuln['identifier'] }}</div>
-        <div class="vuln-name">{{ vuln['name'] }}</div>
+    <div class="main-content">
+        <div class="vuln-detail-card">
+            <div class="identifier-badge">{{ vuln['identifier'] }}</div>
+            <div class="vuln-name">{{ vuln['name'] }}</div>
 
-        <!-- описание -->
-        <div class="info-section">
-            <div class="section-title"><span>📄</span> Описание</div>
-            <div class="description-text">{{ vuln['description'] or 'Описание отсутствует' }}</div>
-        </div>
-
-        <!-- уязвимое ПО -->
-        {% if vuln['vendor'] or vuln['software_name'] %}
-        <div class="info-section">
-            <div class="section-title"><span>🖥️</span> Уязвимое ПО</div>
-            <div class="vendor-card">
-                <div class="vendor-name">{{ vuln['vendor'] or 'Вендор не указан' }}</div>
-                <div class="vendor-detail"><strong>Наименование ПО:</strong> {{ vuln['software_name'] or '—' }}</div>
-                <div class="vendor-detail"><strong>Версия ПО:</strong> {{ vuln['software_version'] or '—' }}</div>
-                <div class="vendor-detail"><strong>Тип ПО:</strong> {{ vuln['software_type'] or '—' }}</div>
-                <div class="vendor-detail"><strong>ОС / платформа:</strong> {{ vuln['os_hardware'] or '—' }}</div>
+            <!-- описание -->
+            <div class="info-section">
+                <div class="section-title"><span>📄</span> Описание</div>
+                <div class="description-text">{{ vuln['description'] if vuln['description'] else 'Описание отсутствует' }}</div>
             </div>
-        </div>
-        {% endif %}
 
-        <!-- технические сведения - две колонки -->
-        <div class="info-section">
-            <div class="section-title"><span>⚙️</span> Технические сведения</div>
-            <div class="meta-grid">
-                <div class="meta-item">
-                    <div class="meta-label">Тип ошибки</div>
-                    <div class="meta-value">{{ vuln['cwe_description'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Класс уязвимости</div>
-                    <div class="meta-value">{{ vuln['vul_class'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Дата выявления</div>
-                    <div class="meta-value">{{ vuln['detected_date'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Способ эксплуатации</div>
-                    <div class="meta-value">{{ vuln['exploit_method'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Способ устранения</div>
-                    <div class="meta-value">{{ vuln['vul_elimination'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Статус уязвимости</div>
-                    <div class="meta-value">{{ vuln['vul_status'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Наличие эксплойта</div>
-                    <div class="meta-value">{{ vuln['exploit_status'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Устранение</div>
-                    <div class="meta-value">{{ vuln['fix_status'] or '—' }}</div>
+            <!-- уязвимое ПО -->
+            {% if vuln['vendor'] or vuln['software_name'] %}
+            <div class="info-section">
+                <div class="section-title"><span>🖥️</span> Уязвимое ПО</div>
+                <div class="vendor-card">
+                    <div class="vendor-name">{{ vuln['vendor'] if vuln['vendor'] else 'Вендор не указан' }}</div>
+                    <div class="vendor-detail"><strong>Наименование ПО:</strong> {{ vuln['software_name'] if vuln['software_name'] else '—' }}</div>
+                    <div class="vendor-detail"><strong>Версия ПО:</strong> {{ vuln['software_version'] if vuln['software_version'] else '—' }}</div>
+                    <div class="vendor-detail"><strong>Тип ПО:</strong> {{ vuln['software_type'] if vuln['software_type'] else '—' }}</div>
+                    <div class="vendor-detail"><strong>ОС / платформа:</strong> {{ vuln['os_hardware'] if vuln['os_hardware'] else '—' }}</div>
                 </div>
             </div>
-        </div>
+            {% endif %}
 
-        <!-- CVSS секция -->
-        {% if vuln['cvss_v2_score'] or vuln['cvss_v3_score'] or vuln['cvss_v4_score'] %}
-        <div class="info-section">
-            <div class="section-title"><span>📊</span> CVSS</div>
-            <div class="meta-grid">
-                {% if vuln['cvss_v2_score'] and vuln['cvss_v2_score'] != 'Нет' %}
-                <div class="meta-item">
-                    <div class="meta-label">CVSS 2.0</div>
-                    <div class="cvss-score">{{ vuln['cvss_v2_score'] }}</div>
+            <!-- технические сведения -->
+            <div class="info-section">
+                <div class="section-title"><span>⚙️</span> Технические сведения</div>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="meta-label">Тип ошибки</div>
+                        <div class="meta-value">{{ vuln['cwe_description'] if vuln['cwe_description'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Класс уязвимости</div>
+                        <div class="meta-value">{{ vuln['vul_class'] if vuln['vul_class'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Дата выявления</div>
+                        <div class="meta-value">{{ vuln['detected_date'] if vuln['detected_date'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Способ эксплуатации</div>
+                        <div class="meta-value">{{ vuln['exploit_method'] if vuln['exploit_method'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Способ устранения</div>
+                        <div class="meta-value">{{ vuln['vul_elimination'] if vuln['vul_elimination'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Статус уязвимости</div>
+                        <div class="meta-value">{{ vuln['vul_status'] if vuln['vul_status'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Наличие эксплойта</div>
+                        <div class="meta-value">{{ vuln['exploit_status'] if vuln['exploit_status'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Устранение</div>
+                        <div class="meta-value">{{ vuln['fix_status'] if vuln['fix_status'] else '—' }}</div>
+                    </div>
                 </div>
-                {% endif %}
-                {% if vuln['cvss_v3_score'] and vuln['cvss_v3_score'] != 'Нет' %}
-                <div class="meta-item">
-                    <div class="meta-label">CVSS 3.0</div>
-                    <div class="cvss-score">{{ vuln['cvss_v3_score'] }}</div>
-                </div>
-                {% endif %}
-                {% if vuln['cvss_v4_score'] and vuln['cvss_v4_score'] != 'Нет' %}
-                <div class="meta-item">
-                    <div class="meta-label">CVSS 4.0</div>
-                    <div class="cvss-score">{{ vuln['cvss_v4_score'] }}</div>
-                </div>
-                {% endif %}
             </div>
-        </div>
-        {% endif %}
 
-        <!-- уровень опасности -->
-        {% if vuln['severity'] %}
-        <div class="info-section">
-            <div class="section-title"><span>⚠️</span> Уровень опасности</div>
-            <div class="description-text">{{ vuln['severity']|replace('\n', '<br>')|safe }}</div>
-        </div>
-        {% endif %}
-
-        <!-- меры по устранению / ссылки -->
-        {% if vuln['sources'] and vuln['sources'] != 'Нет ссылок' %}
-        <div class="info-section">
-            <div class="section-title"><span>🔗</span> Источники и меры</div>
-            <div class="links-list">
-                {% set links = vuln['sources'].split() %}
-                {% for link in links %}
-                    {% if link.startswith('http') %}
-                        <a href="{{ link }}" class="link-item" target="_blank" rel="noopener noreferrer">🔗 {{ link[:50] }}{% if link|length > 50 %}...{% endif %}</a>
+            <!-- CVSS секция — горизонтальный скролл -->
+            {% set cvss_v2_score = vuln['cvss_v2_score'] if vuln['cvss_v2_score'] else '' %}
+            {% set cvss_v3_score = vuln['cvss_v3_score'] if vuln['cvss_v3_score'] else '' %}
+            {% set cvss_v4_score = vuln['cvss_v4_score'] if vuln['cvss_v4_score'] else '' %}
+            {% set cvss_v2_vector = vuln['cvss_v2_vector'] if vuln['cvss_v2_vector'] else '' %}
+            {% set cvss_v3_vector = vuln['cvss_v3_vector'] if vuln['cvss_v3_vector'] else '' %}
+            {% set cvss_v4_vector = vuln['cvss_v4_vector'] if vuln['cvss_v4_vector'] else '' %}
+            
+            {% if cvss_v2_score or cvss_v3_score or cvss_v4_score %}
+            <div class="info-section">
+                <div class="section-title"><span>📊</span> CVSS</div>
+                <div class="cvss-scroll">
+                    {% if cvss_v2_score and cvss_v2_score != 'Нет' %}
+                    <div class="cvss-card">
+                        <div class="cvss-version">CVSS 2.0</div>
+                        <div class="cvss-score">{{ cvss_v2_score }}</div>
+                        <div class="cvss-vector">{{ cvss_v2_vector[:80] }}{% if cvss_v2_vector|length > 80 %}...{% endif %}</div>
+                    </div>
                     {% endif %}
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- идентификаторы CVE -->
-        {% if vuln['identifiers'] and vuln['identifiers'] != 'Нет типа' %}
-        <div class="info-section">
-            <div class="section-title"><span>🏷️</span> Идентификаторы</div>
-            <div class="meta-value" style="background:#0e121c; padding:10px 14px; border-radius:18px;">{{ vuln['identifiers'] }}</div>
-        </div>
-        {% endif %}
-
-        <!-- даты -->
-        <div class="info-section">
-            <div class="section-title"><span>📅</span> Даты</div>
-            <div class="meta-grid">
-                <div class="meta-item">
-                    <div class="meta-label">Дата публикации</div>
-                    <div class="meta-value">{{ vuln['published_date'] or '—' }}</div>
-                </div>
-                <div class="meta-item">
-                    <div class="meta-label">Последнее обновление</div>
-                    <div class="meta-value">{{ vuln['last_updated'] or '—' }}</div>
+                    {% if cvss_v3_score and cvss_v3_score != 'Нет' %}
+                    <div class="cvss-card">
+                        <div class="cvss-version">CVSS 3.0</div>
+                        <div class="cvss-score">{{ cvss_v3_score }}</div>
+                        <div class="cvss-vector">{{ cvss_v3_vector[:80] }}{% if cvss_v3_vector|length > 80 %}...{% endif %}</div>
+                    </div>
+                    {% endif %}
+                    {% if cvss_v4_score and cvss_v4_score != 'Нет' %}
+                    <div class="cvss-card">
+                        <div class="cvss-version">CVSS 4.0</div>
+                        <div class="cvss-score">{{ cvss_v4_score }}</div>
+                        <div class="cvss-vector">{{ cvss_v4_vector[:80] }}{% if cvss_v4_vector|length > 80 %}...{% endif %}</div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
+            {% endif %}
+
+            <!-- уровень опасности -->
+            {% if vuln['severity'] %}
+            <div class="info-section">
+                <div class="section-title"><span>⚠️</span> Уровень опасности</div>
+                <div class="description-text">{{ vuln['severity']|replace('\n', '<br>')|safe }}</div>
+            </div>
+            {% endif %}
+
+            <!-- ссылки -->
+            {% if vuln['sources'] and vuln['sources'] != 'Нет ссылок' %}
+            <div class="info-section">
+                <div class="section-title"><span>🔗</span> Источники и меры</div>
+                <div class="links-list">
+                    {% set links = vuln['sources'].split() %}
+                    {% for link in links %}
+                        {% if link.startswith('http') %}
+                            <a href="{{ link }}" class="link-item" target="_blank" rel="noopener noreferrer">🔗 {{ link[:50] }}{% if link|length > 50 %}...{% endif %}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- идентификаторы -->
+            {% if vuln['identifiers'] and vuln['identifiers'] != 'Нет типа' %}
+            <div class="info-section">
+                <div class="section-title"><span>🏷️</span> Идентификаторы</div>
+                <div class="meta-value" style="background:#0e121c; padding:10px 14px; border-radius:18px;">{{ vuln['identifiers'] }}</div>
+            </div>
+            {% endif %}
+
+            <!-- даты -->
+            <div class="info-section">
+                <div class="section-title"><span>📅</span> Даты</div>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="meta-label">Дата публикации</div>
+                        <div class="meta-value">{{ vuln['published_date'] if vuln['published_date'] else '—' }}</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Последнее обновление</div>
+                        <div class="meta-value">{{ vuln['last_updated'] if vuln['last_updated'] else '—' }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <a href="{{ back_url }}" class="back-button">← Назад к списку</a>
     </div>
-
-    <!-- кнопка назад -->
-    <a href="{{ back_url }}" class="back-button">← Назад к списку</a>
 
     <!-- нижний таб-бар -->
     <div class="bottom-tab-bar">
@@ -477,10 +500,10 @@
             <div class="tab-icon">🏠</div>
             <span>Главная</span>
         </a>
-        <div class="tab-item">
+        <a href="/search?q=" class="tab-item">
             <div class="tab-icon">🔍</div>
             <span>Поиск</span>
-        </div>
+        </a>
         <div class="tab-item active">
             <div class="tab-icon">📋</div>
             <span>Детали</span>
@@ -491,18 +514,5 @@
         </div>
     </div>
 </div>
-
-<script>
-    // Живое время
-    function updateTime() {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        const timeEl = document.getElementById('liveTime');
-        if (timeEl) timeEl.textContent = `${hours}:${minutes}`;
-    }
-    updateTime();
-    setInterval(updateTime, 60000);
-</script>
 </body>
 </html>
