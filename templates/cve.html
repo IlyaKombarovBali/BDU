@@ -162,7 +162,21 @@
 
 <div class="container">
 
-
+    <div  style="margin-bottom: 20px; font-size: 0.85rem;">
+        <a class="back-button " href="/full_cve" style="color: #ffffff; text-decoration: none;">Главная</a>
+        <span style="color: #888;"> → </span>
+        
+        {% if back_query %}
+            <a class="back-button" href="/search?q={{ back_query }}" style="color: #ffffff; text-decoration: none;">Поиск: {{ back_query }}</a>
+            <span style="color: #888;"> → </span>
+            <a class="back-button" href="/search?q={{ back_query }}&page={{ back_page }}&limit={{ back_limit }}" style="color: #ffffff; text-decoration: none;">Страница {{ back_page }}</a>
+        {% else %}
+            <a class="back-button" href="/full_cve?page={{ back_page }}&limit={{ back_limit }}" style="color: #ffffff; text-decoration: none;">Страница {{ back_page }}</a>
+        {% endif %}
+        
+        <span style="color: #888;"> → </span>
+        <span style="color: #c62828;">{{ vuln['identifier'] }}</span>
+    </div>
 
 
     <h1>База уязвимостей БДУ</h1>
@@ -274,7 +288,7 @@
             </div>
         </div>
 
-        <a href="{{ back_url }}">← Назад</a>
+        <a class="back-button" href="{{ back_url }}">← Назад</a>
     </div>
 </div>
 </body>

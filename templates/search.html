@@ -83,7 +83,7 @@
                 <h3>{{ vuln['identifier'] }}</h3>
                 <p><strong>{{ vuln['name'] }}</strong></p>
                 <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
-                <a href="/cve/{{ vuln['identifier'] }}">Подробнее</a>
+                <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}">Подробнее</a>
             </div>
         {% endfor %}
     {% else %}

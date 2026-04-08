@@ -77,7 +77,7 @@
     <!-- Форма поиска -->
 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
     <form action="/search" method="get" style="display: flex; gap: 10px; flex: 1;">
-        <input type="text" name="q" placeholder="Введите BDU или CVE ID..." style="flex: 1; padding: 10px; border-radius: 25px; border: 1px solid #ccc; font-size: 1rem;">
+        <input type="text" name="q" placeholder="Введите BDU,CVE ID или ПО..." style="flex: 1; padding: 10px; border-radius: 25px; border: 1px solid #ccc; font-size: 1rem;">
         <button type="submit" style="background: #c62828; color: white; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer;">🔍 Найти</button>
     </form>
 </div>
@@ -89,7 +89,7 @@
             <!--<p>{{ vuln['description']|truncate(300) }}</p>-->
             <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
             <!--<p>CVSS: {{ vuln['severity'] or 'Нет' }}</p>-->
-            <a href="/cve/{{ vuln['identifier'] }}?back={{ request.url }}">Подробнее</a>
+            <a href="/cve/{{ vuln['identifier'] }}?page={{ page }}&limit={{ limit }}">Подробнее</a>
         </div>
     {% endfor %}
     <!-- Пагинация -->
