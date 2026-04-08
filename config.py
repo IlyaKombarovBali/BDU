@@ -12,19 +12,35 @@ FILE_PATH = "vullist.xlsx"
 BDU_PATH = "bdu.db"
 
 def save_file():
-    os.remove(FILE_PATH)
-    print("Таблица BDU успешно удалена")
-    os.remove(BDU_PATH)
-    print("БД успешно удалена")
-    con = sqlite3.connect("bdu.db")
-    con.close()
-    os.system(f"wget --no-check-certificate {URL} -O {FILE_PATH}")
-    
+    # --- Этот блок как раз решает проблему с сертификатами ---
+    # Создаем контекст, который не проверяет SSL-сертификат (аналог --no-check-certificate)
+    ssl_context = ssl._create_unverified_context()
+    # Создаем "открывашку" (opener) с нашим контекстом и устанавливаем её по умолчанию
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl_context))
+    urllib.request.install_opener(opener)
+    # -------------------------------------------------------
+
     if not os.path.exists(FILE_PATH):
-        print("Файл не скачался. Выход.")
-        exit(1)
+        print(f"Скачиваю {FILE_PATH}...")
+        urllib.request.urlretrieve(URL, FILE_PATH)
+        print(f"Файл скачан: {FILE_PATH}")
+    else:
+        os.remove(FILE_PATH)
+        print("Файл успешно удален")
+        print(f"Скачиваю {FILE_PATH}...")
+        urllib.request.urlretrieve(URL, FILE_PATH)
+        print(f"Файл скачан: {FILE_PATH}")
+
+    if not os.path.exists(BDU_PATH):
+        con = sqlite3.connect("bdu.db")
+        con.close()
+    else:
+        os.remove(BDU_PATH)
+        print("БД успешно удалена")
+        con = sqlite3.connect("bdu.db")
+        con.close()
+
     
-    print(f"Файл скачан: {FILE_PATH}")
 
 #Переименовываем колонки
 def rename_columns(df):
