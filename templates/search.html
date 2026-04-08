@@ -60,9 +60,11 @@
     <div style="margin-bottom: 20px; font-size: 0.85rem;">
     <a href="/full_cve" style="color: #ffffff; text-decoration: none;">Главная</a>
     <span style="color: #888;"> → </span>
-    <span style="color: #1e2a3e;">Список уязвимостей</span>
-</div>
-    <h1>База уязвимостей БДУ</h1>
+    <a href="/search?q={{ query }}" style="color: #ffffff; text-decoration: none;">Поиск: {{ query }}</a>
+    <span style="color: #888;"> → </span>
+    <span style="color: #1e2a3e;">Страница {{ page }}</span>
+    </div>
+    <h1>Результаты поиска: {{ query }}</h1>
     <!-- Выбор количества записей на страницу -->
     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px;">
         <span style="font-size: 0.85rem;">Выводить по:</span>
@@ -70,32 +72,28 @@
             {% if count == limit %}
                 <span style="background: #c62828; color: white; padding: 4px 12px; border-radius: 20px;">{{ count }}</span>
             {% else %}
-                <a href="/full_cve?page=1&limit={{ count }}" style="background: #e0e0e0; color: #1e2a3e; padding: 4px 12px; border-radius: 20px; text-decoration: none;">{{ count }}</a>
+                <a href="/search?q={{ query }}&page=1&limit={{ count }}" style="background: #e0e0e0; color: #1e2a3e; padding: 4px 12px; border-radius: 20px; text-decoration: none;">{{ count }}</a>
             {% endif %}
         {% endfor %}
     </div>
-    <!-- Форма поиска -->
-<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 25px;">
-    <form action="/search" method="get" style="display: flex; gap: 10px; flex: 1;">
-        <input type="text" name="q" placeholder="Введите BDU или CVE ID..." style="flex: 1; padding: 10px; border-radius: 25px; border: 1px solid #ccc; font-size: 1rem;">
-        <button type="submit" style="background: #c62828; color: white; border: none; padding: 8px 20px; border-radius: 25px; cursor: pointer;">🔍 Найти</button>
-    </form>
-</div>
     
-    {% for vuln in vulns %}
-        <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
-            <h3>{{ vuln['identifier'] }}</h3>
-            <p><strong>{{ vuln['name'] }}</strong></p>
-            <!--<p>{{ vuln['description']|truncate(300) }}</p>-->
-            <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
-            <!--<p>CVSS: {{ vuln['severity'] or 'Нет' }}</p>-->
-            <a href="/cve/{{ vuln['identifier'] }}?back={{ request.url }}">Подробнее</a>
-        </div>
-    {% endfor %}
-    <!-- Пагинация -->
+    {% if results %}
+        {% for vuln in results %}
+            <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
+                <h3>{{ vuln['identifier'] }}</h3>
+                <p><strong>{{ vuln['name'] }}</strong></p>
+                <p class="small-text">Дата обновления: {{ vuln['published_date'][:10] if vuln['published_date'] else 'Нет даты' }}</p>
+                <a href="/cve/{{ vuln['identifier'] }}">Подробнее</a>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>Ничего не найдено</p>
+    {% endif %}
+
+        <!-- Пагинация -->
     <div style="display: flex; justify-content: center; gap: 15px; margin-top: 30px;">
         {% if page > 1 %}
-            <a href="/full_cve?page={{ page - 1 }}" style="background: #1e2a3e; padding: 8px 16px;">← Назад</a>
+            <a href="/search?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" style="background: #1e2a3e; padding: 8px 16px;">← Назад</a>
         {% else %}
             <span style="background: #ccc; padding: 8px 16px; color: #666;">← Назад</span>
         {% endif %}
@@ -103,11 +101,14 @@
         <span style="background: #c62828; padding: 8px 16px; color: white;">Страница {{ page }} из {{ total_pages }}</span>
         
         {% if page < total_pages %}
-            <a href="/full_cve?page={{ page + 1 }}" style="background: #1e2a3e; padding: 8px 16px;">Вперёд →</a>
+            <a href="/search?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" style="background: #1e2a3e; padding: 8px 16px;">Вперёд →</a>
         {% else %}
             <span style="background: #ccc; padding: 8px 16px; color: #666;">Вперёд →</span>
         {% endif %}
     </div>
+    
+    <a href="/full_cve">← Назад к списку</a>
 
+ 
 </body>
 </html>

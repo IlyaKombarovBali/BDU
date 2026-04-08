@@ -67,6 +67,26 @@ def get_db():
     con = sqlite3.connect("bdu.db") #Создайте файл в корне (bdu.db)
     con.row_factory = sqlite3.Row
     return con
+
+# Записываем таблицу в БД и добавлляем дату по ISO для сортировки 
+def bdu_con(df):
+    con = get_db() 
+    df.to_sql("cve", con, if_exists="replace", index=False)
+    con.execute("ALTER TABLE cve ADD COLUMN published_date_iso TEXT;")
+    con.execute("""
+        UPDATE cve 
+        SET published_date_iso = 
+            substr(published_date, 7, 4) || '-' || 
+            substr(published_date, 4, 2) || '-' || 
+            substr(published_date, 1, 2) 
+        WHERE published_date LIKE '__.__.____';
+    """)
+    con.commit()
+    con.close()
+
+
+
+
 #Получаем даные с БД по временной сортировки
 def get_recent_vulns(limit=10):
     con = get_db()
@@ -107,22 +127,34 @@ def get_vulns_page(limit, offset):
     con.close()
     return vulns
 
-
-
-# Записываем таблицу в БД и добавлляем дату по ISO для сортировки 
-def bdu_con(df):
-    con = get_db() 
-    df.to_sql("cve", con, if_exists="replace", index=False)
-    con.execute("ALTER TABLE cve ADD COLUMN published_date_iso TEXT;")
-    con.execute("""
-        UPDATE cve 
-        SET published_date_iso = 
-            substr(published_date, 7, 4) || '-' || 
-            substr(published_date, 4, 2) || '-' || 
-            substr(published_date, 1, 2) 
-        WHERE published_date LIKE '__.__.____';
-    """)
-    con.commit()
+def search_vulns_by_identifier(query, limit, offset):
+    con = get_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT identifier, name, published_date 
+        FROM cve 
+        WHERE identifier LIKE ? OR identifiers LIKE ? OR software_name LIKE ?
+        ORDER BY published_date_iso DESC
+        LIMIT ? OFFSET ?
+    """, (f'%{query}%', f'%{query}%', f'%{query}%', limit, offset))
+    results = cursor.fetchall()
     con.close()
+    return results
+
+def search_vulns_count(query):
+    con = get_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM cve 
+        WHERE identifier LIKE ? OR identifiers LIKE ? OR software_name LIKE ?
+    """, (f'%{query}%', f'%{query}%', f'%{query}%'))
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+
+
+
 
 
