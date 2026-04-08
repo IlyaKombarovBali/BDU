@@ -1,8 +1,31 @@
+import config
+import pandas as pd
 import sqlite3
+import urllib.request
+import os
+import ssl
+
 
 #Скачиваем файл
 URL = "https://bdu.fstec.ru/files/documents/vullist.xlsx"  
 FILE_PATH = "vullist.xlsx"
+BDU_PATH = "bdu.db"
+
+def save_file():
+    os.remove(FILE_PATH)
+    print("Таблица BDU успешно удалена")
+    os.remove(BDU_PATH)
+    print("БД успешно удалена")
+    con = sqlite3.connect("bdu.db")
+    con.close()
+    os.system(f"wget --no-check-certificate {URL} -O {FILE_PATH}")
+    
+    if not os.path.exists(FILE_PATH):
+        print("Файл не скачался. Выход.")
+        exit(1)
+    
+    print(f"Файл скачан: {FILE_PATH}")
+
 #Переименовываем колонки
 def rename_columns(df):
     return df.rename(columns={
@@ -53,6 +76,38 @@ def get_recent_vulns(limit=10):
     vulns = cursor.fetchall()
     con.close()
     return vulns
+
+
+def get_vuln_by_identifier(identifier):
+    con = get_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT * FROM cve WHERE identifier = ?", (identifier,))
+    vuln = cursor.fetchone()
+    con.close()
+    return vuln
+
+def get_vulns_count():
+    con = get_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) FROM cve")
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def get_vulns_page(limit, offset):
+    con = get_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT identifier, name, published_date 
+        FROM cve 
+        ORDER BY published_date_iso DESC 
+        LIMIT ? OFFSET ?
+    """, (limit, offset))
+    vulns = cursor.fetchall()
+    con.close()
+    return vulns
+
+
 
 # Записываем таблицу в БД и добавлляем дату по ISO для сортировки 
 def bdu_con(df):

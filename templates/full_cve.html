@@ -58,8 +58,19 @@
 </head>
 <body>
     <h1>База уязвимостей БДУ</h1>
+            <!-- Выбор количества записей на страницу -->
+    <div style="display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 20px;">
+        <span style="font-size: 0.85rem;">Выводить по:</span>
+        {% for count in [10, 20, 50, 100] %}
+            {% if count == limit %}
+                <span style="background: #c62828; color: white; padding: 4px 12px; border-radius: 20px;">{{ count }}</span>
+            {% else %}
+                <a href="/full_cve?page=1&limit={{ count }}" style="background: #e0e0e0; color: #1e2a3e; padding: 4px 12px; border-radius: 20px; text-decoration: none;">{{ count }}</a>
+            {% endif %}
+        {% endfor %}
+    </div>
     
-    {% for vuln in vuln %}
+    {% for vuln in vulns %}
         <div style="border: 1px solid #ccc; margin: 10px; padding: 10px;">
             <h3>{{ vuln['identifier'] }}</h3>
             <p><strong>{{ vuln['name'] }}</strong></p>
@@ -69,5 +80,22 @@
             <a href="/cve/{{ vuln['identifier'] }}">Подробнее</a>
         </div>
     {% endfor %}
+    <!-- Пагинация -->
+    <div style="display: flex; justify-content: center; gap: 15px; margin-top: 30px;">
+        {% if page > 1 %}
+            <a href="/full_cve?page={{ page - 1 }}" style="background: #1e2a3e; padding: 8px 16px;">← Назад</a>
+        {% else %}
+            <span style="background: #ccc; padding: 8px 16px; color: #666;">← Назад</span>
+        {% endif %}
+        
+        <span style="background: #c62828; padding: 8px 16px; color: white;">Страница {{ page }} из {{ total_pages }}</span>
+        
+        {% if page < total_pages %}
+            <a href="/full_cve?page={{ page + 1 }}" style="background: #1e2a3e; padding: 8px 16px;">Вперёд →</a>
+        {% else %}
+            <span style="background: #ccc; padding: 8px 16px; color: #666;">Вперёд →</span>
+        {% endif %}
+    </div>
+
 </body>
 </html>
