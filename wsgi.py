@@ -4,6 +4,7 @@ from flask import request
 from flask import Flask, render_template, request, redirect
 from urllib.parse import urlencode
 
+
 app = Flask(__name__)
 
 @app.route('/')
@@ -36,11 +37,12 @@ def cve_detail(identifier):
 def full_cve():
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
+    filter_type = request.args.get('filter', 'all')
     
     offset = (page - 1) * limit
     
-    total = config.get_vulns_count()
-    vulns = config.get_vulns_page(limit, offset)
+    total = config.get_cve_count_by_filter(filter_type)
+    vulns = config.get_cve_page_by_filter(filter_type, limit, offset)
     
     total_pages = (total + limit - 1) // limit
     
@@ -48,8 +50,9 @@ def full_cve():
         'full_cve.html', 
         vulns=vulns, 
         page=page, 
-        total_pages=total_pages,
-        limit=limit
+        total_pages=total_pages, 
+        limit=limit,
+        filter=filter_type
     )
 
 @app.route('/laws')
@@ -154,6 +157,25 @@ def search_laws():
         limit=limit
     )
 
+@app.route('/donate')
+def donate():
+    return render_template('donate.html')
+
+
+@app.route('/feedback', methods=['GET', 'POST'])
+def feedback():
+    if request.method == 'POST':
+        topic = request.form.get('topic')
+        message = request.form.get('message')
+        email = request.form.get('email', '')
+        
+        # Отправка на почту (настройте SMTP)
+        # Или сохранение в базу данных
+        # Или отправка в Telegram через бота
+        
+        return render_template('feedback_success.html')
+    
+    return render_template('feedback.html')
 
 
 if __name__ == '__main__':

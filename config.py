@@ -199,6 +199,134 @@ def search_vulns_count(query):
     count = cursor.fetchone()[0]
     con.close()
     return count
+#Фильтрация уязвимостей
+
+def get_cve_count_by_filter(filter_type):
+    con = get_db()
+    cursor = con.cursor()
+    
+    if filter_type == 'critical':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE CAST(cvss_v3_score AS REAL) >= 9.0")
+    elif filter_type == 'exploit_exists':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE exploit_status = 'Существует в открытом доступе'")
+    elif filter_type == 'fix_available':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE fix_status = 'Уязвимость устранена'")
+    elif filter_type == 'no_fix':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE fix_status = 'Информация об устранении отсутствует'")
+    elif filter_type == 'code':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE vul_class = 'Уязвимость кода'")
+    elif filter_type == 'arch':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE vul_class = 'Уязвимость архитектуры'")
+    elif filter_type == 'confirmed':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE vul_status = 'Подтверждена производителем'")
+    elif filter_type == 'year2026':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE published_date LIKE '2026%'")
+    elif filter_type == 'year2025':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE published_date LIKE '2025%'")
+    elif filter_type == 'recent':
+        cursor.execute("SELECT COUNT(*) FROM cve WHERE julianday('now') - julianday(published_date_iso) <= 7")
+    else:
+        cursor.execute("SELECT COUNT(*) FROM cve")
+    
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def get_cve_page_by_filter(filter_type, limit, offset):
+    con = get_db()
+    cursor = con.cursor()
+    
+    if filter_type == 'critical':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE CAST(cvss_v3_score AS REAL) >= 9.0
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'exploit_exists':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE exploit_status = 'Существует в открытом доступе'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'fix_available':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE fix_status = 'Уязвимость устранена'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'no_fix':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE fix_status = 'Информация об устранении отсутствует'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'code':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE vul_class = 'Уязвимость кода'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'arch':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE vul_class = 'Уязвимость архитектуры'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'confirmed':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE vul_status = 'Подтверждена производителем'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'year2026':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE published_date LIKE '2026%'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'year2025':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE published_date LIKE '2025%'
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    elif filter_type == 'recent':
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            WHERE julianday('now') - julianday(published_date_iso) <= 7
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    else:
+        cursor.execute("""
+            SELECT identifier, name, published_date, severity 
+            FROM cve 
+            ORDER BY published_date_iso DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+    
+    results = cursor.fetchall()
+    con.close()
+    return results
 
 #Получаем данные с таблицы norm
 

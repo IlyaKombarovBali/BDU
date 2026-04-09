@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Поддержать проект — ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Поддержать проект</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ БОТ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Поддержать проект</h1>
+        </div>
+    </div>
+
+    <div class="donate-container" style="padding: 16px;">
+        <!-- приветственный блок -->
+        <div class="hero-block" style="text-align: center;">
+            <div style="font-size: 64px; margin-bottom: 16px;">💰</div>
+            <div class="hero-title">Помогите проекту расти!</div>
+            <div class="hero-desc">
+                Проект развивается благодаря вам. Ваши донаты помогают:<br>
+                покупать новые шаблоны, оплачивать хостинг и добавлять новые функции.
+            </div>
+        </div>
+
+        <!-- что получает донатер -->
+        <div class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 0.5px solid var(--border-light);">
+            <div class="info-card-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                <span>🎁</span> Что вы получаете
+            </div>
+            <ul class="info-list" style="list-style: none;">
+                <li style="font-size: 14px; color: var(--text-secondary); padding: 8px 0; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid var(--border-light);">
+                    <span>✓</span> Доступ к закрытым шаблонам документов
+                </li>
+                <li style="font-size: 14px; color: var(--text-secondary); padding: 8px 0; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid var(--border-light);">
+                    <span>✓</span> Приоритетная поддержка
+                </li>
+                <li style="font-size: 14px; color: var(--text-secondary); padding: 8px 0; display: flex; align-items: center; gap: 12px; border-bottom: 0.5px solid var(--border-light);">
+                    <span>✓</span> Ранний доступ к новым функциям
+                </li>
+                <li style="font-size: 14px; color: var(--text-secondary); padding: 8px 0; display: flex; align-items: center; gap: 12px;">
+                    <span>✓</span> Имя в списке благодарностей
+                </li>
+            </ul>
+        </div>
+
+        <!-- криптовалюты -->
+        <div class="crypto-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 0.5px solid var(--border-light);">
+            <div class="crypto-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                <span>💎</span> Криптовалюта
+            </div>
+            
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
+                <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>₿</span> BTC (Bitcoin)
+                </div>
+                <div class="crypto-address" style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: var(--bg-input); padding: 10px 12px; border-radius: 14px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <code style="flex:1;">12fzQV7ouyVngMXirpyECCapb6F4JT7Qc2</code>
+                    <button class="copy-btn" data-copy="12fzQV7ouyVngMXirpyECCapb6F4JT7Qc2" style="background: var(--bg-chip); border: none; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: 500; color: var(--text-chip); cursor: pointer;">📋 Копировать</button>
+                </div>
+            </div>
+            
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
+                <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>Ξ</span> ETH (Ethereum)
+                </div>
+                <div class="crypto-address" style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: var(--bg-input); padding: 10px 12px; border-radius: 14px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <code style="flex:1;">0xb99ff32c81f27d16b12a7265f073a1b549710428</code>
+                    <button class="copy-btn" data-copy="0xb99ff32c81f27d16b12a7265f073a1b549710428" style="background: var(--bg-chip); border: none; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: 500; color: var(--text-chip); cursor: pointer;">📋 Копировать</button>
+                </div>
+            </div>
+            
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
+                <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>💵</span> USDT (TRC20)
+                </div>
+                <div class="crypto-address" style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: var(--bg-input); padding: 10px 12px; border-radius: 14px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <code style="flex:1;">TP5dxAD4LzDLLCUfWanXT1tFNFoCCAQCsV</code>
+                    <button class="copy-btn" data-copy="TP5dxAD4LzDLLCUfWanXT1tFNFoCCAQCsV" style="background: var(--bg-chip); border: none; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: 500; color: var(--text-chip); cursor: pointer;">📋 Копировать</button>
+                </div>
+            </div>
+            
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px;">
+                <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                    <span>💵</span> USDT (ERC20)
+                </div>
+                <div class="crypto-address" style="font-family: monospace; font-size: 12px; color: var(--text-secondary); background: var(--bg-input); padding: 10px 12px; border-radius: 14px; word-break: break-all; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <code style="flex:1;">0xb99ff32c81f27d16b12a7265f073a1b549710428</code>
+                    <button class="copy-btn" data-copy="0xb99ff32c81f27d16b12a7265f073a1b549710428" style="background: var(--bg-chip); border: none; padding: 6px 12px; border-radius: 30px; font-size: 12px; font-weight: 500; color: var(--text-chip); cursor: pointer;">📋 Копировать</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- оплата картой -->
+        <a href="https://yoomoney.ru/fundraise/1GK9FLMOJVA.260320" target="_blank" class="support-button" style="text-decoration: none; display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--accent-red), var(--accent-red-dark)); margin: 8px 0 20px; padding: 16px 20px; border-radius: 44px;">
+            <div class="support-left" style="display: flex; align-items: center; gap: 12px;">
+                <span class="support-icon" style="font-size: 28px;">💳</span>
+                <div>
+                    <div class="support-text" style="font-weight: 600; color: white; font-size: 16px;">Оплата картой</div>
+                    <div class="support-sub" style="font-size: 12px; color: #ffcdcd;">ЮMoney, Visa, MasterCard, Mir</div>
+                </div>
+            </div>
+            <div class="support-arrow" style="color: white; font-size: 20px;">→</div>
+        </a>
+
+        <!-- спасибо -->
+        <div class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; text-align: center; border: 0.5px solid var(--border-light);">
+            <div style="font-size: 48px; margin-bottom: 12px;">❤️</div>
+            <div class="info-card-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; justify-content: center;">
+                Спасибо за поддержку!
+            </div>
+            <div class="hero-desc" style="font-size: 13px; color: var(--text-muted);">
+                Каждый ваш вклад помогает проекту становиться лучше
+            </div>
+        </div>
+    </div>
+
+    <!-- нижний таб-бар -->
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+
+<script src="/static/theme.js"></script>
+<script>
+// Копирование адресов (с fallback для всех браузеров)
+(function() {
+    const copyButtons = document.querySelectorAll('.copy-btn');
+    
+    async function copyText(text, button) {
+        const originalText = button.innerHTML;
+        
+        // Метод 1: современный clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+            try {
+                await navigator.clipboard.writeText(text);
+                button.innerHTML = '✅ Скопировано!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+                return true;
+            } catch (err) {
+                console.log('Clipboard API failed:', err);
+            }
+        }
+        
+        // Метод 2: fallback через textarea (работает везде)
+        try {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            if (successful) {
+                button.innerHTML = '✅ Скопировано!';
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                }, 2000);
+                return true;
+            }
+        } catch (err) {
+            console.log('Fallback copy failed:', err);
+        }
+        
+        // Метод 3: если ничего не сработало — показать ошибку
+        button.innerHTML = '❌ Нажмите Ctrl+C';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+        }, 3000);
+        return false;
+    }
+    
+    copyButtons.forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const textToCopy = this.getAttribute('data-copy');
+            if (textToCopy) {
+                await copyText(textToCopy, this);
+            }
+        });
+    });
+})();
+</script>
+</body>
+</html>
