@@ -1,34 +1,443 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>БДУ ФСТЭК</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>ПРО ИБ — Главная</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
 
+        body {
+            background: #0a0d17;
+            font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+        }
+
+        /* основной контейнер — как в странице уязвимостей */
+        .app-container {
+            max-width: 100%;
+            width: 100%;
+            background-color: #0b0e16;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* хедер */
+        .nav-header {
+            padding: 20px 20px 4px;
+            background: #0b0e16;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: #7e8a98;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .breadcrumb a {
+            color: #4f9eff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb span {
+            color: #cbd5e1;
+        }
+        .title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #b9c8ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .bot-badge {
+            background: #1e293b;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #94a3b8;
+            text-decoration: none;
+        }
+        .bot-badge:active {
+            transform: scale(0.96);
+        }
+
+        /* приветственный блок / герой */
+        .hero-block {
+            background: linear-gradient(135deg, #111827, #0f172a);
+            margin: 16px;
+            padding: 20px;
+            border-radius: 28px;
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
+        }
+        .hero-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 10px;
+        }
+        .hero-desc {
+            font-size: 14px;
+            color: #a0abc0;
+            line-height: 1.45;
+            margin-bottom: 16px;
+        }
+        .hero-list {
+            list-style: none;
+            margin-top: 12px;
+        }
+        .hero-list li {
+            font-size: 13px;
+            color: #cbd5e6;
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .hero-list li::before {
+            content: "✓";
+            color: #4ade80;
+            font-weight: 600;
+        }
+
+        /* сетка карточек 2x2 (как карточки уязвимостей но под разделы) */
+        .sections-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 8px 16px 20px;
+        }
+        .section-card {
+            background: #11151f;
+            border-radius: 24px;
+            padding: 16px 12px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .section-card:active {
+            transform: scale(0.97);
+            background: #161c2a;
+        }
+        .card-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .card-sub {
+            font-size: 11px;
+            color: #7e8a98;
+        }
+
+        /* полноширинные карточки (как детали уязвимости) */
+        .fullwidth-card {
+            background: #11151f;
+            margin: 0 16px 12px;
+            border-radius: 24px;
+            padding: 16px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border: 0.5px solid rgba(255, 255, 255, 0.05);
+            transition: 0.2s;
+        }
+        .fullwidth-card:active {
+            transform: scale(0.98);
+            background: #161c2a;
+        }
+        .full-icon {
+            font-size: 36px;
+        }
+        .full-content {
+            flex: 1;
+        }
+        .full-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        .full-desc {
+            font-size: 12px;
+            color: #7e8a98;
+            margin-top: 4px;
+        }
+        .arrow {
+            color: #4f9eff;
+            font-size: 20px;
+        }
+
+        /* кнопка поддержки */
+        .support-button {
+            background: linear-gradient(135deg, #d32f2f, #b91c1c);
+            margin: 8px 16px 20px;
+            padding: 14px 20px;
+            border-radius: 44px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .support-button:active {
+            transform: scale(0.98);
+        }
+        .support-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .support-icon {
+            font-size: 24px;
+        }
+        .support-text {
+            font-weight: 600;
+            color: white;
+            font-size: 16px;
+        }
+        .support-sub {
+            font-size: 12px;
+            color: #ffcdcd;
+        }
+        .support-arrow {
+            color: white;
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        /* нижний таб-бар — статически закреплён внизу */
+        .bottom-tab-bar {
+            background: #0c0f18;
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid rgba(255,255,255,0.06);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 20px 18px;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
+            margin-top: 8px;
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: #6c7a91;
+            font-size: 11px;
+            font-weight: 500;
+            transition: 0.1s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .tab-item.active {
+            color: #ff5c5c;
+        }
+        .tab-icon {
+            font-size: 22px;
+        }
+        .tab-item:active {
+            transform: scale(0.95);
+        }
+
+        /* адаптивные мелочи */
+        @media (max-width: 400px) {
+            .sections-grid {
+                gap: 10px;
+            }
+            .card-title {
+                font-size: 14px;
+            }
+            .hero-title {
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>🔐 *БДУ ФСТЭК — База данных уязвимостей*</h2>
-    
-    <a href="7_days.html" class="article">
-        🆕 Узнать о свежих уязвимостях (последние 7 дней)
+<div class="app-container">
+    <!-- хедер как на странице BDU -->
+    <div class="nav-header">
+        <div class="breadcrumb">
+            <a href="/">Главная</a>
+            <span>→</span>
+            <span style="color:#cbd5e1;">Платформа ПРО ИБ</span>
+        </div>
+        <div class="title-section">
+            <h1>ПРО ИБ</h1>
+            <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                🤖 PRO ИБ БОТ
+            </a>
+        </div>
+    </div>
+
+    <!-- герой-блок с возможностями (как hero-block в мобильной версии) -->
+    <div class="hero-block">
+        <div class="hero-title">🛡️ Безопасность без границ</div>
+        <div class="hero-desc">
+            Помогаем ИБ-специалистам, разработчикам и компаниям быстро находить нужную информацию и эффективно решать задачи.
+        </div>
+        <ul class="hero-list">
+            <li>Проверить ПО на уязвимости (поиск по CVE)</li>
+            <li>Скачать шаблоны документов ПДн, КИИ, ГИС</li>
+            <li>Разобраться в законах и требованиях ФСТЭК</li>
+            <li>Изучить OWASP Top 10 и виды атак</li>
+            <li>Быть в курсе новостей ИБ и мероприятий</li>
+        </ul>
+    </div>
+
+    <!-- сетка карточек 2x2 (основные разделы) -->
+    <div class="sections-grid">
+        <a href="templates_zac" class="section-card">
+            <div class="card-icon">📋</div>
+            <div class="card-title">Шаблоны</div>
+            <div class="card-sub">300+ документов</div>
+        </a>
+        <a href="laws" class="section-card">
+            <div class="card-icon">⚖️</div>
+            <div class="card-title">Законы и НПА</div>
+            <div class="card-sub">ФСТЭК, приказы</div>
+        </a>
+        <a href="tools" class="section-card">
+            <div class="card-icon">🛠️</div>
+            <div class="card-title">Инструменты</div>
+            <div class="card-sub">Анализ, сканеры</div>
+        </a>
+        <a href="owasp_start" class="section-card">
+            <div class="card-icon">🚀</div>
+            <div class="card-title">OWASP / Атаки</div>
+            <div class="card-sub">Top 10, уязвимости</div>
+        </a>
+    </div>
+
+    <!-- полноширинные карточки (обучение, новости, BDU) -->
+    <a href="school" class="fullwidth-card">
+        <div class="full-icon">📚</div>
+        <div class="full-content">
+            <div class="full-title">Обучение</div>
+            <div class="full-desc">Курсы, вебинары, материалы по ИБ</div>
+        </div>
+        <div class="arrow">→</div>
     </a>
-    
-    <a href="creet.html" class="article">
-        🔥 Посмотреть критические (CVSS >= 9.0)
+
+    <a href="news" class="fullwidth-card">
+        <div class="full-icon">📰</div>
+        <div class="full-content">
+            <div class="full-title">Новости ИБ</div>
+            <div class="full-desc">Свежие дайджесты и события</div>
+        </div>
+        <div class="arrow">→</div>
     </a>
-    
-    <a href="cve.html" class="article">
-        🔍 Найти уязвимость по BDU ID
+
+    <a href="full_cve" class="fullwidth-card">
+        <div class="full-icon">🧨</div>
+        <div class="full-content">
+            <div class="full-title">BDU Уязвимости</div>
+            <div class="full-desc">База данных уязвимостей БДУ</div>
+        </div>
+        <div class="arrow">→</div>
     </a>
-    
-    <a href="po.html" class="article">
-        🖥️ Найти уязвимости по названию продукта / ПО
+
+    <!-- Мероприятия ИБ (внешняя ссылка) -->
+    <a href="https://www.securityvision.ru/events/" target="_blank" rel="noopener noreferrer" class="fullwidth-card">
+        <div class="full-icon">📅</div>
+        <div class="full-content">
+            <div class="full-title">Мероприятия ИБ</div>
+            <div class="full-desc">Конференции, форумы, встречи</div>
+        </div>
+        <div class="arrow">↗</div>
     </a>
-    <a href="full_cve.html" class="article">
-        Полный список уязвимостей
+
+    <a href="feedback" class="fullwidth-card">
+        <div class="full-icon">💌</div>
+        <div class="full-content">
+            <div class="full-title">Обратная связь</div>
+            <div class="full-desc">Вопросы, предложения, помощь</div>
+        </div>
+        <div class="arrow">→</div>
     </a>
+
+    <!-- кнопка поддержки проекта (стиль как в списке, но яркий) -->
+    <a href="donate" class="support-button">
+        <div class="support-left">
+            <span class="support-icon">💰</span>
+            <div>
+                <div class="support-text">Поддержать проект</div>
+                <div class="support-sub">Помогите развитию платформы</div>
+            </div>
+        </div>
+        <div class="support-arrow">→</div>
+    </a>
+
+    <!-- нижний таб-бар — как на странице BDU -->
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item active">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <div class="tab-item">
+            <div class="tab-icon">🔍</div>
+            <span>Поиск</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">📊</div>
+            <span>Аналитика</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // подсветка активного таба (опционально)
+    (function() {
+        const currentPath = window.location.pathname;
+        const tabs = document.querySelectorAll('.tab-item');
+        tabs.forEach(tab => {
+            const link = tab.getAttribute('href');
+            if (link === currentPath || (currentPath === '/' && link === '/')) {
+                tab.classList.add('active');
+            } else if (tab.getAttribute('href') === null) {
+                // не ссылка, сбросим активный
+                tab.classList.remove('active');
+            }
+        });
+    })();
+</script>
 </body>
 </html>
