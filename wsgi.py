@@ -185,7 +185,44 @@ def news():
         filter_source=filter_source
     )
 
+@app.route('/news/<int:news_id>')
+def news_detail(news_id):
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    query = request.args.get('q', '')
+    
+    news = config.get_news_by_id(news_id)
+    if news is None:
+        return "Новость не найдена", 404
+    
+    back_url = f"/news?page={page}&limit={limit}"
+    if query:
+        back_url = f"/search_news?q={query}&page={page}&limit={limit}"
+    
+    return render_template('news_detail.html', news=news, back_url=back_url, back_page=page, back_limit=limit, back_query=query)
 
+@app.route('/search_news')
+def search_news():
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    offset = (page - 1) * limit
+    
+    if not query:
+        return redirect('/news')
+    
+    total = config.search_news_count(query)
+    news = config.search_news_page(query, limit, offset)
+    total_pages = (total + limit - 1) // limit
+    
+    return render_template(
+        'search_news.html',
+        news=news,
+        query=query,
+        page=page,
+        total_pages=total_pages,
+        limit=limit
+    )
 
 
 @app.route('/donate')

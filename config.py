@@ -495,3 +495,59 @@ def get_news_page_by_source(source, limit, offset):
     news = cursor.fetchall()
     con.close()
     return news
+
+def get_news_by_id(news_id):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT id, title, content, link, source, published_date FROM news WHERE id = ?", (news_id,))
+    news = cursor.fetchone()
+    con.close()
+    return news
+
+def search_news_count(query):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    words = normalize_query(query)
+    if not words:
+        return 0
+    
+    conditions = []
+    params = []
+    for word in words:
+        conditions.append("search_text LIKE ?")
+        params.append(f'%{word}%')
+    
+    sql = f"SELECT COUNT(*) FROM news WHERE {' OR '.join(conditions)}"
+    cursor.execute(sql, params)
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def search_news_page(query, limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    words = normalize_query(query)
+    if not words:
+        return []
+    
+    conditions = []
+    params = []
+    for word in words:
+        conditions.append("search_text LIKE ?")
+        params.append(f'%{word}%')
+    
+    params.extend([limit, offset])
+    
+    sql = f"""
+        SELECT id, title, content, link, source, published_date 
+        FROM news 
+        WHERE {' OR '.join(conditions)}
+        ORDER BY published_date_iso DESC
+        LIMIT ? OFFSET ?
+    """
+    cursor.execute(sql, params)
+    news = cursor.fetchall()
+    con.close()
+    return news

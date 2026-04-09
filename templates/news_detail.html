@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>{{ news['title'][:60] }} | {{ news['source']|upper }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <a href="/news">Новости</a>
+                <span>→</span>
+                {% if back_query %}
+                    <a href="/search_news?q={{ back_query }}">Поиск: {{ back_query[:20] }}</a>
+                    <span>→</span>
+                    <a href="/search_news?q={{ back_query }}&page={{ back_page }}&limit={{ back_limit }}">Стр. {{ back_page }}</a>
+                {% else %}
+                    <a href="/news?page={{ back_page }}&limit={{ back_limit }}">Страница {{ back_page }}</a>
+                {% endif %}
+                <span>→</span>
+                <span style="color: var(--identifier-text);">{{ news['title'][:40] }}{% if news['title']|length > 40 %}...{% endif %}</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Детали новости</h1>
+        </div>
+    </div>
+
+    <!-- Главный блок -->
+    <div class="main-content">
+        <div class="vuln-detail-card">
+            <div class="identifier-badge">
+                {% if news['source'] == 'xaker' %}🐉 {% elif news['source'] == 'habr' %}📘 {% elif news['source'] == 'securitylab' %}🔒 {% elif news['source'] == 'rb' %}💼 {% elif news['source'] == 'anti' %}🛡️ {% endif %}
+                {{ news['source']|upper }}
+            </div>
+            <div class="vuln-name">{{ news['title'] }}</div>
+
+            <!-- дата и источник -->
+            <div class="info-section">
+                <div class="section-title"><span>📅</span> Дата публикации</div>
+                <div class="description-text">{{ news['published_date'] if news['published_date'] else 'Дата не указана' }}</div>
+            </div>
+
+            <!-- содержание -->
+            <div class="info-section">
+                <div class="section-title"><span>📄</span> Содержание</div>
+                <div class="description-text">{{ news['content'] if news['content'] else 'Описание отсутствует' }}</div>
+            </div>
+
+            <!-- ссылка на оригинал -->
+            <div class="info-section">
+                <div class="section-title"><span>🔗</span> Источник</div>
+                <div class="links-list">
+                    <a href="{{ news['link'] }}" class="link-item" target="_blank" rel="noopener noreferrer">
+                        🔗 Читать оригинал на {{ news['source']|upper }}
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <a href="{{ back_url }}" class="back-button">← Назад</a>
+    </div>
+
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+
+<script src="/static/theme.js"></script>
+</body>
+</html>

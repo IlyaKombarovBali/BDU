@@ -39,12 +39,13 @@ for source, link in url.items():
         
         cursor.execute("SELECT 1 FROM news WHERE link = ?", (news_link,))
         exists = cursor.fetchone()
+        search_text = f"{title} {content}".lower()
         
         if not exists:
             cursor.execute("""
-                INSERT INTO news (title, content, link, source, published_date, published_date_iso) 
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (title, content, news_link, source, published_date, published_date_iso))
+                INSERT INTO news (title, content, link, source, published_date, published_date_iso, search_text) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (title, content, news_link, source, published_date, published_date_iso, search_text))
             con.commit()
         
         con.close()

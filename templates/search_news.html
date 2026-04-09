@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Поиск по новостям — {{ query }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <a href="/news">Новости</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Поиск: {{ query }}</span>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Страница {{ page }}</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ БОТ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Результаты поиска по новостям</h1>
+        </div>
+        <div class="query-highlight">«{{ query }}»</div>
+    </div>
+
+    <!-- выбор количества на страницу -->
+    <div class="limit-row">
+        <span class="limit-label">Выводить по:</span>
+        <div class="limit-buttons">
+            {% for count in [10, 20, 50, 100] %}
+                {% if count == limit %}
+                    <span class="limit-btn active">{{ count }}</span>
+                {% else %}
+                    <a href="/search_news?q={{ query }}&page=1&limit={{ count }}" class="limit-btn">{{ count }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- поисковая строка (повторный поиск) -->
+    <div class="search-container">
+        <form action="/search_news" method="get" class="search-form">
+            <input type="text" name="q" placeholder="Поиск по заголовкам и содержанию..." value="{{ query }}">
+            <button type="submit">🔍 Найти</button>
+        </form>
+    </div>
+
+    <!-- основной контент -->
+    <div class="main-content">
+        <!-- счётчик результатов -->
+        <div class="results-count">
+            {% if news %}
+                Найдено: {{ news|length }} из {{ total_count if total_count else news|length }}
+            {% endif %}
+        </div>
+
+        <!-- список новостей -->
+        <div class="vuln-list">
+            {% for item in news %}
+            <div class="vuln-card">
+                <div class="card-header">
+                    <span class="identifier">
+                        {% if item['source'] == 'xaker' %}🐉 
+                        {% elif item['source'] == 'habr' %}📘 
+                        {% elif item['source'] == 'securitylab' %}🔒 
+                        {% elif item['source'] == 'rb' %}💼 
+                        {% elif item['source'] == 'anti' %}🛡️ 
+                        {% endif %}
+                        {{ item['source']|upper }}
+                    </span>
+                    <span class="severity-tag">{{ item['published_date'][:16] if item['published_date'] else 'Нет даты' }}</span>
+                </div>
+                <div class="vuln-name">{{ item['title'] }}</div>
+                <div class="vuln-description">{{ item['content'][:150] }}{% if item['content']|length > 150 %}...{% endif %}</div>
+                <div class="meta-row">
+                    <span class="date-badge">📅 {{ item['published_date'][:16] if item['published_date'] else 'Нет даты' }}</span>
+                    <a href="/news/{{ item['id'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- пагинация -->
+        {% if news and total_pages > 1 %}
+        <div class="pagination-wrapper">
+            {% if page > 1 %}
+                <a href="/search_news?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+            {% else %}
+                <span class="pagination-btn disabled">← Назад</span>
+            {% endif %}
+            
+            <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+            
+            {% if page < total_pages %}
+                <a href="/search_news?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
+            {% else %}
+                <span class="pagination-btn disabled">Вперёд →</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- кнопка назад к списку новостей -->
+        <a href="/news" class="back-link">← Назад к списку новостей</a>
+    </div>
+</div>
+
+<!-- нижний таб-бар -->
+<div class="bottom-tab-bar">
+    <a href="/" class="tab-item">
+        <div class="tab-icon">🏠</div>
+        <span>Главная</span>
+    </a>
+    <a href="/donate" class="tab-item">
+        <div class="tab-icon">❤️</div>
+        <span>Поддержка</span>
+    </a>
+    <a href="/feedback" class="tab-item">
+        <div class="tab-icon">💬</div>
+        <span>Обратная связь</span>
+    </a>
+    <a href="/profile" class="tab-item">
+        <div class="tab-icon">👤</div>
+        <span>Профиль</span>
+    </a>
+</div>
+
+<script src="/static/theme.js"></script>
+</body>
+</html>

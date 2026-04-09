@@ -55,7 +55,7 @@
 
     <!-- поисковая строка -->
     <div class="search-container">
-        <form action="/search" method="get" class="search-form">
+        <form action="/search_news" method="get" class="search-form">
             <input type="text" name="q" placeholder="Поиск по новостям....." value="{{ request.args.get('q', '') }}">
             <button type="submit">🔍 Найти</button>
         </form>
