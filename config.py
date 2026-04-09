@@ -4,6 +4,10 @@ import sqlite3
 import urllib.request
 import os
 import ssl
+import pymorphy3
+import re
+
+
 
 
 #Скачиваем файл
@@ -37,6 +41,29 @@ def save_file():
         print("БД успешно удалена")
         con = sqlite3.connect("bdu.db")
         con.close()
+
+#Скачиваем словари, и делаем обработку словарей чтобы поиск был лучше
+
+morph = pymorphy3.MorphAnalyzer()
+
+def normalize_query(query):
+    cleaned = re.sub(r'[^\w\s]', ' ', query)
+    words = cleaned.lower().split()
+    
+    normalized = []
+    for word in words:
+        if len(word) < 3:
+            normalized.append(word)
+        else:
+            # Лемматизация
+            parsed = morph.parse(word)[0]
+            base = parsed.normal_form
+            # Берём первые 5-6 символов (корень)
+            root = base[:6]
+            normalized.append(root)
+    
+    return normalized
+
 
 print("Идет создание БД....")
 
@@ -231,3 +258,53 @@ def get_law_by_id(law_id):
     law = cursor.fetchone()
     con.close()
     return law
+#Поиск по законам
+def search_norms_count(query):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    # Получаем нормализованные слова
+    words = normalize_query(query)
+    if not words:
+        return 0
+    
+    # Строим условие LIKE для каждого слова
+    conditions = []
+    params = []
+    for word in words:
+        conditions.append("search_text LIKE ?")
+        params.append(f'%{word}%')
+    
+    sql = f"SELECT COUNT(*) FROM norm WHERE {' OR '.join(conditions)}"
+    cursor.execute(sql, params)
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def search_norms_page(query, limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    words = normalize_query(query)
+    if not words:
+        return []
+    
+    conditions = []
+    params = []
+    for word in words:
+        conditions.append("search_text LIKE ?")
+        params.append(f'%{word}%')
+    
+    # Добавляем LIMIT и OFFSET в конец параметров
+    params.extend([limit, offset])
+    
+    sql = f"""
+        SELECT rowid, groups, laws, title, description, link 
+        FROM norm 
+        WHERE {' OR '.join(conditions)}
+        LIMIT ? OFFSET ?
+    """
+    cursor.execute(sql, params)
+    norms = cursor.fetchall()
+    con.close()
+    return norms

@@ -85,19 +85,24 @@ def laws():
 def law_detail(law_id):
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
+    query = request.args.get('q', '')
     
     law = config.get_law_by_id(law_id)
     if law is None:
         return "Закон не найден", 404
     
     back_url = f"/laws?page={page}&limit={limit}"
+    if query:
+        back_url = f"/search_laws?q={query}&page={page}&limit={limit}"
     
-    return render_template('law_detail.html', law=law, back_url=back_url, back_page=page, back_limit=limit)
-
-
-
-
-
+    return render_template(
+        'law_detail.html', 
+        law=law, 
+        back_url=back_url,
+        back_page=page,
+        back_limit=limit,
+        back_query=query
+    )
 
 
 
@@ -124,6 +129,32 @@ def search():
         total_pages=total_pages,
         limit=limit
     )
+
+
+@app.route('/search_laws')
+def search_laws():
+    query = request.args.get('q', '').strip()
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    offset = (page - 1) * limit
+    
+    if not query:
+        return redirect('/laws')
+    
+    total = config.search_norms_count(query)
+    norms = config.search_norms_page(query, limit, offset)
+    total_pages = (total + limit - 1) // limit
+    
+    return render_template(
+        'search_laws.html',
+        norms=norms,
+        query=query,
+        page=page,
+        total_pages=total_pages,
+        limit=limit
+    )
+
+
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)

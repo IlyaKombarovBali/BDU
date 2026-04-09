@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Законы и НПА по ИБ</title>
+    <title>Поиск — БДУ Уязвимости</title>
     <style>
         * {
             margin: 0;
@@ -31,7 +30,6 @@
             --accent-blue: #2563eb;
             --accent-red: #dc2626;
             --accent-red-dark: #b91c1c;
-            --accent-red-light: #fee2e2;
             --tab-inactive: #94a3b8;
             --tab-active: #dc2626;
             --breadcrumb-text: #64748b;
@@ -46,6 +44,10 @@
             --date-bg: #f8fafc;
             --detail-bg: #eef2ff;
             --detail-text: #2563eb;
+            --query-highlight: #4338ca;
+            --empty-text: #475569;
+            --back-link-bg: #f1f5f9;
+            --back-link-text: #334155;
         }
 
         /* ТЁМНАЯ ТЕМА */
@@ -66,7 +68,6 @@
             --accent-blue: #3b82f6;
             --accent-red: #ef4444;
             --accent-red-dark: #dc2626;
-            --accent-red-light: #7f1d1d;
             --tab-inactive: #6c7a91;
             --tab-active: #ff5c5c;
             --breadcrumb-text: #7e8a98;
@@ -81,6 +82,10 @@
             --date-bg: #0e121c;
             --detail-bg: #252e42;
             --detail-text: #d9e2ff;
+            --query-highlight: #ffb4a2;
+            --empty-text: #cbd5e1;
+            --back-link-bg: #1e293b;
+            --back-link-text: #cbd5e1;
         }
 
         body {
@@ -92,6 +97,7 @@
             transition: background-color 0.2s ease, color 0.2s ease;
         }
 
+        /* основной контейнер */
         .app-container {
             max-width: 100%;
             width: 100%;
@@ -136,16 +142,23 @@
             justify-content: space-between;
             align-items: baseline;
             flex-wrap: wrap;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         h1 {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 700;
             background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
             letter-spacing: -0.3px;
+            word-break: break-word;
+        }
+        .query-highlight {
+            font-size: 18px;
+            color: var(--query-highlight);
+            font-weight: 500;
+            margin-top: 4px;
         }
         .header-right {
             display: flex;
@@ -168,6 +181,7 @@
         .bot-badge:active {
             transform: scale(0.96);
         }
+        /* кнопка переключения темы */
         .theme-toggle {
             background: var(--bg-chip);
             border: none;
@@ -182,43 +196,6 @@
             color: var(--text-chip);
         }
         .theme-toggle:active {
-            transform: scale(0.96);
-        }
-
-        /* фильтры */
-        .filters-scroll {
-            overflow-x: auto;
-            white-space: nowrap;
-            padding: 12px 20px 8px;
-            display: flex;
-            gap: 12px;
-            scrollbar-width: thin;
-            -webkit-overflow-scrolling: touch;
-        }
-        .filters-scroll::-webkit-scrollbar {
-            height: 3px;
-        }
-        .filter-chip {
-            background: var(--bg-filter);
-            color: var(--text-chip);
-            padding: 8px 18px;
-            border-radius: 40px;
-            font-size: 14px;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            border: 0.5px solid var(--border-light);
-            cursor: pointer;
-        }
-        .filter-chip.active {
-            background: var(--accent-red);
-            color: white;
-            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-        }
-        .filter-chip:active {
             transform: scale(0.96);
         }
 
@@ -264,7 +241,7 @@
             transform: scale(0.96);
         }
 
-        /* поиск */
+        /* форма поиска */
         .search-container {
             padding: 12px 20px 16px;
         }
@@ -308,11 +285,19 @@
             transform: scale(0.96);
         }
 
+        /* основной контент */
         .main-content {
             flex: 1;
         }
 
-        /* карточки */
+        /* счётчик результатов */
+        .results-count {
+            padding: 4px 20px 8px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* карточки уязвимостей */
         .vuln-list {
             padding: 8px 16px 20px;
             display: flex;
@@ -407,6 +392,27 @@
             opacity: 0.8;
         }
 
+        /* пустое состояние */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+        .empty-text {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--empty-text);
+        }
+        .empty-hint {
+            font-size: 14px;
+        }
+
         /* пагинация */
         .pagination-wrapper {
             padding: 10px 20px 28px;
@@ -470,9 +476,6 @@
             font-size: 11px;
             font-weight: 500;
             transition: 0.1s;
-            background: none;
-            border: none;
-            cursor: pointer;
             text-decoration: none;
         }
         .tab-item.active {
@@ -484,6 +487,26 @@
         .tab-item:active {
             transform: scale(0.95);
         }
+
+        /* кнопка назад в стиле */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--back-link-bg);
+            padding: 10px 18px;
+            border-radius: 40px;
+            text-decoration: none;
+            color: var(--back-link-text);
+            font-size: 14px;
+            font-weight: 500;
+            margin: 0 20px 20px;
+            transition: 0.2s;
+            border: 0.5px solid var(--border-light);
+        }
+        .back-link:active {
+            transform: scale(0.96);
+        }
     </style>
 </head>
 <body>
@@ -494,7 +517,11 @@
             <div class="breadcrumb">
                 <a href="/">Главная</a>
                 <span>→</span>
-                <span style="color: var(--text-muted);">Законы и НПА</span>
+                <a href="/laws">Законы</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Поиск: {{ query }}</span>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Страница {{ page }}</span>
             </div>
             <div class="header-right">
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
@@ -506,25 +533,9 @@
             </div>
         </div>
         <div class="title-section">
-            <h1>База Законов и НПА по ИБ</h1>
+            <h1>Результаты поиска по законам</h1>
         </div>
-    </div>
-
-    <!-- фильтры-чипсы с поддержкой переключения -->
-    <div class="filters-scroll" id="filtersContainer">
-        <span data-filter="ПДн" class="filter-chip">🔒 ПДн</span>
-        <span data-filter="КИИ" class="filter-chip">⚡ КИИ</span>
-        <span data-filter="ГИС" class="filter-chip">🌐 ГИС</span>
-        <span data-filter="Финансы" class="filter-chip">💰 Финансы</span>
-        <span data-filter="Общее" class="filter-chip">📜 Общее</span>
-        <span data-filter="Лицензирование" class="filter-chip">📋 Лицензирование</span>
-        <span data-filter="АСУ ТП" class="filter-chip">🏭 АСУ ТП</span>
-        <span data-filter="Связь" class="filter-chip">📡 Связь</span>
-        <span data-filter="Антитеррор" class="filter-chip">🛡️ Антитеррор</span>
-        <span data-filter="Шифрование" class="filter-chip">🔐 Шифрование</span>
-        <span data-filter="СМИБ" class="filter-chip">📊 СМИБ</span>
-        <span data-filter="Непрерывность" class="filter-chip">🔄 Непрерывность</span>
-        <span data-filter="Безопасная разработка" class="filter-chip">💻 Безопасная разработка</span>
+        <div class="query-highlight">«{{ query }}»</div>
     </div>
 
     <!-- выбор количества на страницу -->
@@ -533,22 +544,32 @@
         <div class="limit-buttons">
             {% for count in [10, 20, 50, 100] %}
                 {% if count == limit %}
-                    <span class="limit-btn active" data-limit="{{ count }}">{{ count }}</span>
+                    <span class="limit-btn active">{{ count }}</span>
                 {% else %}
-                    <a href="/laws?page=1&limit={{ count }}" class="limit-btn" data-limit="{{ count }}">{{ count }}</a>
+                    <a href="/search_laws?q={{ query }}&page=1&limit={{ count }}" class="limit-btn">{{ count }}</a>
                 {% endif %}
             {% endfor %}
         </div>
     </div>
 
-    <!-- поисковая строка -->
+    <!-- поисковая строка (повторный поиск) -->
     <div class="search-container">
         <form action="/search_laws" method="get" class="search-form">
-            <input type="text" name="q" placeholder="Название закона или номер..." value="{{ request.args.get('q', '') }}">
+            <input type="text" name="q" placeholder="Название закона или номер..." value="{{ query }}">
             <button type="submit">🔍 Найти</button>
         </form>
     </div>
 
+    <!-- основной контент -->
+    <div class="main-content">
+        <!-- счётчик результатов -->
+        <div class="results-count">
+            {% if norms %}
+                Найдено: {{ norms|length }} из {{ total_count if total_count else norms|length }}
+            {% endif %}
+        </div>
+
+        <!-- список законов -->
     <div class="main-content">
         <div class="vuln-list">
             {% for norm in norms %}
@@ -561,29 +582,36 @@
                 <div class="vuln-description">{{ norm['description'][:150] }}{% if norm['description']|length > 150 %}...{% endif %}</div>
                 <div class="meta-row">
                     <span class="date-badge">📁 {{ norm['groups'] }}</span>
-                    <a href="/law/{{ norm['rowid'] }}?page={{ page }}&limit={{ limit }}" class="detail-link">Подробнее →</a>
+                   <a href="/law/{{ norm['rowid'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
                 </div>
             </div>
             {% endfor %}
         </div>
     </div>
 
-    <!-- пагинация -->
-    <div class="pagination-wrapper">
-        {% if page > 1 %}
-            <a href="/laws?page={{ page - 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">← Назад</a>
-        {% else %}
-            <span class="pagination-btn disabled">← Назад</span>
+        <!-- пагинация -->
+        {% if norms and total_pages > 1 %}
+        <div class="pagination-wrapper">
+            {% if page > 1 %}
+                <a href="/search_laws?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+            {% else %}
+                <span class="pagination-btn disabled">← Назад</span>
+            {% endif %}
+            
+            <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+            
+            {% if page < total_pages %}
+                <a href="/search_laws?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
+            {% else %}
+                <span class="pagination-btn disabled">Вперёд →</span>
+            {% endif %}
+        </div>
         {% endif %}
-        
-        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
-        
-        {% if page < total_pages %}
-            <a href="/laws?page={{ page + 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">Вперёд →</a>
-        {% else %}
-            <span class="pagination-btn disabled">Вперёд →</span>
-        {% endif %}
+
+        <!-- кнопка назад к списку законов -->
+        <a href="/laws" class="back-link">← Назад к списку законов</a>
     </div>
+</div>
 
     <!-- нижний таб-бар -->
     <div class="bottom-tab-bar">
@@ -592,8 +620,8 @@
             <span>Главная</span>
         </a>
         <div class="tab-item active">
-            <div class="tab-icon">📋</div>
-            <span>Законы</span>
+            <div class="tab-icon">🔍</div>
+            <span>Поиск</span>
         </div>
         <div class="tab-item">
             <div class="tab-icon">📊</div>
@@ -612,7 +640,10 @@
         const themeToggle = document.getElementById('themeToggle');
         const themeIcon = document.getElementById('themeIcon');
         
+        // Проверяем сохранённую тему в localStorage
         const savedTheme = localStorage.getItem('proib_theme');
+        
+        // По умолчанию светлая тема
         let isDark = false;
         if (savedTheme === 'dark') {
             isDark = true;
@@ -635,56 +666,15 @@
             isDark = dark;
         }
         
+        // Применяем начальную тему
         setTheme(isDark);
         
+        // Обработчик кнопки
         if (themeToggle) {
             themeToggle.addEventListener('click', function() {
                 setTheme(!isDark);
             });
         }
-    })();
-    
-    // Фильтры с возможностью отмены при повторном нажатии
-    (function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        let currentFilter = urlParams.get('filter');
-        
-        const filterChips = document.querySelectorAll('.filter-chip');
-        
-        // Функция обновления URL с фильтром
-        function updateFilter(filterValue) {
-            const currentUrl = new URL(window.location.href);
-            if (filterValue) {
-                currentUrl.searchParams.set('filter', filterValue);
-                currentUrl.searchParams.set('page', '1'); // сброс на первую страницу
-            } else {
-                currentUrl.searchParams.delete('filter');
-                currentUrl.searchParams.set('page', '1');
-            }
-            window.location.href = currentUrl.toString();
-        }
-        
-        // Установка активного класса для текущего фильтра
-        filterChips.forEach(chip => {
-            const filterValue = chip.getAttribute('data-filter');
-            if (currentFilter && filterValue === currentFilter) {
-                chip.classList.add('active');
-            }
-            
-            // Обработчик клика
-            chip.addEventListener('click', function(e) {
-                e.preventDefault();
-                const clickedFilter = this.getAttribute('data-filter');
-                
-                // Если фильтр уже активен — отменяем его (показываем все)
-                if (this.classList.contains('active')) {
-                    updateFilter(null);
-                } else {
-                    // Иначе активируем новый фильтр
-                    updateFilter(clickedFilter);
-                }
-            });
-        });
     })();
 </script>
 </body>
