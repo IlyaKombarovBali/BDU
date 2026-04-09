@@ -160,7 +160,7 @@ def search_laws():
 @app.route('/donate')
 def donate():
     return render_template('donate.html')
-
+#
 
 @app.route('/feedback', methods=['GET', 'POST'])
 def feedback():
