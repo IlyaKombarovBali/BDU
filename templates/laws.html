@@ -1,0 +1,691 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Законы и НПА по ИБ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* СВЕТЛАЯ ТЕМА (по умолчанию) */
+        :root {
+            --bg-primary: #f5f7fb;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --bg-chip: #f1f5f9;
+            --bg-filter: #f1f5f9;
+            --bg-pagination: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-chip: #334155;
+            --border-color: #e2e8f0;
+            --border-light: #e2e8f0;
+            --accent-blue: #2563eb;
+            --accent-red: #dc2626;
+            --accent-red-dark: #b91c1c;
+            --accent-red-light: #fee2e2;
+            --tab-inactive: #94a3b8;
+            --tab-active: #dc2626;
+            --breadcrumb-text: #64748b;
+            --gradient-start: #1e293b;
+            --gradient-end: #475569;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+            --identifier-bg: #eef2ff;
+            --identifier-text: #4338ca;
+            --severity-bg: #f1f5f9;
+            --severity-text: #475569;
+            --date-bg: #f8fafc;
+            --detail-bg: #eef2ff;
+            --detail-text: #2563eb;
+        }
+
+        /* ТЁМНАЯ ТЕМА */
+        body.dark {
+            --bg-primary: #0a0d17;
+            --bg-secondary: #0b0e16;
+            --bg-card: #11151f;
+            --bg-input: #11141f;
+            --bg-chip: #1e2436;
+            --bg-filter: #1e2436;
+            --bg-pagination: #1a1f2e;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-chip: #cbd5e6;
+            --border-color: rgba(255,255,255,0.06);
+            --border-light: rgba(255,255,255,0.05);
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-red-dark: #dc2626;
+            --accent-red-light: #7f1d1d;
+            --tab-inactive: #6c7a91;
+            --tab-active: #ff5c5c;
+            --breadcrumb-text: #7e8a98;
+            --gradient-start: #111827;
+            --gradient-end: #1f2937;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3);
+            --identifier-bg: #1f2a3e;
+            --identifier-text: #ffb4a2;
+            --severity-bg: #2d2f3e;
+            --severity-text: #b9c3d4;
+            --date-bg: #0e121c;
+            --detail-bg: #252e42;
+            --detail-text: #d9e2ff;
+        }
+
+        body {
+            background: var(--bg-primary);
+            font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .app-container {
+            max-width: 100%;
+            width: 100%;
+            background-color: var(--bg-secondary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* хедер */
+        .nav-header {
+            padding: 20px 20px 4px;
+            background: var(--bg-secondary);
+            border-bottom: 0.5px solid var(--border-color);
+        }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            color: var(--breadcrumb-text);
+            flex-wrap: wrap;
+        }
+        .breadcrumb a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb span {
+            color: var(--text-muted);
+        }
+        .title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .bot-badge {
+            background: var(--bg-chip);
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-chip);
+            text-decoration: none;
+            transition: transform 0.1s ease;
+        }
+        .bot-badge:active {
+            transform: scale(0.96);
+        }
+        .theme-toggle {
+            background: var(--bg-chip);
+            border: none;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 18px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.1s ease;
+            color: var(--text-chip);
+        }
+        .theme-toggle:active {
+            transform: scale(0.96);
+        }
+
+        /* фильтры */
+        .filters-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            padding: 12px 20px 8px;
+            display: flex;
+            gap: 12px;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+        }
+        .filters-scroll::-webkit-scrollbar {
+            height: 3px;
+        }
+        .filter-chip {
+            background: var(--bg-filter);
+            color: var(--text-chip);
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            border: 0.5px solid var(--border-light);
+            cursor: pointer;
+        }
+        .filter-chip.active {
+            background: var(--accent-red);
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+        .filter-chip:active {
+            transform: scale(0.96);
+        }
+
+        /* лимит строки */
+        .limit-row {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 8px 20px 4px;
+            gap: 8px;
+        }
+        .limit-label {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .limit-buttons {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-input);
+            padding: 4px;
+            border-radius: 40px;
+        }
+        .limit-btn {
+            background: transparent;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 32px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: 0.1s;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .limit-btn.active {
+            background: var(--accent-red);
+            color: white;
+            box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+        }
+        .limit-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* поиск */
+        .search-container {
+            padding: 12px 20px 16px;
+        }
+        .search-form {
+            display: flex;
+            gap: 10px;
+            background: var(--bg-input);
+            border-radius: 44px;
+            padding: 4px 4px 4px 18px;
+            border: 0.5px solid var(--border-light);
+        }
+        .search-form input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 12px 0;
+            font-size: 16px;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .search-form input::placeholder {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .search-form button {
+            background: var(--accent-red);
+            border: none;
+            padding: 0 20px;
+            border-radius: 40px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .search-form button:active {
+            opacity: 0.8;
+            transform: scale(0.96);
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        /* карточки */
+        .vuln-list {
+            padding: 8px 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .vuln-card {
+            background: var(--bg-card);
+            border-radius: 28px;
+            padding: 18px;
+            border: 0.5px solid var(--border-light);
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        .vuln-card:active {
+            transform: scale(0.99);
+            background: var(--bg-input);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .identifier {
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--identifier-bg);
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 30px;
+            color: var(--identifier-text);
+            letter-spacing: 0.3px;
+        }
+        .severity-tag {
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--severity-bg);
+            padding: 4px 10px;
+            border-radius: 30px;
+            color: var(--severity-text);
+        }
+        .vuln-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 8px 0 10px 0;
+            line-height: 1.3;
+        }
+        .vuln-description {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            margin-bottom: 12px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .date-badge {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: var(--date-bg);
+            padding: 4px 12px;
+            border-radius: 40px;
+        }
+        .detail-link {
+            background: var(--detail-bg);
+            padding: 8px 16px;
+            border-radius: 40px;
+            text-decoration: none;
+            color: var(--detail-text);
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.2s;
+        }
+        .detail-link:active {
+            opacity: 0.8;
+        }
+
+        /* пагинация */
+        .pagination-wrapper {
+            padding: 10px 20px 28px;
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            align-items: center;
+        }
+        .pagination-btn {
+            background: var(--bg-pagination);
+            padding: 10px 20px;
+            border-radius: 44px;
+            text-decoration: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.1s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 0.5px solid var(--border-light);
+        }
+        .pagination-btn:active {
+            transform: scale(0.96);
+        }
+        .pagination-btn.disabled {
+            background: var(--bg-input);
+            color: var(--text-muted);
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .page-indicator {
+            background: var(--accent-red);
+            padding: 8px 22px;
+            border-radius: 44px;
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+        }
+
+        /* нижний таб-бар */
+        .bottom-tab-bar {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 20px 18px;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--tab-inactive);
+            font-size: 11px;
+            font-weight: 500;
+            transition: 0.1s;
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .tab-item.active {
+            color: var(--tab-active);
+        }
+        .tab-icon {
+            font-size: 22px;
+        }
+        .tab-item:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Законы и НПА</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ БОТ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>База Законов и НПА по ИБ</h1>
+        </div>
+    </div>
+
+    <!-- фильтры-чипсы с поддержкой переключения -->
+    <div class="filters-scroll" id="filtersContainer">
+        <span data-filter="ПДн" class="filter-chip">🔒 ПДн</span>
+        <span data-filter="КИИ" class="filter-chip">⚡ КИИ</span>
+        <span data-filter="ГИС" class="filter-chip">🌐 ГИС</span>
+        <span data-filter="Финансы" class="filter-chip">💰 Финансы</span>
+        <span data-filter="Общее" class="filter-chip">📜 Общее</span>
+        <span data-filter="Лицензирование" class="filter-chip">📋 Лицензирование</span>
+        <span data-filter="АСУ ТП" class="filter-chip">🏭 АСУ ТП</span>
+        <span data-filter="Связь" class="filter-chip">📡 Связь</span>
+        <span data-filter="Антитеррор" class="filter-chip">🛡️ Антитеррор</span>
+        <span data-filter="Шифрование" class="filter-chip">🔐 Шифрование</span>
+        <span data-filter="СМИБ" class="filter-chip">📊 СМИБ</span>
+        <span data-filter="Непрерывность" class="filter-chip">🔄 Непрерывность</span>
+        <span data-filter="Безопасная разработка" class="filter-chip">💻 Безопасная разработка</span>
+    </div>
+
+    <!-- выбор количества на страницу -->
+    <div class="limit-row">
+        <span class="limit-label">Выводить по:</span>
+        <div class="limit-buttons">
+            {% for count in [10, 20, 50, 100] %}
+                {% if count == limit %}
+                    <span class="limit-btn active" data-limit="{{ count }}">{{ count }}</span>
+                {% else %}
+                    <a href="/laws?page=1&limit={{ count }}" class="limit-btn" data-limit="{{ count }}">{{ count }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- поисковая строка -->
+    <div class="search-container">
+        <form action="/search_laws" method="get" class="search-form">
+            <input type="text" name="q" placeholder="Номер закона или категорию..." value="{{ request.args.get('q', '') }}">
+            <button type="submit">🔍 Найти</button>
+        </form>
+    </div>
+
+    <div class="main-content">
+        <div class="vuln-list">
+            {% for norm in norms %}
+            <div class="vuln-card">
+                <div class="card-header">
+                    <span class="identifier">{{ norm['laws'] }}</span>
+                    <span class="severity-tag">{{ norm['groups'] }}</span>
+                </div>
+                <div class="vuln-name">{{ norm['title'] }}</div>
+                <div class="vuln-description">{{ norm['description'][:150] }}{% if norm['description']|length > 150 %}...{% endif %}</div>
+                <div class="meta-row">
+                    <span class="date-badge">📁 {{ norm['groups'] }}</span>
+                    <a href="/law/{{ norm['rowid'] }}?page={{ page }}&limit={{ limit }}" class="detail-link">Подробнее →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- пагинация -->
+    <div class="pagination-wrapper">
+        {% if page > 1 %}
+            <a href="/laws?page={{ page - 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">← Назад</a>
+        {% else %}
+            <span class="pagination-btn disabled">← Назад</span>
+        {% endif %}
+        
+        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+        
+        {% if page < total_pages %}
+            <a href="/laws?page={{ page + 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">Вперёд →</a>
+        {% else %}
+            <span class="pagination-btn disabled">Вперёд →</span>
+        {% endif %}
+    </div>
+
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/full_cve" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <div class="tab-item active">
+            <div class="tab-icon">📋</div>
+            <span>Законы</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">📊</div>
+            <span>Аналитика</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Переключение светлой/тёмной темы
+    (function() {
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        const savedTheme = localStorage.getItem('proib_theme');
+        let isDark = false;
+        if (savedTheme === 'dark') {
+            isDark = true;
+        } else if (savedTheme === 'light') {
+            isDark = false;
+        } else {
+            isDark = false;
+        }
+        
+        function setTheme(dark) {
+            if (dark) {
+                document.body.classList.add('dark');
+                themeIcon.textContent = '🌙';
+                localStorage.setItem('proib_theme', 'dark');
+            } else {
+                document.body.classList.remove('dark');
+                themeIcon.textContent = '☀️';
+                localStorage.setItem('proib_theme', 'light');
+            }
+            isDark = dark;
+        }
+        
+        setTheme(isDark);
+        
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function() {
+                setTheme(!isDark);
+            });
+        }
+    })();
+    
+    // Фильтры с возможностью отмены при повторном нажатии
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentFilter = urlParams.get('filter');
+        
+        const filterChips = document.querySelectorAll('.filter-chip');
+        
+        // Функция обновления URL с фильтром
+        function updateFilter(filterValue) {
+            const currentUrl = new URL(window.location.href);
+            if (filterValue) {
+                currentUrl.searchParams.set('filter', filterValue);
+                currentUrl.searchParams.set('page', '1'); // сброс на первую страницу
+            } else {
+                currentUrl.searchParams.delete('filter');
+                currentUrl.searchParams.set('page', '1');
+            }
+            window.location.href = currentUrl.toString();
+        }
+        
+        // Установка активного класса для текущего фильтра
+        filterChips.forEach(chip => {
+            const filterValue = chip.getAttribute('data-filter');
+            if (currentFilter && filterValue === currentFilter) {
+                chip.classList.add('active');
+            }
+            
+            // Обработчик клика
+            chip.addEventListener('click', function(e) {
+                e.preventDefault();
+                const clickedFilter = this.getAttribute('data-filter');
+                
+                // Если фильтр уже активен — отменяем его (показываем все)
+                if (this.classList.contains('active')) {
+                    updateFilter(null);
+                } else {
+                    // Иначе активируем новый фильтр
+                    updateFilter(clickedFilter);
+                }
+            });
+        });
+    })();
+</script>
+</body>
+</html>

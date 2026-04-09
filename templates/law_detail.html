@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>{{ law['laws'] }} | {{ law['title'][:50] }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* СВЕТЛАЯ ТЕМА (по умолчанию) */
+        :root {
+            --bg-primary: #f5f7fb;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-input: #f8fafc;
+            --bg-chip: #f1f5f9;
+            --bg-meta: #f8fafc;
+            --bg-vendor: #f8fafc;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-chip: #334155;
+            --border-color: #e2e8f0;
+            --border-light: #e2e8f0;
+            --accent-blue: #2563eb;
+            --accent-red: #dc2626;
+            --accent-red-dark: #b91c1c;
+            --accent-orange: #ea580c;
+            --tab-inactive: #94a3b8;
+            --tab-active: #dc2626;
+            --breadcrumb-text: #64748b;
+            --gradient-start: #1e293b;
+            --gradient-end: #475569;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+            --identifier-bg: #eef2ff;
+            --identifier-text: #4338ca;
+            --section-title: #dc2626;
+            --description-text: #475569;
+            --meta-label: #64748b;
+            --meta-value: #1e293b;
+            --cvss-version: #ea580c;
+            --cvss-score: #dc2626;
+            --cvss-vector: #64748b;
+            --vendor-name: #dc2626;
+            --vendor-detail: #475569;
+            --link-bg: #f1f5f9;
+            --link-text: #475569;
+            --back-bg: #f1f5f9;
+            --back-text: #334155;
+        }
+
+        /* ТЁМНАЯ ТЕМА */
+        body.dark {
+            --bg-primary: #0a0d17;
+            --bg-secondary: #0b0e16;
+            --bg-card: #11151f;
+            --bg-input: #11141f;
+            --bg-chip: #1e2436;
+            --bg-meta: #0e121c;
+            --bg-vendor: #0e121c;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --text-chip: #cbd5e6;
+            --border-color: rgba(255,255,255,0.06);
+            --border-light: rgba(255,255,255,0.05);
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-red-dark: #dc2626;
+            --accent-orange: #f97316;
+            --tab-inactive: #6c7a91;
+            --tab-active: #ff5c5c;
+            --breadcrumb-text: #7e8a98;
+            --gradient-start: #111827;
+            --gradient-end: #1f2937;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3);
+            --identifier-bg: #1f2a3e;
+            --identifier-text: #ffb4a2;
+            --section-title: #ff8a7a;
+            --description-text: #b9c3d4;
+            --meta-label: #7e8a98;
+            --meta-value: #e2e8f0;
+            --cvss-version: #ff8a7a;
+            --cvss-score: #ffb4a2;
+            --cvss-vector: #94a3b8;
+            --vendor-name: #ffb4a2;
+            --vendor-detail: #a0abc0;
+            --link-bg: #1e293b;
+            --link-text: #94a3b8;
+            --back-bg: #1e293b;
+            --back-text: #cbd5e1;
+        }
+
+        body {
+            background: var(--bg-primary);
+            font-family: system-ui, -apple-system, 'Inter', 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .app-container {
+            max-width: 100%;
+            width: 100%;
+            background-color: var(--bg-secondary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* хедер */
+        .nav-header {
+            padding: 20px 20px 4px;
+            background: var(--bg-secondary);
+            border-bottom: 0.5px solid var(--border-color);
+        }
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--breadcrumb-text);
+            flex-wrap: wrap;
+        }
+        .breadcrumb a {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .breadcrumb span {
+            color: var(--text-muted);
+        }
+        .title-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.3px;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .bot-badge {
+            background: var(--bg-chip);
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 12px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-chip);
+            text-decoration: none;
+            transition: transform 0.1s ease;
+        }
+        .bot-badge:active {
+            transform: scale(0.96);
+        }
+        /* кнопка переключения темы */
+        .theme-toggle {
+            background: var(--bg-chip);
+            border: none;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 18px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: transform 0.1s ease;
+            color: var(--text-chip);
+        }
+        .theme-toggle:active {
+            transform: scale(0.96);
+        }
+
+        .main-content {
+            flex: 1;
+        }
+
+        /* основная карточка */
+        .vuln-detail-card {
+            background: var(--bg-card);
+            border-radius: 28px;
+            margin: 16px;
+            padding: 20px;
+            border: 0.5px solid var(--border-light);
+            box-shadow: var(--shadow-md);
+        }
+
+        .identifier-badge {
+            display: inline-block;
+            background: var(--identifier-bg);
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-family: monospace;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--identifier-text);
+            margin-bottom: 12px;
+        }
+
+        .vuln-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.3;
+            margin-bottom: 20px;
+        }
+
+        /* секции */
+        .info-section {
+            margin-bottom: 24px;
+            border-bottom: 0.5px solid var(--border-light);
+            padding-bottom: 20px;
+        }
+        .info-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+        .section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--section-title);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title span {
+            font-size: 18px;
+        }
+        .description-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--description-text);
+        }
+
+        /* сетка мета-информации */
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .meta-item {
+            background: var(--bg-meta);
+            padding: 12px;
+            border-radius: 18px;
+            border: 0.5px solid var(--border-light);
+        }
+        .meta-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--meta-label);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .meta-value {
+            font-size: 13px;
+            color: var(--meta-value);
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        /* CVSS горизонтальный скролл */
+        .cvss-scroll {
+            overflow-x: auto;
+            white-space: nowrap;
+            display: flex;
+            gap: 12px;
+            scrollbar-width: thin;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+        }
+        .cvss-scroll::-webkit-scrollbar {
+            height: 3px;
+        }
+        .cvss-card {
+            background: var(--bg-meta);
+            border-radius: 20px;
+            padding: 14px 18px;
+            min-width: 260px;
+            flex-shrink: 0;
+            border: 0.5px solid var(--border-light);
+        }
+        .cvss-version {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--cvss-version);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .cvss-score {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--cvss-score);
+            margin-bottom: 8px;
+        }
+        .cvss-vector {
+            font-size: 11px;
+            font-family: monospace;
+            color: var(--cvss-vector);
+            word-break: break-all;
+            white-space: normal;
+            line-height: 1.4;
+        }
+
+        /* карточка вендора */
+        .vendor-card {
+            background: var(--bg-vendor);
+            border-radius: 20px;
+            padding: 14px;
+            border: 0.5px solid var(--border-light);
+        }
+        .vendor-name {
+            font-weight: 700;
+            color: var(--vendor-name);
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .vendor-detail {
+            font-size: 13px;
+            color: var(--vendor-detail);
+            margin-top: 6px;
+        }
+        .vendor-detail strong {
+            color: var(--text-secondary);
+        }
+
+        /* ссылки */
+        .links-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .link-item {
+            background: var(--link-bg);
+            padding: 10px 16px;
+            border-radius: 40px;
+            text-decoration: none;
+            color: var(--link-text);
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            word-break: break-all;
+            border: 0.5px solid var(--border-light);
+        }
+        .link-item:active {
+            transform: scale(0.97);
+        }
+
+        /* кнопка назад */
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--back-bg);
+            padding: 12px 20px;
+            border-radius: 44px;
+            text-decoration: none;
+            color: var(--back-text);
+            font-size: 14px;
+            font-weight: 500;
+            margin: 8px 16px 20px;
+            transition: 0.2s;
+            border: 0.5px solid var(--border-light);
+        }
+        .back-button:active {
+            transform: scale(0.97);
+        }
+
+        /* нижний таб-бар */
+        .bottom-tab-bar {
+            background: var(--bg-secondary);
+            backdrop-filter: blur(20px);
+            border-top: 0.5px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 10px 20px 18px;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            z-index: 100;
+        }
+        .tab-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            color: var(--tab-inactive);
+            font-size: 11px;
+            font-weight: 500;
+            transition: 0.1s;
+            text-decoration: none;
+        }
+        .tab-item.active {
+            color: var(--tab-active);
+        }
+        .tab-icon {
+            font-size: 22px;
+        }
+        .tab-item:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                {% if back_query %}
+                    <a href="/search?q={{ back_query }}">Поиск: {{ back_query[:20] }}</a>
+                    <span>→</span>
+                    <a href="/search?q={{ back_query }}&page={{ back_page }}&limit={{ back_limit }}">Стр. {{ back_page }}</a>
+                {% else %}
+                    <a href="/laws?page={{ back_page }}&limit={{ back_limit }}">Страница {{ back_page }}</a>
+                {% endif %}
+                <span>→</span>
+                <span style="color: var(--identifier-text);">{{ law['laws'] }}</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Детали Закона</h1>
+        </div>
+    </div>
+<!--Главный блок-->
+    <div class="main-content">
+    <div class="vuln-detail-card">
+        <div class="identifier-badge">{{ law['laws'] }}</div>
+        <div class="vuln-name">{{ law['title'] }}</div>
+
+        <!-- описание -->
+        <div class="info-section">
+            <div class="section-title"><span>📄</span> Описание</div>
+            <div class="description-text">{{ law['description'] }}</div>
+        </div>
+
+        <!-- группа (категория) -->
+        <div class="info-section">
+            <div class="section-title"><span>🏷️</span> Категория</div>
+            <div class="meta-value" style="background:var(--bg-meta); padding:10px 14px; border-radius:18px; border:0.5px solid var(--border-light);">
+                {{ law['groups'] }}
+            </div>
+        </div>
+
+        <!-- ссылка на закон -->
+        <div class="info-section">
+            <div class="section-title"><span>🔗</span> Ссылка на закон</div>
+            <div class="links-list">
+                <a href="{{ law['link'] }}" class="link-item" target="_blank" rel="noopener noreferrer">
+                    🔗 Читать полный текст закона
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <a href="{{ back_url }}" class="back-button">← Назад</a>
+</div>
+
+
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/full_cve" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/search?q=" class="tab-item">
+            <div class="tab-icon">🔍</div>
+            <span>Поиск</span>
+        </a>
+        <div class="tab-item active">
+            <div class="tab-icon">📋</div>
+            <span>Детали</span>
+        </div>
+        <div class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Переключение светлой/тёмной темы
+    (function() {
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // Проверяем сохранённую тему в localStorage
+        const savedTheme = localStorage.getItem('proib_theme');
+        
+        // По умолчанию светлая тема
+        let isDark = false;
+        if (savedTheme === 'dark') {
+            isDark = true;
+        } else if (savedTheme === 'light') {
+            isDark = false;
+        } else {
+            isDark = false;
+        }
+        
+        function setTheme(dark) {
+            if (dark) {
+                document.body.classList.add('dark');
+                themeIcon.textContent = '🌙';
+                localStorage.setItem('proib_theme', 'dark');
+            } else {
+                document.body.classList.remove('dark');
+                themeIcon.textContent = '☀️';
+                localStorage.setItem('proib_theme', 'light');
+            }
+            isDark = dark;
+        }
+        
+        // Применяем начальную тему
+        setTheme(isDark);
+        
+        // Обработчик кнопки
+        if (themeToggle) {
+            themeToggle.addEventListener('click', function() {
+                setTheme(!isDark);
+            });
+        }
+    })();
+</script>
+</body>
+</html>

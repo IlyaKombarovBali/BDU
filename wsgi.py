@@ -52,6 +52,55 @@ def full_cve():
         limit=limit
     )
 
+@app.route('/laws')
+def laws():
+    # Сначала получаем параметры из запроса
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    filter_type = request.args.get('filter', 'all')
+    
+    # Потом вычисляем offset
+    offset = (page - 1) * limit
+    
+    # Потом используем их в запросах
+    if filter_type != 'all':
+        total = config.get_norms_count_by_group(filter_type)
+        norms = config.get_norms_page_by_group(filter_type, limit, offset)
+    else:
+        total = config.get_norms_count()
+        norms = config.get_norms_page(limit, offset)
+    
+    total_pages = (total + limit - 1) // limit
+    
+    return render_template(
+        'laws.html', 
+        norms=norms, 
+        page=page, 
+        total_pages=total_pages,
+        limit=limit,
+        filter=filter_type
+    )
+
+@app.route('/law/<int:law_id>')
+def law_detail(law_id):
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    
+    law = config.get_law_by_id(law_id)
+    if law is None:
+        return "Закон не найден", 404
+    
+    back_url = f"/laws?page={page}&limit={limit}"
+    
+    return render_template('law_detail.html', law=law, back_url=back_url, back_page=page, back_limit=limit)
+
+
+
+
+
+
+
+
 @app.route('/search')
 def search():
     query = request.args.get('q', '').strip()

@@ -78,9 +78,15 @@ def rename_columns(df):
     })
 #Подключаемся к БД
 def get_db():
-    con = sqlite3.connect("bdu.db") #Создайте файл в корне (bdu.db)
+    con = sqlite3.connect("bdu.db")
     con.row_factory = sqlite3.Row
     return con
+
+def get_norm_db():
+    con = sqlite3.connect("site.db")
+    con.row_factory = sqlite3.Row  # для удобного доступа по именам колонок
+    return con
+
 
 # Записываем таблицу в БД и добавлляем дату по ISO для сортировки 
 def bdu_con(df):
@@ -167,8 +173,61 @@ def search_vulns_count(query):
     con.close()
     return count
 
+#Получаем данные с таблицы norm
 
-
-
-
-
+def get_all_norms():
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT groups, laws, title, description, link FROM norm")
+    norms = cursor.fetchall()
+    con.close()
+    return norms
+#Считает, сколько всего записей в таблице norm
+def get_norms_count():
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) FROM norm")
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+# Возвращает одну страницу записей из таблицы norm
+def get_norms_page(limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT rowid, groups, laws, title, description, link 
+        FROM norm 
+        LIMIT ? OFFSET ?
+    """, (limit, offset))
+    norms = cursor.fetchall()
+    con.close()
+    return norms
+# узнаёшь, сколько всего законов в группе ПДн.
+def get_norms_count_by_group(group):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) FROM norm WHERE groups = ?", (group.upper(),))
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+# получаешь законы только из этой группы.
+def get_norms_page_by_group(group, limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT rowid, groups, laws, title, description, link 
+        FROM norm 
+        WHERE groups = ?
+        LIMIT ? OFFSET ?
+    """, (group, limit, offset))
+    norms = cursor.fetchall()
+    con.close()
+    return norms
+# получаеv id для сортировки страниц
+def get_law_by_id(law_id):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT rowid, groups, laws, title, description, link FROM norm WHERE rowid = ?", (law_id,))
+    law = cursor.fetchone()
+    con.close()
+    return law
