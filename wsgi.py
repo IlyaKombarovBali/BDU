@@ -157,6 +157,37 @@ def search_laws():
         limit=limit
     )
 
+
+
+@app.route('/news')
+def news():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    filter_source = request.args.get('source') or request.args.get('filter', 'all')
+    
+    offset = (page - 1) * limit
+    
+    if filter_source != 'all':
+        total = config.get_news_count_by_source(filter_source)
+        news = config.get_news_page_by_source(filter_source, limit, offset)
+    else:
+        total = config.get_news_count()
+        news = config.get_news_page(limit, offset)
+    
+    total_pages = (total + limit - 1) // limit
+    
+    return render_template(
+        'news.html', 
+        news=news, 
+        page=page, 
+        total_pages=total_pages,
+        limit=limit,
+        filter_source=filter_source
+    )
+
+
+
+
 @app.route('/donate')
 def donate():
     return render_template('donate.html')

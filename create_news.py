@@ -17,7 +17,7 @@ def get_norm_db():
 
 for source, link in url.items():
     feed = feedparser.parse(link)
-    for entry in feed.entries[:1]:  # убери [:1] когда нужно все новости
+    for entry in feed.entries:  # убери [:1] когда нужно все новости
         title = entry.title
         if entry.description:
             content = html.fromstring(entry.description).text_content()
@@ -29,9 +29,10 @@ for source, link in url.items():
         published_date = entry.get('published', '')
         
         # ISO для сортировки
-        published_date_iso = None
         if hasattr(entry, 'published_parsed') and entry.published_parsed:
-            published_date_iso = datetime.fromtimestamp(entry.published_parsed).isoformat()
+            published_date_iso = datetime(*entry.published_parsed[:6]).isoformat()
+        else:
+            published_date_iso = None
         
         con = get_norm_db()
         cursor = con.cursor()

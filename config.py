@@ -436,3 +436,62 @@ def search_norms_page(query, limit, offset):
     norms = cursor.fetchall()
     con.close()
     return norms
+
+
+#функции для страницы news 
+
+def get_all_news():
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT id, title, content, link, source, published_date 
+        FROM news 
+        ORDER BY published_date_iso DESC
+    """)
+    news = cursor.fetchall()
+    con.close()
+    return news
+
+#Считает, сколько всего записей в таблице norm
+def get_news_count():
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) FROM news")
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+# Возвращает одну страницу записей из таблицы norm
+def get_news_page(limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT id, title, content, link, source, published_date  
+        FROM news
+        ORDER BY published_date_iso DESC
+        LIMIT ? OFFSET ?
+    """, (limit, offset))
+    news = cursor.fetchall()
+    con.close()
+    return news
+
+def get_news_count_by_source(source):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("SELECT COUNT(*) FROM news WHERE source = ?", (source,))
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def get_news_page_by_source(source, limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute("""
+        SELECT id, title, content, link, source, published_date  
+        FROM news
+        WHERE source = ?
+        ORDER BY published_date_iso DESC
+        LIMIT ? OFFSET ?
+    """, (source, limit, offset))
+    news = cursor.fetchall()
+    con.close()
+    return news
