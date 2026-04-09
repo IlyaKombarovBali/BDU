@@ -1,23 +1,11 @@
-import sqlite3
+import feedparser
 
-con = sqlite3.connect("site.db")
-cursor = con.cursor()
 
-# Выбираем все записи
-cursor.execute("SELECT rowid, title, laws, description, groups FROM norm")
-rows = cursor.fetchall()
-
-for row in rows:
-    rowid, title, laws, description, groups = row
-    # Приводим к нижнему регистру через Python (работает с кириллицей)
-    search_text = ' '.join(filter(None, [
-        title.lower() if title else '',
-        laws.lower() if laws else '',
-        description.lower() if description else '',
-        groups.lower() if groups else ''
-    ]))
-    cursor.execute("UPDATE norm SET search_text = ? WHERE rowid = ?", (search_text, rowid))
-
-con.commit()
-con.close()
-print("search_text обновлён")
+url = 'https://xakep.ru/category/news/feed/'
+    feed = feedparser.parse(url)
+    # Выводим заголовки последних новостей
+    message_news = f"*Последние новости на {datetime.date.today()}:*\n\n"
+    for entry in feed.entries[:5]:
+        title = entry.title
+        link = entry.link
+        message_news += f"📌 *{title}*\n[Читать полностью]({link})\n\n"

@@ -57,6 +57,16 @@
                 <div class="arrow" style="color: var(--accent-blue);">→</div>
             </a>
             
+            <!-- Telegram Бот -->
+            <a href="https://t.me/pdn_dtg_bot" target="_blank" class="fullwidth-card" style="margin: 0 0 12px 0; text-decoration: none; display: flex; align-items: center; gap: 14px; background: var(--bg-meta); border-radius: 20px; padding: 14px;">
+                <div class="full-icon" style="font-size: 32px;">🤖</div>
+                <div class="full-content" style="flex: 1;">
+                    <div class="full-title" style="font-size: 16px; font-weight: 600; color: var(--text-primary);">Telegram Бот</div>
+                    <div class="full-desc" style="font-size: 12px; color: var(--text-muted);">@pdn_dtg_bot</div>
+                </div>
+                <div class="arrow" style="color: var(--accent-blue);">→</div>
+            </a>
+            
             <!-- Email -->
             <div class="fullwidth-card" style="margin: 0 0 12px 0; display: flex; align-items: center; gap: 14px; background: var(--bg-meta); border-radius: 20px; padding: 14px; cursor: pointer;" onclick="copyEmail()">
                 <div class="full-icon" style="font-size: 32px;">📧</div>
@@ -78,63 +88,60 @@
             </a>
         </div>
 
-        <!-- темы обращений -->
+        <!-- темы обращений (информационно) -->
         <div class="crypto-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 0.5px solid var(--border-light);">
             <div class="crypto-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-                <span>📋</span> Выберите тему обращения
+                <span>📋</span> Обращение:
             </div>
             
-            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px; cursor: pointer;" onclick="selectTopic('🐞 Сообщить об ошибке')">
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
                 <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                     <span>🐞</span> Сообщить об ошибке
                 </div>
-                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Нашли баг или неточность? Расскажите нам</div>
+                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Нашли баг или неточность в работе сайта? Расскажите нам — мы всё исправим!</div>
             </div>
             
-            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px; cursor: pointer;" onclick="selectTopic('💡 Предложить новый контент')">
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
                 <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                     <span>💡</span> Предложить новый контент
                 </div>
-                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Идеи для статей, шаблонов или инструментов</div>
+                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Есть идеи для статей, шаблонов или инструментов? Делитесь, и мы добавим их на сайт!</div>
             </div>
             
-            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px; cursor: pointer;" onclick="selectTopic('📋 Запросить шаблон')">
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
                 <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                     <span>📋</span> Запросить шаблон
                 </div>
-                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Какого документа или шаблона вам не хватает?</div>
+                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Какого документа или шаблона по ИБ вам не хватает? Напишите — постараемся добавить!</div>
             </div>
             
-            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; cursor: pointer;" onclick="selectTopic('🤝 Сотрудничество')">
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px; margin-bottom: 12px;">
                 <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
                     <span>🤝</span> Сотрудничество
                 </div>
-                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted));">Партнёрство, реклама, совместные проекты</div>
+                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Партнёрство, обмен опытом, совместные проекты — будем рады новым контактам!</div>
+            </div>
+            
+            <div class="crypto-item" style="background: var(--bg-meta); border-radius: 20px; padding: 14px;">
+                <div class="crypto-label" style="font-size: 13px; font-weight: 600; color: var(--accent-orange); margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                    <span>❓</span> Другие вопросы
+                </div>
+                <div class="vendor-detail" style="font-size: 12px; color: var(--text-muted);">Любые другие вопросы, замечания или пожелания — мы всегда открыты к диалогу!</div>
             </div>
         </div>
 
-        <!-- форма быстрого обращения -->
-        <div class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 20px; border: 0.5px solid var(--border-light);">
-            <div class="info-card-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
-                <span>✍️</span> Быстрое обращение
+        <!-- GIT ссылка -->
+        <div class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 20px; text-align: center; border: 0.5px solid var(--border-light);">
+            <div style="font-size: 48px; margin-bottom: 12px;">📂</div>
+            <div class="info-card-title" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; justify-content: center;">
+                Открытый код
             </div>
-            
-            <div class="search-form" style="margin-bottom: 16px;">
-                <input type="text" id="topicInput" placeholder="Тема обращения..." style="flex: 1; background: transparent; border: none; padding: 12px 0; font-size: 14px; color: var(--text-primary); outline: none;">
+            <div class="hero-desc" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                Проект развивается в открытом доступе
             </div>
-            
-            <div class="search-form" style="margin-bottom: 16px;">
-                <textarea id="messageInput" rows="4" placeholder="Опишите ваш вопрос или предложение..." style="flex: 1; background: transparent; border: none; padding: 12px 0; font-size: 14px; color: var(--text-primary); outline: none; resize: none; font-family: inherit;"></textarea>
-            </div>
-            
-            <button onclick="sendMessage()" class="support-button" style="width: 100%; margin: 0; justify-content: center; gap: 10px; background: linear-gradient(135deg, var(--accent-red), var(--accent-red-dark));">
-                <span>📤</span>
-                <span>Отправить сообщение</span>
-            </button>
-            
-            <div class="hero-desc" style="font-size: 12px; text-align: center; margin-top: 12px;">
-                Сообщение будет отправлено в Telegram и на почту
-            </div>
+            <a href="https://github.com/IlyaKombarovBali" target="_blank" style="display: inline-block; background: var(--bg-chip); padding: 10px 20px; border-radius: 40px; text-decoration: none; color: var(--text-chip); font-size: 14px; font-weight: 500;">
+                🔗 github.com/IlyaKombarovBali
+            </a>
         </div>
 
         <!-- спасибо -->
@@ -183,8 +190,6 @@
     
     // Функция копирования в буфер обмена
     async function copyToClipboard(text, successMsg) {
-        const originalText = event.target.innerText;
-        
         if (navigator.clipboard && window.isSecureContext) {
             try {
                 await navigator.clipboard.writeText(text);
@@ -230,54 +235,6 @@
         setTimeout(() => {
             toast.remove();
         }, 2000);
-    }
-    
-    // Выбор темы
-    function selectTopic(topic) {
-        document.getElementById('topicInput').value = topic;
-        document.getElementById('topicInput').focus();
-        showToast(`Тема выбрана: ${topic}`);
-    }
-    
-    // Отправка сообщения
-    function sendMessage() {
-        const topic = document.getElementById('topicInput').value.trim();
-        const message = document.getElementById('messageInput').value.trim();
-        
-        if (!topic) {
-            showToast('Пожалуйста, укажите тему обращения');
-            return;
-        }
-        
-        if (!message) {
-            showToast('Пожалуйста, напишите ваше сообщение');
-            return;
-        }
-        
-        // Формируем текст для отправки
-        const fullMessage = `📬 <b>Новое обращение с сайта</b>\n\n<b>Тема:</b> ${escapeHtml(topic)}\n\n<b>Сообщение:</b>\n${escapeHtml(message)}\n\n<b>Отправлено с:</b> ПРО ИБ (веб-сайт)`;
-        
-        // Кодируем для URL
-        const encodedMessage = encodeURIComponent(fullMessage.replace(/\n/g, '\n'));
-        
-        // Открываем Telegram для отправки (работает на мобильных устройствах)
-        const tgUrl = `https://t.me/onlymagic_cyber?text=${encodedMessage}`;
-        window.open(tgUrl, '_blank');
-        
-        // Альтернативно можно скопировать в буфер
-        copyToClipboard(fullMessage.replace(/<[^>]*>/g, ''), 'Сообщение скопировано! Отправьте его в Telegram');
-        
-        // Очищаем поля
-        document.getElementById('messageInput').value = '';
-        
-        showToast('Сообщение подготовлено! Отправьте его в Telegram');
-    }
-    
-    // Экранирование HTML
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
     }
     
     // Кнопка копирования email

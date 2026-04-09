@@ -164,17 +164,6 @@ def donate():
 
 @app.route('/feedback', methods=['GET', 'POST'])
 def feedback():
-    if request.method == 'POST':
-        topic = request.form.get('topic')
-        message = request.form.get('message')
-        email = request.form.get('email', '')
-        
-        # Отправка на почту (настройте SMTP)
-        # Или сохранение в базу данных
-        # Или отправка в Telegram через бота
-        
-        return render_template('feedback_success.html')
-    
     return render_template('feedback.html')
 
 
