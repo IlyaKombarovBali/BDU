@@ -224,6 +224,28 @@ def search_news():
         limit=limit
     )
 
+@app.route('/tools', methods=['GET', 'POST'])
+def tools():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    category = request.args.get('filter', 'all')
+    search_query = request.args.get('q', '').strip()
+    
+    offset = (page - 1) * limit
+    
+    total = config.get_tools_count_by_filter(category, search_query)
+    tools = config.get_tools_page_by_filter(category, search_query, limit, offset)
+    total_pages = (total + limit - 1) // limit
+    
+    return render_template(
+        'tools.html',
+        tools=tools,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        filter=category
+    )
+
 
 @app.route('/donate')
 def donate():
@@ -234,9 +256,7 @@ def donate():
 def feedback():
     return render_template('feedback.html')
 
-@app.route('/tools', methods=['GET', 'POST'])
-def tools():
-    return render_template('tools.html')
+
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)

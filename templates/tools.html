@@ -73,7 +73,7 @@
                 <div class="vuln-description">{{ tool.description }}</div>
                 <div class="meta-row">
                     <span class="date-badge">🔧 Инструмент</span>
-                    <a href="{{ tool.url }}" class="detail-link" onclick="event.stopPropagation()">Открыть →</a>
+                    <a href="{{ tool.url }}?page={{ page }}&limit={{ limit }}{% if filter != 'all' %}&filter={{ filter }}{% endif %}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}" class="detail-link" onclick="event.stopPropagation()">Открыть →</a>
                 </div>
             </div>
             {% endfor %}

@@ -551,3 +551,75 @@ def search_news_page(query, limit, offset):
     news = cursor.fetchall()
     con.close()
     return news
+
+#страница tools
+
+def get_tools_count_by_filter(category, search_query):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    if search_query:
+        words = normalize_query(search_query)
+        if not words:
+            return 0
+        
+        conditions = []
+        params = []
+        for word in words:
+            conditions.append("search_text LIKE ?")
+            params.append(f'%{word}%')
+        
+        sql = f"SELECT COUNT(*) FROM tools WHERE {' OR '.join(conditions)}"
+        if category and category != 'all':
+            sql += " AND category = ?"
+            params.append(category)
+    else:
+        sql = "SELECT COUNT(*) FROM tools WHERE 1=1"
+        params = []
+        if category and category != 'all':
+            sql += " AND category = ?"
+            params.append(category)
+    
+    cursor.execute(sql, params)
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+def get_tools_page_by_filter(category, search_query, limit, offset):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    if search_query:
+        words = normalize_query(search_query)
+        if not words:
+            return []
+        
+        conditions = []
+        params = []
+        for word in words:
+            conditions.append("search_text LIKE ?")
+            params.append(f'%{word}%')
+        
+        sql = f"""
+            SELECT id, name, description, category, url
+            FROM tools 
+            WHERE ({' OR '.join(conditions)})
+        """
+        if category and category != 'all':
+            sql += " AND category = ?"
+            params.append(category)
+        sql += " ORDER BY id LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+    else:
+        sql = "SELECT id, name, description, category, url FROM tools WHERE 1=1"
+        params = []
+        if category and category != 'all':
+            sql += " AND category = ?"
+            params.append(category)
+        sql += " ORDER BY id LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+    
+    cursor.execute(sql, params)
+    tools = cursor.fetchall()
+    con.close()
+    return tools
