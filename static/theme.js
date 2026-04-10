@@ -71,3 +71,22 @@
         });
     });
 })();
+
+// обрабатываем карточку
+document.addEventListener('DOMContentLoaded', function() {
+    // Находим все карточки
+    const cards = document.querySelectorAll('.vuln-card');
+    
+    cards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            // Если кликнули не по ссылке (чтобы не срабатывало дважды)
+            if (!e.target.closest('.detail-link')) {
+                // Ищем ссылку внутри карточки
+                const link = this.querySelector('.detail-link');
+                if (link) {
+                    window.location.href = link.href;
+                }
+            }
+        });
+    });
+});

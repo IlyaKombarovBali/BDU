@@ -541,6 +541,8 @@ h1 {
     border: 0.5px solid var(--border-light);
     transition: all 0.2s ease;
     box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    transition: all 0.2s;
 }
 .vuln-card:active {
     transform: scale(0.99);
@@ -623,7 +625,7 @@ h1 {
 }
 
 /* ========================================
-   СТРАНИЦА ДЕТАЛЕЙ УЯЗВИМОСТИ
+   СТРАНИЦА ДЕТАЛЕЙ 
    ======================================== */
 .vuln-detail-card {
     background: var(--bg-card);
