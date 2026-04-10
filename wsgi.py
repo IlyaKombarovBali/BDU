@@ -234,6 +234,9 @@ def donate():
 def feedback():
     return render_template('feedback.html')
 
+@app.route('/tools', methods=['GET', 'POST'])
+def tools():
+    return render_template('tools.html')
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
