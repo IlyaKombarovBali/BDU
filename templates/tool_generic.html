@@ -254,6 +254,20 @@
         </div>
         {% endif %}
 
+        <!-- ========== БЛОК WHOIS ========== -->
+        {% if tool.name == 'WHOIS' %}
+        <div class="info-section">
+            <form method="post">
+                <input type="text" name="domain" placeholder="Введите домен (например, example.ru)" required>
+                <button type="submit">Проверить</button>
+            </form>
+            {% if whois_output %}
+                <div class="section-title">Результат WHOIS</div>
+                <pre class="whois-output">{{ whois_output }}</pre>
+            {% endif %}
+        </div>
+        {% endif %}
+
 
 
     </div>
