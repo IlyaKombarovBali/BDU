@@ -2,17 +2,14 @@ import subprocess
 import dns.resolver
 import socket
 import ssl
-import whois
 import requests
 import whois
 
 
-import whois
-
 def get_whois(domain):
-    """Возвращает вывод whois для домена"""
     try:
-        result = subprocess.run(['whois', domain], capture_output=True, text=True, timeout=10)
+        # Полный путь к whois на сервере
+        result = subprocess.run(['/usr/bin/whois', domain], capture_output=True, text=True, timeout=10)
         return result.stdout if result.returncode == 0 else f"Ошибка: {result.stderr}"
     except Exception as e:
         return f"Ошибка: {str(e)}"
