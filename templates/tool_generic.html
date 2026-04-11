@@ -256,18 +256,38 @@
 
         <!-- ========== БЛОК WHOIS ========== -->
         {% if tool.name == 'WHOIS' %}
-        <div class="info-section">
-            <form method="post">
-                <input type="text" name="domain" placeholder="Введите домен (например, example.ru)" required>
-                <button type="submit">Проверить</button>
-            </form>
+        <div class="tool-section-network">
+            <div class="tool-header-network">
+                <div class="tool-header-icon">🌍</div>
+                <div>
+                    <div class="tool-header-title">WHOIS - информация о домене</div>
+                    <div class="tool-header-desc">Получите данные о регистраторе, датах регистрации и NS-серверах домена</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Введите домен</div>
+                        <form method="post" id="whois-form" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="text" name="domain" id="whois-domain" class="form-input" placeholder="example.ru" required style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Проверить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             {% if result %}
-                <div class="section-title">Результат WHOIS</div>
-                <pre class="whois-output">{{ result }}</pre>
+            <div class="info-section">
+                <div class="section-title"><span>📋</span> Результат WHOIS</div>
+                <div class="result-card">
+                    <pre class="whois-output" id="whois-result">{{ result }}</pre>
+                </div>
+                <button onclick="copyWhoisResult()" class="copy-result-btn" style="margin-top: 12px; width: 100%;">📋 Копировать результат</button>
+            </div>
             {% endif %}
         </div>
         {% endif %}
-
 
 
     </div>

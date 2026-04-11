@@ -534,34 +534,6 @@ function base64UrlDecode(str) {
     return atob(base64);
 }
 
-// ========== ДЕКОДИРОВАНИЕ URL ==========
-function encodeUrl() {
-    let input = document.getElementById('url-input').value;
-    if (!input.trim()) {
-        document.getElementById('url-result').innerText = 'Введите текст';
-        return;
-    }
-    try {
-        let encoded = encodeURIComponent(input);
-        document.getElementById('url-result').innerHTML = `<strong>Закодированная строка:</strong><br>${encoded}`;
-    } catch (e) {
-        document.getElementById('url-result').innerText = 'Ошибка кодирования: ' + e.message;
-    }
-}
-
-function decodeUrl() {
-    let input = document.getElementById('url-input').value;
-    if (!input.trim()) {
-        document.getElementById('url-result').innerText = 'Введите URL строку';
-        return;
-    }
-    try {
-        let decoded = decodeURIComponent(input);
-        document.getElementById('url-result').innerHTML = `<strong>Декодированная строка:</strong><br>${decoded}`;
-    } catch (e) {
-        document.getElementById('url-result').innerText = 'Ошибка декодирования: неверный формат URL';
-    }
-}
 
 function clearUrl() {
     document.getElementById('url-input').value = '';
@@ -658,4 +630,60 @@ function fallbackCopyUrl(text, button, originalText) {
     
     button.innerHTML = '✅ Скопировано!';
     setTimeout(() => { button.innerHTML = originalText; }, 2000);
+}
+
+
+// ========== WHOIS КОПИРОВАНИЕ ==========
+function copyWhoisResult() {
+    const resultText = document.getElementById('whois-result')?.innerText;
+    const button = event.target;
+    
+    if (!resultText) {
+        showToast('Нет данных для копирования');
+        return;
+    }
+    
+    const originalText = button.innerHTML;
+    
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(resultText).then(() => {
+            button.innerHTML = '✅ Скопировано!';
+            setTimeout(() => { button.innerHTML = originalText; }, 2000);
+        }).catch(() => {
+            fallbackCopyWhois(resultText, button, originalText);
+        });
+    } else {
+        fallbackCopyWhois(resultText, button, originalText);
+    }
+}
+
+function fallbackCopyWhois(text, button, originalText) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    
+    button.innerHTML = '✅ Скопировано!';
+    setTimeout(() => { button.innerHTML = originalText; }, 2000);
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '80px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.background = 'var(--accent-red)';
+    toast.style.color = 'white';
+    toast.style.padding = '10px 20px';
+    toast.style.borderRadius = '40px';
+    toast.style.fontSize = '14px';
+    toast.style.zIndex = '1000';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
 }

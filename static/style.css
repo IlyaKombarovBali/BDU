@@ -670,6 +670,7 @@ h1 {
 .description-text {
     font-size: 14px;
     line-height: 1.5;
+    padding-bottom: 8px;
     color: var(--description-text);
 }
 .meta-grid {
@@ -1295,4 +1296,78 @@ h1 {
 body.dark .action-button-clear {
     background: var(--bg-chip);
     color: var(--text-chip);
+}
+
+/* ========================================
+   СТИЛИ ДЛЯ WHOIS
+   ======================================== */
+
+/* Секция для сетевых инструментов */
+.tool-section-network {
+    background: linear-gradient(135deg, rgba(59,130,246,0.03) 0%, rgba(59,130,246,0) 100%);
+    border-radius: 28px;
+    padding: 8px;
+    margin-bottom: 16px;
+}
+
+.tool-header-network {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #3b82f6;
+}
+
+/* Поле ввода как в поиске */
+.form-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border-light);
+    border-radius: 44px;
+    padding: 12px 18px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.form-input:focus {
+    border-color: var(--accent-red);
+}
+
+/* Вывод WHOIS */
+.whois-output {
+    background: var(--bg-input);
+    border-radius: 16px;
+    padding: 16px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 0;
+}
+
+body.dark .whois-output {
+    background: #0a0d17;
+}
+
+@media (max-width: 500px) {
+    .header-row {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .breadcrumb {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .header-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
 }
