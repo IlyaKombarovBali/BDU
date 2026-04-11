@@ -3,6 +3,7 @@ from flask import Flask, render_template
 from flask import request
 from flask import Flask, render_template, request, redirect
 from urllib.parse import urlencode
+from tools_logic import get_whois, get_dns_records, get_ssl_info
 
 
 app = Flask(__name__)
@@ -264,7 +265,15 @@ def tool_generic(tool_name):
     if not tool:
         return "Инструмент не найден", 404
     
-    return render_template('tool_generic.html', tool=tool, back_url=back_url)
+    result = None
+    if request.method == 'POST':
+        domain = request.form.get('domain', '').strip()
+        if domain:
+            result = get_whois(domain)
+    
+    return render_template('tool_generic.html', result=result, tool=tool, back_url=back_url)
+
+
 
 
 @app.route('/donate')

@@ -2,12 +2,24 @@ import subprocess
 import dns.resolver
 import socket
 import ssl
+import whois
+import requests
+import whois
+
+
+import whois
 
 def get_whois(domain):
-    """Возвращает вывод whois для домена"""
     try:
-        result = subprocess.run(['whois', domain], capture_output=True, text=True, timeout=10)
-        return result.stdout if result.returncode == 0 else f"Ошибка: {result.stderr}"
+        w = whois.query(domain)
+        if w is None:
+            return f"Домен {domain} не найден"
+        result = f"Domain: {w.name}\n"
+        result += f"Registrar: {w.registrar}\n"
+        result += f"Creation Date: {w.creation_date}\n"
+        result += f"Expiration Date: {w.expiration_date}\n"
+        result += f"Name Servers: {', '.join(w.name_servers) if w.name_servers else '—'}\n"
+        return result
     except Exception as e:
         return f"Ошибка: {str(e)}"
 

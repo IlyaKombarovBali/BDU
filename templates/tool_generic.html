@@ -261,9 +261,9 @@
                 <input type="text" name="domain" placeholder="Введите домен (например, example.ru)" required>
                 <button type="submit">Проверить</button>
             </form>
-            {% if whois_output %}
+            {% if result %}
                 <div class="section-title">Результат WHOIS</div>
-                <pre class="whois-output">{{ whois_output }}</pre>
+                <pre class="whois-output">{{ result }}</pre>
             {% endif %}
         </div>
         {% endif %}
