@@ -954,3 +954,346 @@ h1 {
         grid-template-columns: 1fr;
     }
 }
+
+
+
+
+/* ========================================
+   СТИЛИ ДЛЯ СТРАНИЦ ИНСТРУМЕНТОВ
+   ======================================== */
+
+/* Блок инструмента (генератор паролей, хэширование и т.д.) */
+.tool-section {
+    margin-bottom: 24px;
+    border-bottom: 0.5px solid var(--border-light);
+    padding-bottom: 20px;
+}
+
+.tool-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+}
+
+/* Форма инструмента */
+.tool-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    background: var(--bg-meta);
+    border-radius: 18px;
+    padding: 14px;
+    border: 0.5px solid var(--border-light);
+}
+
+.form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--meta-label);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.form-input {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: var(--accent-red);
+}
+
+.form-input-number {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+}
+
+/* Чекбоксы в группе */
+.checkbox-group {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.checkbox-label input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent-red);
+}
+
+/* Результат выполнения */
+.result-card {
+    background: var(--bg-meta);
+    border-radius: 20px;
+    padding: 16px;
+    border: 0.5px solid var(--border-light);
+    margin-top: 16px;
+}
+
+.result-text {
+    font-family: monospace;
+    font-size: 16px;
+    word-break: break-all;
+    text-align: center;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.result-text-large {
+    font-family: monospace;
+    font-size: 20px;
+    font-weight: 600;
+    word-break: break-all;
+    text-align: center;
+    color: var(--accent-red);
+    background: var(--bg-input);
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+}
+
+/* Кнопка копирования внутри результата */
+.copy-result-btn {
+    background: var(--bg-chip);
+    border: none;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-chip);
+    transition: all 0.2s;
+    margin-top: 12px;
+    width: fit-content;
+}
+
+.copy-result-btn:active {
+    transform: scale(0.95);
+    background: var(--accent-red);
+    color: white;
+}
+
+/* Кнопка действия (генерация, вычисление и т.д.) */
+.action-button {
+    background: var(--detail-bg);
+    padding: 10px 20px;
+    border-radius: 40px;
+    text-decoration: none;
+    color: var(--detail-text);
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+    border: none;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.action-button:active {
+    opacity: 0.8;
+    transform: scale(0.96);
+}
+
+/* Адаптив для форм */
+@media (max-width: 400px) {
+    .checkbox-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .result-text-large {
+        font-size: 16px;
+        padding: 12px;
+    }
+}
+
+
+/* Текстовое поле */
+.form-textarea {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    outline: none;
+}
+
+.form-textarea:focus {
+    border-color: var(--accent-red);
+}
+
+/* Выпадающий список */
+.form-select {
+    width: 100%;
+    background: var(--bg-input);
+    border: 0.5px solid var(--border-light);
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    border-color: var(--accent-red);
+}
+
+/* Информационная заметка */
+.info-note {
+    margin-top: 12px;
+    padding: 10px;
+    background: var(--bg-meta);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.info-note code {
+    font-size: 11px;
+    word-break: break-all;
+    background: var(--bg-input);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+/* Разделитель между инструментами */
+.tool-divider {
+    margin: 32px 0 24px;
+    position: relative;
+    text-align: center;
+}
+
+.tool-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-light);
+    z-index: 1;
+}
+
+.tool-divider span {
+    position: relative;
+    z-index: 2;
+    background: var(--bg-card);
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent-red);
+    letter-spacing: 1px;
+}
+
+/* Разные фоны для разных инструментов */
+.tool-section-crypto {
+    background: linear-gradient(135deg, rgba(59,130,246,0.03) 0%, rgba(59,130,246,0) 100%);
+    border-radius: 28px;
+    padding: 8px;
+    margin-bottom: 16px;
+}
+
+.tool-section-csp {
+    background: linear-gradient(135deg, rgba(16,185,129,0.03) 0%, rgba(16,185,129,0) 100%);
+    border-radius: 28px;
+    padding: 8px;
+    margin-top: 16px;
+}
+
+/* Заголовки инструментов с цветовой индикацией */
+.tool-header-crypto {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #3b82f6;
+}
+
+.tool-header-csp {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #10b981;
+}
+
+.tool-header-icon {
+    font-size: 28px;
+}
+
+.tool-header-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.tool-header-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Кнопка очистки */
+.action-button-clear {
+    background: var(--bg-meta);
+    border: 1px solid var(--border-light);
+    padding: 10px 20px;
+    border-radius: 40px;
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.action-button-clear:active {
+    transform: scale(0.96);
+}
+
+body.dark .action-button-clear {
+    background: var(--bg-chip);
+    color: var(--text-chip);
+}

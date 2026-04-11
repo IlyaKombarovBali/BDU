@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>{{ tool.name }} Онлайн — ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <!-- хедер -->
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <a href="/tools">Инструменты</a>
+                <span>→</span>
+                <span>{{ tool.name }}</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
+                    🤖 PRO ИБ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>{{ tool.name }}</h1>
+        </div>
+    </div>
+
+
+<!-- Главный блок -->
+<div class="main-content">
+    <div class="vuln-detail-card">
+        <div class="identifier-badge">🔧 {{ tool.name }}</div>
+        <div class="vuln-name">{{ tool.name }}</div>
+        <div class="description-text">{{ tool.description }}</div>
+
+        <!-- ========== БЛОК ГЕНЕРАТОРА ПАРОЛЕЙ ========== -->
+        {% if tool.name == 'Генератор паролей' %}
+        <div class="info-section">
+            <div class="section-title"><span>⚙️</span> Настройки генерации</div>
+            <div class="meta-grid" style="grid-template-columns: 1fr;">
+                <div class="meta-item">
+                    <div class="meta-label">Длина пароля</div>
+                    <input type="number" id="pwd-length" value="12" min="4" max="32" class="form-input-number">
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">Типы символов</div>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label"><input type="checkbox" id="pwd-digits" checked> Цифры</label>
+                        <label class="checkbox-label"><input type="checkbox" id="pwd-special" checked> Спецсимволы</label>
+                    </div>
+                </div>
+            </div>
+            <button onclick="generatePassword()" class="action-button">✨ Сгенерировать пароль</button>
+        </div>
+
+        <div class="info-section">
+            <div class="section-title"><span>🔑</span> Сгенерированный пароль</div>
+            <div class="result-card">
+                <div class="result-text" id="password-result">Нажмите кнопку генерации</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ========== ИНСТРУМЕНТ 1: ХЭШИРОВАНИЕ ТЕКСТА ========== -->
+        {% if tool.id == 2 %}
+        <div class="tool-section-crypto">
+            <div class="tool-header-crypto">
+                <div class="tool-header-icon">🔒</div>
+                <div>
+                    <div class="tool-header-title">Хэширование текста</div>
+                    <div class="tool-header-desc">Преобразование текста в необратимый хэш-код</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Исходный текст</div>
+                        <textarea id="hash-input" class="form-textarea" rows="4" placeholder="Введите текст для хэширования..."></textarea>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Алгоритм хэширования</div>
+                        <select id="hash-algorithm" class="form-select">
+                            <option value="MD5">MD5</option>
+                            <option value="SHA-1">SHA-1</option>
+                            <option value="SHA-256">SHA-256</option>
+                            <option value="SHA-512">SHA-512</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="computeHash()" class="action-button">🔐 Вычислить хэш</button>
+            </div>
+
+            <div class="info-section">
+                <div class="result-card">
+                    <div class="result-text" id="hash-result">Нажмите кнопку вычисления</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- РАЗДЕЛИТЕЛЬ -->
+        {% if tool.id == 2 %}
+        <div class="tool-divider">
+            <span>✦ ИЛИ ✦</span>
+        </div>
+        {% endif %}
+
+        <!-- ========== ИНСТРУМЕНТ 2: CSP ПОДПИСЬ ========== -->
+        {% if tool.id == 2 %}
+        <div class="tool-section-csp">
+            <div class="tool-header-csp">
+                <div class="tool-header-icon">🛡️</div>
+                <div>
+                    <div class="tool-header-title">CSP-подпись для скриптов</div>
+                    <div class="tool-header-desc">Генерация хэшей для Content Security Policy</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">HTML-код (вставьте код со скриптами/стилями)</div>
+                        <textarea id="csp-input" class="form-textarea" rows="6" placeholder="&lt;script&gt;console.log('Hello');&lt;/script&gt;&#10;&lt;style&gt;body { margin: 0; }&lt;/style&gt;"></textarea>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Алгоритм (CSP использует SHA-256, -384, -512)</div>
+                        <select id="csp-algorithm" class="form-select">
+                            <option value="256">SHA-256</option>
+                            <option value="384">SHA-384</option>
+                            <option value="512">SHA-512</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="generateCspHash()" class="action-button">🔏 Сгенерировать CSP-подпись</button>
+            </div>
+
+            <div class="info-section">
+                <div class="result-card">
+                    <div class="result-text" id="csp-result">Нажмите кнопку генерации</div>
+                </div>
+                <div class="info-note" style="margin-top: 12px;">
+                    <span>ℹ️</span> Добавьте полученные значения в заголовок:<br>
+                    <code>Content-Security-Policy: script-src 'sha256-...' 'sha256-...' ; style-src 'sha256-...'</code>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+        <!-- ========== БЛОК КОДИРОВАНИЕ BASE64 ========== -->
+        {% if tool.id == 3 %}
+        <div class="tool-section-crypto">
+            <div class="tool-header-crypto">
+                <div class="tool-header-icon">🔄</div>
+                <div>
+                    <div class="tool-header-title">Кодирование / Декодирование Base64</div>
+                    <div class="tool-header-desc">Преобразование текста в Base64 и обратно</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Текст или Base64</div>
+                        <textarea id="base64-input" class="form-textarea" rows="5" placeholder="Введите текст для кодирования или Base64 для декодирования..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+                    <button onclick="encodeBase64()" class="action-button">🔐 Кодировать в Base64</button>
+                    <button onclick="decodeBase64()" class="action-button">🔓 Декодировать из Base64</button>
+                    <button onclick="clearBase64()" class="action-button-clear">🗑️ Очистить</button>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title"><span>📝</span> Результат</div>
+                <div class="result-card" id="base64-result-container">
+                    <div class="result-text" id="base64-result">Нажмите кнопку кодирования или декодирования</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК АНАЛИЗ JWT ТОКЕНОВ ========== -->
+        {% if tool.id == 5 %}
+        <div class="tool-section-crypto">
+            <div class="tool-header-crypto">
+                <div class="tool-header-icon">🔑</div>
+                <div>
+                    <div class="tool-header-title">Анализ JWT токенов</div>
+                    <div class="tool-header-desc">Декодирование заголовка и полезной нагрузки</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">JWT токен</div>
+                        <textarea id="jwt-input" class="form-textarea" rows="4" placeholder="Введите JWT токен (формат xxx.yyy.zzz)..."></textarea>
+                    </div>
+                </div>
+                <button onclick="analyzeJwt()" class="action-button">🔍 Декодировать JWT</button>
+                <button onclick="clearJwt()" class="action-button-clear">🗑️ Очистить</button>
+            </div>
+
+            <div class="info-section" id="jwt-result-section" style="display: none;">
+                <div class="section-title"><span>📋</span> Результат анализа</div>
+                <div class="result-card">
+                    <div class="result-text" id="jwt-result"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК ДЕКОДИРОВАНИЕ URL ========== -->
+        {% if tool.id == 4 %}
+        <div class="tool-section-crypto">
+            <div class="tool-header-crypto">
+                <div class="tool-header-icon">🌐</div>
+                <div>
+                    <div class="tool-header-title">Введите текст или URL</div>
+                    <div class="tool-header-desc">Кодирование и декодирование URL-строк для безопасной передачи в веб-запросах</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Текст или URL</div>
+                        <textarea id="url-input" class="form-textarea" rows="5" placeholder="Введите текст для кодирования или URL для декодирования..."></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+                    <button onclick="encodeUrl()" class="action-button">🔐 Кодировать URL</button>
+                    <button onclick="decodeUrl()" class="action-button">🔓 Декодировать URL</button>
+                    <button onclick="clearUrl()" class="action-button-clear">🗑️ Очистить</button>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title"><span>📝</span> Результат</div>
+                <div class="result-card" id="url-result-container">
+                    <div class="result-text" id="url-result">Нажмите кнопку кодирования или декодирования</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+
+
+    </div>
+    <a href="{{ back_url }}" class="back-button">← Назад к списку инструментов</a>
+</div>
+
+    <!-- нижний таб-бар -->
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item"><div class="tab-icon">🏠</div><span>Главная</span></a>
+        <a href="/donate" class="tab-item"><div class="tab-icon">❤️</div><span>Поддержка</span></a>
+        <a href="/feedback" class="tab-item"><div class="tab-icon">💬</div><span>Обратная связь</span></a>
+        <a href="/profile" class="tab-item"><div class="tab-icon">👤</div><span>Профиль</span></a>
+    </div>
+</div>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<script src="/static/theme.js"></script>
+</body>
+</html>

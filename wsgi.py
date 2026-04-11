@@ -247,6 +247,26 @@ def tools():
     )
 
 
+@app.route('/tools/<tool_name>', methods=['GET', 'POST'])
+def tool_generic(tool_name):
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 20, type=int)
+    filter_cat = request.args.get('filter', 'all')
+    search_query = request.args.get('q', '')
+    
+    back_url = f"/tools?page={page}&limit={limit}"
+    if filter_cat != 'all':
+        back_url += f"&filter={filter_cat}"
+    if search_query:
+        back_url += f"&q={search_query}"
+    
+    tool = config.get_tool_by_name(tool_name)
+    if not tool:
+        return "Инструмент не найден", 404
+    
+    return render_template('tool_generic.html', tool=tool, back_url=back_url)
+
+
 @app.route('/donate')
 def donate():
     return render_template('donate.html')

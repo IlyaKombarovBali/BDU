@@ -623,3 +623,39 @@ def get_tools_page_by_filter(category, search_query, limit, offset):
     tools = cursor.fetchall()
     con.close()
     return tools
+
+def get_tool_by_name(tool_name):
+    con = get_norm_db()
+    cursor = con.cursor()
+    
+    # Преобразуем URL-имя в название из БД
+    name_map = {
+        'password-generator': 'Генератор паролей',
+        'hash': 'Хэширование текста / CSP-подпись',
+        'base64': 'Кодирование Base64',
+        'url-encode': 'Кодировать и декодировать URL',
+        'jwt': 'Анализ JWT токенов',
+        'whois': 'WHOIS',
+        'ip-geo': 'Геолокация IP',
+        'ssl-check': 'Проверка SSL-сертификата',
+        'http-headers': 'Анализ заголовков HTTP',
+        'port-check': 'Проверка открытых портов',
+        'reverse-dns': 'Reverse DNS',
+        'dns-lookup': 'DNS lookup',
+        'email-breach': 'Проверка email в утечках',
+        'virus-url': 'Проверка на вирусы (URL)',
+        'virus-file': 'Проверка на вирусы (файл)',
+        'domain-search': 'Поиск доменов организации',
+        'trust-score': 'Анализатор доверия к сайту',
+        'metadata': 'Анализ метаданных файлов',
+        'log-analyzer': 'Анализатор логов',
+        'pcap-analyzer': 'Анализатор PCAP',
+        'code-stats': 'Статистический анализ кода',
+        'evtx-analyzer': 'Анализ событий Windows (.evtx)'
+    }
+    
+    real_name = name_map.get(tool_name, tool_name)
+    cursor.execute("SELECT id, name, description, category, url FROM tools WHERE name = ?", (real_name,))
+    tool = cursor.fetchone()
+    con.close()
+    return tool
