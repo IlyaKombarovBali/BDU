@@ -1,0 +1,4 @@
+{# До style.css: убрать мигание светлой темы при переходах, если в localStorage уже dark #}
+<script>
+(function(){try{if(localStorage.getItem('proib_theme')==='dark')document.documentElement.classList.add('dark');}catch(e){}})();
+</script>

@@ -61,7 +61,7 @@
 /* ========================================
    ТЁМНАЯ ТЕМА
    ======================================== */
-body.dark {
+html.dark {
     --bg-primary: #0a0d17;
     --bg-secondary: #0b0e16;
     --bg-card: #11151f;
@@ -1323,7 +1323,7 @@ h1 {
     transform: scale(0.96);
 }
 
-body.dark .action-button-clear {
+html.dark .action-button-clear {
     background: var(--bg-chip);
     color: var(--text-chip);
 }
@@ -1381,7 +1381,7 @@ body.dark .action-button-clear {
     margin: 0;
 }
 
-body.dark .whois-output {
+html.dark .whois-output {
     background: #0a0d17;
 }
 
@@ -1435,7 +1435,7 @@ body.dark .whois-output {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
-body.dark .ip-geo-hero-emoji {
+html.dark .ip-geo-hero-emoji {
     background: #e8edf3;
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
@@ -1466,7 +1466,7 @@ body.dark .ip-geo-hero-emoji {
     color: #059669;
 }
 
-body.dark .ip-geo-chip {
+html.dark .ip-geo-chip {
     background: rgba(16, 185, 129, 0.2);
     color: #34d399;
 }
@@ -1484,11 +1484,11 @@ body.dark .ip-geo-chip {
     border-bottom-color: #2563eb;
 }
 
-body.dark .ip-geo-map-link {
+html.dark .ip-geo-map-link {
     color: #60a5fa;
 }
 
-body.dark .ip-geo-map-link:hover {
+html.dark .ip-geo-map-link:hover {
     border-bottom-color: #60a5fa;
 }
 
@@ -1554,7 +1554,7 @@ body.dark .ip-geo-map-link:hover {
     border-radius: 12px;
 }
 
-body.dark .vt-file-busy-hint {
+html.dark .vt-file-busy-hint {
     border-left-color: #60a5fa;
 }
 
@@ -1582,7 +1582,7 @@ body.dark .vt-file-busy-hint {
     -webkit-overflow-scrolling: touch;
 }
 
-body.dark .org-domain-suggest-list {
+html.dark .org-domain-suggest-list {
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
@@ -1617,7 +1617,7 @@ body.dark .org-domain-suggest-list {
     border-left: 4px solid #3b82f6;
 }
 
-body.dark .ip-geo-asn-card {
+html.dark .ip-geo-asn-card {
     border-left-color: #60a5fa;
 }
 
@@ -1750,7 +1750,7 @@ body.dark .ip-geo-asn-card {
     color: var(--text-secondary);
 }
 
-body.dark .http-hdr-legal {
+html.dark .http-hdr-legal {
     background: rgba(59, 130, 246, 0.1);
 }
 
@@ -1911,7 +1911,7 @@ body.dark .http-hdr-legal {
     background: rgba(59, 130, 246, 0.08);
 }
 
-body.dark .http-hdr-table thead {
+html.dark .http-hdr-table thead {
     background: rgba(59, 130, 246, 0.15);
 }
 
@@ -1939,7 +1939,7 @@ body.dark .http-hdr-table thead {
     color: #2563eb;
 }
 
-body.dark .http-hdr-td-name {
+html.dark .http-hdr-td-name {
     color: #93c5fd;
 }
 
@@ -1975,7 +1975,7 @@ body.dark .http-hdr-td-name {
     color: var(--text-primary);
 }
 
-body.dark .ssl-check-warn {
+html.dark .ssl-check-warn {
     background: rgba(245, 158, 11, 0.15);
 }
 
@@ -2064,7 +2064,7 @@ body.dark .ssl-check-warn {
     border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-body.dark .ssl-check-hero-icon {
+html.dark .ssl-check-hero-icon {
     background: #e8edf3;
     border-color: rgba(255, 255, 255, 0.12);
 }
@@ -2095,7 +2095,7 @@ body.dark .ssl-check-hero-icon {
     color: #4f46e5;
 }
 
-body.dark .ssl-check-chip-host {
+html.dark .ssl-check-chip-host {
     background: rgba(99, 102, 241, 0.22);
     color: #a5b4fc;
 }
@@ -2346,7 +2346,7 @@ body.dark .ssl-check-chip-host {
     color: var(--text-muted);
 }
 
-body.dark .bookmark-star {
+html.dark .bookmark-star {
     background: var(--bg-input);
     border-color: var(--border-light);
 }

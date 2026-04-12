@@ -13,13 +13,15 @@
         isDark = false;
     }
     
+    const root = document.documentElement;
+
     function setTheme(dark) {
         if (dark) {
-            document.body.classList.add('dark');
+            root.classList.add('dark');
             if (themeIcon) themeIcon.textContent = '🌙';
             localStorage.setItem('proib_theme', 'dark');
         } else {
-            document.body.classList.remove('dark');
+            root.classList.remove('dark');
             if (themeIcon) themeIcon.textContent = '☀️';
             localStorage.setItem('proib_theme', 'light');
         }
@@ -29,7 +31,7 @@
     
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
-            setTheme(!document.body.classList.contains('dark'));
+            setTheme(!root.classList.contains('dark'));
         });
     }
 })();
