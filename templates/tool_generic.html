@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>{{ tool.name }} Онлайн — ПРО ИБ</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    {% set page_tool_title = ('Мой IP Поиск Геолокации по IP-адресу' if tool_slug == 'ip-geo' else tool.name) %}
+    <title>{{ page_tool_title }} Онлайн — ПРО ИБ</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -16,19 +18,20 @@
                 <span>→</span>
                 <a href="/tools">Инструменты</a>
                 <span>→</span>
-                <span>{{ tool.name }}</span>
+                <span>{{ page_tool_title }}</span>
             </div>
             <div class="header-right">
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
                     <span id="themeIcon">☀️</span>
                 </button>
+                {% include '_profile_nav.html' %}
                 <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
                     🤖 PRO ИБ
                 </a>
             </div>
         </div>
         <div class="title-section">
-            <h1>{{ tool.name }}</h1>
+            <h1>{{ page_tool_title }}</h1>
         </div>
     </div>
 
@@ -36,8 +39,8 @@
 <!-- Главный блок -->
 <div class="main-content">
     <div class="vuln-detail-card">
-        <div class="identifier-badge">🔧 {{ tool.name }}</div>
-        <div class="vuln-name">{{ tool.name }}</div>
+        <div class="identifier-badge">🔧 {{ page_tool_title }}</div>
+        <div class="vuln-name">{{ page_tool_title }}</div>
         <div class="description-text">{{ tool.description }}</div>
 
         <!-- ========== БЛОК ГЕНЕРАТОРА ПАРОЛЕЙ ========== -->
@@ -270,6 +273,7 @@
                     <div class="meta-item">
                         <div class="meta-label">Введите домен</div>
                         <form method="post" id="whois-form" style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="text" name="domain" id="whois-domain" class="form-input" placeholder="example.ru" required style="flex: 1;">
                             <button type="submit" class="action-button">🔍 Проверить</button>
                         </form>
@@ -287,6 +291,1340 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
+
+        <!-- ========== БЛОК ПРОВЕРКА SSL ========== -->
+        {% if tool.name == 'Проверка SSL-сертификата' %}
+        <div class="tool-section-network tool-section-ssl">
+            <div class="tool-header-network tool-header-ssl">
+                <div class="tool-header-icon">🔐</div>
+                <div>
+                    <div class="tool-header-title">Проверка TLS / SSL-сертификата</div>
+                    <div class="tool-header-desc">Срок действия, издатель, альтернативные имена (SAN), версия TLS и шифр при подключении к HTTPS</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Домен или URL</div>
+                        <form method="post" id="ssl-check-form" class="ip-geo-form-row">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="ssl_host" id="ssl-host-input" class="form-input" placeholder="example.ru или https://example.ru:443" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Проверить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if ssl_info %}
+                {% if ssl_info.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card ssl-check-error-card">
+                        <p class="ip-geo-error-text">{{ ssl_info.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ssl-check-result-wrap">
+                    <div class="section-title"><span>📜</span> Результат</div>
+
+                    {% if ssl_info.trust_warning %}
+                    <div class="ssl-check-warn">{{ ssl_info.trust_warning }}</div>
+                    {% endif %}
+
+                    <div class="ssl-check-hero">
+                        <span class="ssl-check-hero-icon" aria-hidden="true">{% if ssl_info.status == 'expired' %}⚠️{% elif ssl_info.status == 'expiring' %}⏳{% elif ssl_info.status == 'not_yet_valid' %}📅{% else %}✅{% endif %}</span>
+                        <div class="ssl-check-hero-text">
+                            <div class="ssl-check-cn">{{ ssl_info.subject.get('commonName', '—') }}</div>
+                            <div class="ssl-check-meta-line">
+                                <span class="ssl-check-chip ssl-check-chip-host">{{ ssl_info.host }}:{{ ssl_info.port }}</span>
+                                {% if ssl_info.verified %}
+                                <span class="ssl-check-badge ssl-check-badge-ok">Цепочка проверена</span>
+                                {% else %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Просмотр без доверия</span>
+                                {% endif %}
+                                {% if ssl_info.status == 'expired' %}
+                                <span class="ssl-check-badge ssl-check-badge-bad">Истёк</span>
+                                {% elif ssl_info.status == 'expiring' %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Скоро истечёт</span>
+                                {% elif ssl_info.status == 'not_yet_valid' %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Ещё не действует</span>
+                                {% elif ssl_info.status == 'ok' %}
+                                <span class="ssl-check-badge ssl-check-badge-ok">Действителен</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ssl-check-grid">
+                        <div class="ssl-check-tile ssl-check-tile-wide">
+                            <div class="ssl-check-tile-label">Подключение</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ ssl_info.tls_version or '—' }} · {{ ssl_info.cipher or '—' }}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Действует с</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ ssl_info.not_before or '—' }}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Действует до</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ ssl_info.not_after or '—' }}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Осталось дней</div>
+                            <div class="ssl-check-tile-value">{% if ssl_info.days_left is not none %}{{ ssl_info.days_left }}{% else %}—{% endif %}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Серийный номер</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ ssl_info.serial or '—' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="ssl-check-card">
+                        <div class="ssl-check-card-title">Издатель (Issuer)</div>
+                        <pre class="ssl-check-pre">{% for k, v in ssl_info.issuer|dictsort %}{{ k }} = {{ v }}
+{% endfor %}{% if not ssl_info.issuer %}—{% endif %}</pre>
+                    </div>
+
+                    <div class="ssl-check-card">
+                        <div class="ssl-check-card-title">Субъект (Subject)</div>
+                        <pre class="ssl-check-pre">{% for k, v in ssl_info.subject|dictsort %}{{ k }} = {{ v }}
+{% endfor %}{% if not ssl_info.subject %}—{% endif %}</pre>
+                    </div>
+
+                    {% if ssl_info.san %}
+                    <div class="ssl-check-card">
+                        <div class="ssl-check-card-title">Subject Alternative Names</div>
+                        <ul class="ssl-check-san-list">
+                            {% for entry in ssl_info.san %}
+                            <li class="ssl-check-mono">{{ entry }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div id="ssl-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">Хост: {{ ssl_info.host }}:{{ ssl_info.port }}
+TLS: {{ ssl_info.tls_version }} / {{ ssl_info.cipher }}
+CN: {{ ssl_info.subject.get('commonName', '') }}
+С: {{ ssl_info.not_before }}
+По: {{ ssl_info.not_after }}
+Дней: {{ ssl_info.days_left }}
+Издатель: {% for k, v in ssl_info.issuer|dictsort %}{{ k }}={{ v }}; {% endfor %}
+SAN: {{ ssl_info.san | join(', ') }}</div>
+                    <button type="button" onclick="copySslSummary()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">«Запрос идёт с сервера портала, не с вашего ПК. Справочная проверка сертификата, не полный аудит безопасности.»</p>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК АНАЛИЗ HTTP ЗАГОЛОВКОВ ========== -->
+        {% if tool.name == 'Анализ заголовков HTTP' %}
+        <div class="tool-section-network tool-section-http-hdr">
+            <div class="tool-header-network tool-header-http-hdr">
+                <div class="tool-header-icon">📨</div>
+                <div>
+                    <div class="tool-header-title">Анализ ответных заголовков HTTP(S)</div>
+                    <div class="tool-header-desc">Одиночный запрос к указанному URL — отображаются статус, ответы редиректов и заголовки, как в инструментах разработчика</div>
+                </div>
+            </div>
+
+            <div class="info-section http-hdr-legal">
+                <p class="http-hdr-legal-text">
+                    Используйте только для ресурсов, на анализ которых у вас есть право (свой сайт, договорная оценка, учебная работа).
+                    Инструмент не предназначен для скрытого сканирования, обхода авторизации и несанкционированного доступа к информации.
+                    Запросы к внутренним и служебным адресам заблокированы на стороне сервера.
+                </p>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">URL страницы</div>
+                        <form method="post" id="http-hdr-form" class="ip-geo-form-row">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="http_url" id="http-url-input" class="form-input" placeholder="https://example.ru или example.ru" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Отправить запрос</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if http_headers_result %}
+                {% if http_headers_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ http_headers_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section http-hdr-result-wrap">
+                    <div class="section-title"><span>📋</span> Ответ сервера</div>
+
+                    <div class="http-hdr-summary">
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Код</span> <span class="http-hdr-mono">{{ http_headers_result.status_code }}</span></div>
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Метод</span> <span class="http-hdr-mono">{{ http_headers_result.method }}</span></div>
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Время</span> <span class="http-hdr-mono">{{ http_headers_result.elapsed_ms }} мс</span></div>
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Редиректов</span> <span class="http-hdr-mono">{{ http_headers_result.redirect_count }}</span></div>
+                    </div>
+
+                    <div class="http-hdr-url-line">
+                        <span class="http-hdr-url-label">Итоговый URL</span>
+                        {% set _fu = http_headers_result.final_url %}
+                        {% if _fu|length > 50 %}
+                        <div class="http-hdr-url-expand-wrap">
+                            <span class="http-hdr-mono http-hdr-url-preview">{{ _fu[:50] }}…</span>
+                            <details class="http-hdr-url-details">
+                                <summary>Показать полный URL</summary>
+                                <div class="http-hdr-mono http-hdr-url-full">{{ _fu }}</div>
+                            </details>
+                        </div>
+                        {% else %}
+                        <span class="http-hdr-mono http-hdr-url-value">{{ _fu }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if http_headers_result.redirect_count > 0 %}
+                    <div class="http-hdr-card">
+                        <div class="http-hdr-card-title">Цепочка перенаправлений</div>
+                        <ol class="http-hdr-redirect-list">
+                            {% for step in http_headers_result.redirect_chain %}
+                            {% set _ru = step.url %}
+                            <li class="http-hdr-redirect-li">
+                                <span class="http-hdr-mono">{{ step.status }}</span> —
+                                {% if _ru|length > 50 %}
+                                <span class="http-hdr-mono">{{ _ru[:50] }}…</span>
+                                <details class="http-hdr-url-details">
+                                    <summary>Показать полный URL</summary>
+                                    <div class="http-hdr-mono http-hdr-url-full">{{ _ru }}</div>
+                                </details>
+                                {% else %}
+                                <span class="http-hdr-mono">{{ _ru }}</span>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    {% endif %}
+
+                    <div class="http-hdr-card http-hdr-hints-card">
+                        <div class="http-hdr-card-title">Краткие заметки (не аудит)</div>
+                        <ul class="http-hdr-hints-list">
+                            {% for hint in http_headers_result.security_hints %}
+                            <li>{{ hint }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <div class="http-hdr-card">
+                        <div class="http-hdr-card-title">Заголовки ответа</div>
+                        <div class="http-hdr-table-wrap">
+                            <table class="http-hdr-table">
+                                <thead>
+                                    <tr><th>Имя</th><th>Значение</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for name, value in http_headers_result.headers %}
+                                    <tr>
+                                        <td class="http-hdr-td-name http-hdr-mono">{{ name }}</td>
+                                        <td class="http-hdr-td-val">{{ value }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div id="http-hdr-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">URL: {{ http_headers_result.final_url }}
+Код: {{ http_headers_result.status_code }}
+Метод: {{ http_headers_result.method }}
+{% for name, value in http_headers_result.headers %}{{ name }}: {{ value }}
+{% endfor %}</div>
+                    <button type="button" onclick="copyHttpHeadersSummary()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать заголовки</button>
+
+                    <p class="ip-geo-disclaimer">«Запрос выполняется с сервера портала, как при открытии страницы в браузере; отображаются только те заголовки, которые отдал удалённый сервер. Не заменяет профессиональный анализ безопасности и настройки веб-сервера.»</p>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== АНАЛИЗАТОР ДОВЕРИЯ К САЙТУ ========== -->
+        {% if tool.name == 'Анализатор доверия к сайту' %}
+        <div class="tool-section-network tool-section-trust-score">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">📊</div>
+                <div>
+                    <div class="tool-header-title">Сводная оценка по открытым данным</div>
+                    <div class="tool-header-desc">TLS, заголовки ответа, даты регистрации (RDAP), DNS, проверка на вредоносное ПО</div>
+                </div>
+            </div>
+
+            <div class="info-section http-hdr-legal">
+                <p class="http-hdr-legal-text">
+                    Используйте только для ресурсов, на анализ которых у вас есть право. Результат — справочный индекс, а не гарантия безопасности или легитимности сайта.
+                    Запросы к внутренним адресам заблокированы на сервере.
+                </p>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">URL или домен</div>
+                        <form method="post" id="trust-score-form" class="ip-geo-form-row" style="flex-wrap: wrap;" onsubmit="return trustScoreFormSubmit(this);" autocomplete="off">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="trust_url" id="trust-url-input" class="form-input" placeholder="https://example.ru или example.ru" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button" id="trust-score-submit-btn">🔍 Анализировать</button>
+                            <p id="trust-score-submit-hint" class="ip-geo-disclaimer vt-file-busy-hint" hidden style="width: 100%; margin-top: 12px;">Запрос отправлен. Идёт сбор данных с внешних сервисов (TLS, DNS, RDAP, проверка на вредоносное ПО) — обычно <strong>15–90 секунд</strong>. Ожидайте: страница обновится сама; не закрывайте вкладку и не нажимайте «Назад».</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if trust_score_result %}
+                {% if trust_score_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ trust_score_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                {% set ts = trust_score_result.summary %}
+                <div class="info-section trust-score-result-wrap">
+                    <div class="section-title"><span>🎯</span> Условный индекс доверия</div>
+                    <div class="trust-score-hero">
+                        <div class="trust-score-ring" aria-hidden="true"><span class="trust-score-ring-val">{{ ts.score }}</span></div>
+                        <div class="trust-score-hero-text">
+                            <div class="trust-score-label">{{ ts.label }}</div>
+                            <p class="trust-score-url-line ip-geo-mono">{{ trust_score_result.input_url }}</p>
+                            {% if trust_score_result.registered_domain %}
+                            <p class="ip-geo-disclaimer" style="margin: 0;">Регистрируемый домен (RDAP/DNS): <span class="ip-geo-mono">{{ trust_score_result.registered_domain }}</span></p>
+                            {% endif %}
+                            <p class="ip-geo-disclaimer" style="margin-top: 10px;">{{ ts.disclaimer }}</p>
+                        </div>
+                    </div>
+                    <div class="http-hdr-card trust-score-factors-card">
+                        <div class="http-hdr-card-title">Из чего сложился индекс</div>
+                        <ul class="http-hdr-hints-list">
+                            {% for line in ts.factors %}
+                            <li>{{ line }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><span>🔐</span> TLS / сертификат</div>
+                    {% set s = trust_score_result.ssl %}
+                    {% if s.error %}
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ s.error }}</p>
+                    </div>
+                    {% else %}
+                    {% if s.trust_warning %}
+                    <div class="ssl-check-warn" style="margin-bottom: 12px;">{{ s.trust_warning }}</div>
+                    {% endif %}
+                    <div class="ssl-check-grid">
+                        <div class="ssl-check-tile ssl-check-tile-wide">
+                            <div class="ssl-check-tile-label">Хост</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ s.host }}:{{ s.port }}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Проверка цепочки</div>
+                            <div class="ssl-check-tile-value">{% if s.verified %}Да{% else %}Нет{% endif %}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Статус срока</div>
+                            <div class="ssl-check-tile-value">{{ s.status }}</div>
+                        </div>
+                        <div class="ssl-check-tile">
+                            <div class="ssl-check-tile-label">Дней до окончания</div>
+                            <div class="ssl-check-tile-value">{% if s.days_left is not none %}{{ s.days_left }}{% else %}—{% endif %}</div>
+                        </div>
+                        <div class="ssl-check-tile ssl-check-tile-wide">
+                            <div class="ssl-check-tile-label">Протокол и шифр</div>
+                            <div class="ssl-check-tile-value ssl-check-mono">{{ s.tls_version or '—' }} · {{ s.cipher or '—' }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><span>📨</span> HTTP(S) ответ</div>
+                    {% set h = trust_score_result.http %}
+                    {% if h.error %}
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ h.error }}</p>
+                    </div>
+                    {% else %}
+                    <div class="http-hdr-summary">
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Код</span> <span class="http-hdr-mono">{{ h.status_code }}</span></div>
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Редиректов</span> <span class="http-hdr-mono">{{ h.redirect_count }}</span></div>
+                        <div class="http-hdr-pill"><span class="http-hdr-pill-k">Время</span> <span class="http-hdr-mono">{{ h.elapsed_ms }} мс</span></div>
+                    </div>
+                    <p class="http-hdr-url-line" style="margin-top: 10px;"><span class="http-hdr-url-label">Итоговый URL</span> <span class="http-hdr-mono">{{ h.final_url }}</span></p>
+                    <div class="http-hdr-card http-hdr-hints-card" style="margin-top: 12px;">
+                        <div class="http-hdr-card-title">Заметки по заголовкам</div>
+                        <ul class="http-hdr-hints-list">
+                            {% for hint in h.security_hints %}
+                            <li>{{ hint }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><span>🌍</span> Домен (RDAP)</div>
+                    {% set w = trust_score_result.whois %}
+                    {% if w.skipped %}
+                    <p class="ip-geo-disclaimer">{{ w.note }}</p>
+                    {% elif w.error %}
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ w.error }}</p>
+                    </div>
+                    {% else %}
+                    <div class="ip-geo-grid">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Домен</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ w.domain }}</div>
+                        </div>
+                        {% if w.registrar %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Регистратор</div>
+                            <div class="ip-geo-tile-value">{{ w.registrar }}</div>
+                        </div>
+                        {% endif %}
+                        {% if w.creation_date_iso %}
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Создан (UTC)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ w.creation_date_iso }}</div>
+                        </div>
+                        {% endif %}
+                        {% if w.expiration_date_iso %}
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Истекает (UTC)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ w.expiration_date_iso }}</div>
+                        </div>
+                        {% endif %}
+                        {% if w.age_days is not none %}
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Возраст (дней)</div>
+                            <div class="ip-geo-tile-value">{{ w.age_days }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><span>🔎</span> DNS (регистрируемый домен)</div>
+                    {% set d = trust_score_result.dns %}
+                    {% if d.skipped %}
+                    <p class="ip-geo-disclaimer">{{ d.note }}</p>
+                    {% elif d.error %}
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ d.error }}</p>
+                    </div>
+                    {% else %}
+                    <div class="ip-geo-grid" style="margin-bottom: 12px;">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Домен</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ d.domain }}</div>
+                        </div>
+                    </div>
+                    {% for rtype in d.order %}
+                    {% set block = d.by_type[rtype] %}
+                    <div class="ip-geo-asn-card" style="margin-top: 12px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">📌</span> {{ rtype }}</div>
+                        <div class="ip-geo-asn-body">
+                            {% if block.err %}
+                            <p class="ip-geo-error-text" style="margin: 0;">{{ block.err }}</p>
+                            {% elif block['items'] %}
+                            <ul class="ssl-check-san-list" style="margin: 0;">
+                                {% for line in block['items'] %}
+                                <li class="ip-geo-mono dns-txt-wrap">{{ line }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-muted);">Нет записей этого типа</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+
+                <div class="info-section">
+                    <div class="section-title"><span>🛡️</span> Проверка на вредоносное ПО</div>
+                    {% set v = trust_score_result.virustotal %}
+                    {% if v.mode == 'absent' or v.mode == 'no_report' %}
+                    <p class="ip-geo-disclaimer">{{ v.note }}</p>
+                    {% elif v.mode == 'error' %}
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ v.error }}</p>
+                    </div>
+                    {% elif v.mode == 'ok' %}
+                    {% if v.source_note %}
+                    <p class="ip-geo-disclaimer" style="margin-bottom: 12px;">{{ v.source_note }}</p>
+                    {% endif %}
+                    <div class="ssl-check-hero" style="margin-top: 0;">
+                        <div class="ssl-check-hero-text">
+                            <div class="ssl-check-meta-line" style="margin-bottom: 8px;">
+                                {% if v.verdict_class == 'bad' %}
+                                <span class="ssl-check-badge ssl-check-badge-bad">Риск</span>
+                                {% elif v.verdict_class == 'warn' %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Внимание</span>
+                                {% elif v.verdict_class == 'ok' %}
+                                <span class="ssl-check-badge ssl-check-badge-ok">Без явных детектов</span>
+                                {% else %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Нет данных</span>
+                                {% endif %}
+                                <span class="ssl-check-chip">Движков в сводке: {{ v.engines_total }}</span>
+                            </div>
+                            <div class="tool-header-desc" style="margin: 0;">{{ v.verdict_text }}</div>
+                        </div>
+                    </div>
+                    {% if v.stats_rows %}
+                    <div class="ip-geo-grid" style="margin-top: 14px;">
+                        {% for row in v.stats_rows %}
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">{{ row.label }}</div>
+                            <div class="ip-geo-tile-value">{{ row.count }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    <p class="ip-geo-disclaimer" style="margin-top: 14px;">Полная проверка с ожиданием сканирования на вредоносное ПО — в инструменте «Проверка ссылки на вирусы (URL)».</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== ПОИСК ДОМЕНОВ ОРГАНИЗАЦИИ ========== -->
+        {% if tool.name == 'Поиск доменов организации по ИНН или названию' %}
+        <div class="tool-section-network tool-section-org-domain">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">🏢</div>
+                <div>
+                    <div class="tool-header-title">Домены по ИНН или наименованию</div>
+                </div>
+            </div>
+
+            <div class="info-section http-hdr-legal">
+                <p class="http-hdr-legal-text">
+                    Используйте только в законных целях и применительно к организациям, по которым у вас есть право на разведку (своя компания, договор, служебное задание).
+                    Результат не является юридически значимым реестром доменов и может содержать ложные срабатывания.
+                </p>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">ИНН (10 или 12 цифр) или фрагмент наименования</div>
+                        <form method="post" id="org-domain-form" class="ip-geo-form-row" action="{{ request.full_path }}" style="flex-wrap: wrap;" onsubmit="return orgDomainFormSubmit(this);" autocomplete="off">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="org-domain-input-wrap">
+                                <input type="text" name="org_query" id="org-domain-input" class="form-input" placeholder="Начните вводить ИНН или название…" required autocomplete="off" maxlength="256">
+                                <ul id="org-domain-suggest-list" class="org-domain-suggest-list" hidden role="listbox" aria-label="Подсказки организаций"></ul>
+                            </div>
+                            <button type="submit" class="action-button" id="org-domain-submit-btn">🔍 Найти домены</button>
+                            <p id="org-domain-submit-hint" class="ip-geo-disclaimer vt-file-busy-hint" hidden style="width:100%; margin-top:12px;">Запрос отправлен. Идёт обращение к внешним сервисам (ФНС, журнал сертификатов crt.sh) — обычно <strong>10–90 секунд</strong>. Страница обновится сама; не закрывайте вкладку и не нажимайте «Назад».</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="org-domain-result-anchor" tabindex="-1"></div>
+            {% if org_domain_result %}
+                {% if org_domain_result.orgs %}
+                <div class="info-section">
+                    <div class="section-title"><span>📋</span> Сведения об организации (справочно)</div>
+                    <div class="http-hdr-table-wrap">
+                        <table class="http-hdr-table">
+                            <thead>
+                                <tr><th>Наименование</th><th>ИНН</th><th>ОГРН</th><th>Источник</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for row in org_domain_result.orgs %}
+                                <tr>
+                                    <td class="dns-txt-wrap">{{ row.name or '—' }}</td>
+                                    <td class="http-hdr-td-name ip-geo-mono">{{ row.inn or '—' }}</td>
+                                    <td class="ip-geo-mono">{{ row.ogrn or '—' }}</td>
+                                    <td>{{ row.source }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if org_domain_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Сообщение</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ org_domain_result.error }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if org_domain_result.domains %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>🌐</span> Домены</div>
+                    <p class="http-hdr-pill" style="display: inline-flex; margin-bottom: 12px;"><span class="http-hdr-pill-k">Найдено уникальных</span> <span class="http-hdr-mono">{{ org_domain_result.domains_total }}</span></p>
+                    {% if org_domain_result.domains_truncated %}
+                    <p class="ip-geo-disclaimer">Показаны первые {{ org_domain_result.domains|length }} записей; полный список сузите дополнительным запросом.</p>
+                    {% endif %}
+                    <div class="http-hdr-table-wrap">
+                        <table class="http-hdr-table">
+                            <thead>
+                                <tr><th>#</th><th>Домен</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for d in org_domain_result.domains %}
+                                <tr>
+                                    <td class="http-hdr-td-name">{{ loop.index }}</td>
+                                    <td class="http-hdr-td-name ip-geo-mono dns-txt-wrap">{{ d }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if org_domain_result.partial_errors %}
+                    <p class="ip-geo-disclaimer" style="margin-top: 10px;">{% for e in org_domain_result.partial_errors %}<span>{{ e }}</span>{% if not loop.last %} {% endif %}{% endfor %}</p>
+                    {% endif %}
+
+                    <div id="org-domain-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">Запрос: {{ org_domain_result.query }}
+Домены ({{ org_domain_result.domains_total }}):
+{% for d in org_domain_result.domains %}{{ d }}
+{% endfor %}</div>
+                    <button type="button" onclick="copyOrgDomainResult()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать список доменов</button>
+                </div>
+                {% endif %}
+            {% endif %}
+            {% if org_domain_result %}
+            <script>
+            (function () {
+                var el = document.getElementById('org-domain-result-anchor');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            })();
+            </script>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== ПРОВЕРКА URL (ВРЕДОНОСНОЕ ПО) ========== -->
+        {% if tool.name == 'Проверка ссылки на вирусы (URL)' %}
+        <div class="tool-section-network tool-section-vt-url">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">🛡️</div>
+                <div>
+                    <div class="tool-header-title">Проверка ссылки</div>
+                    <div class="tool-header-desc">Запрос сводки у поставщиков решений в области безопасности выполняется с сервера портала</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">URL</div>
+                        <form method="post" id="vt-url-form" class="ip-geo-form-row">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="vt_url" id="vt-url-input" class="form-input" placeholder="https://example.com/page или example.com" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Проверить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if virus_url_result %}
+                {% if virus_url_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ virus_url_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>📊</span> Результат</div>
+
+                    {% if virus_url_result.source_note %}
+                    <p class="ip-geo-disclaimer" style="margin-bottom: 12px;">{{ virus_url_result.source_note }}</p>
+                    {% endif %}
+
+                    <div class="ip-geo-grid">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Проверенный URL</div>
+                            <div class="ip-geo-tile-value ip-geo-mono dns-txt-wrap">{{ virus_url_result.url }}</div>
+                        </div>
+                        {% if virus_url_result.last_final_url and virus_url_result.last_final_url != virus_url_result.url %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Финальный URL (редирект)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono dns-txt-wrap">{{ virus_url_result.last_final_url }}</div>
+                        </div>
+                        {% endif %}
+                        {% if virus_url_result.last_analysis_iso %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Время последнего анализа (UTC)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ virus_url_result.last_analysis_iso }}</div>
+                        </div>
+                        {% endif %}
+                        {% if virus_url_result.scan_duration_sec is not none %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Длительность на стороне портала</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ virus_url_result.scan_duration_display }}</div>
+                            {% if virus_url_result.scan_duration_hint %}
+                            <div class="tool-header-desc" style="margin-top: 8px;">{{ virus_url_result.scan_duration_hint }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="ssl-check-hero" style="margin-top: 16px;">
+                        <div class="ssl-check-hero-text">
+                            <div class="ssl-check-meta-line" style="margin-bottom: 8px;">
+                                {% if virus_url_result.verdict_class == 'bad' %}
+                                <span class="ssl-check-badge ssl-check-badge-bad">Риск</span>
+                                {% elif virus_url_result.verdict_class == 'warn' %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Внимание</span>
+                                {% elif virus_url_result.verdict_class == 'ok' %}
+                                <span class="ssl-check-badge ssl-check-badge-ok">Без явных детектов</span>
+                                {% else %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Нет данных</span>
+                                {% endif %}
+                                <span class="ssl-check-chip">Движков в сводке: {{ virus_url_result.engines_total }}</span>
+                            </div>
+                            <div class="tool-header-desc" style="margin: 0;">{{ virus_url_result.verdict_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="ip-geo-asn-card" style="margin-top: 14px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">📈</span> Сводка движков</div>
+                        <p class="ip-geo-disclaimer" style="margin: 0 0 12px;">По каждой строке — сколько поставщиков дали такой вердикт (не секунды). Пустые категории не показываются.</p>
+                        <div class="ip-geo-grid" style="margin-top: 10px;">
+                            {% for row in virus_url_result.stats_rows %}
+                            <div class="ip-geo-tile">
+                                <div class="ip-geo-tile-label">{{ row.label }}</div>
+                                <div class="ip-geo-tile-value">{{ row.count }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="http-hdr-card" style="margin-top: 14px;">
+                        <div class="http-hdr-card-title">Анализ поставщиков решений в области безопасности</div>
+                        {% if virus_url_result.engine_rows %}
+                        <div class="http-hdr-table-wrap vt-providers-table-wrap">
+                            <table class="http-hdr-table vt-providers-table">
+                                <thead>
+                                    <tr><th>Поставщик</th><th>Вердикт</th><th>Детали</th></tr>
+                                </thead>
+                                <tbody id="vt-providers-first">
+                                    {% for row in virus_url_result.engine_rows[:20] %}
+                                    <tr>
+                                        <td class="http-hdr-td-name ip-geo-mono">{{ row.engine }}</td>
+                                        <td>{{ row.category_label }}</td>
+                                        <td class="dns-txt-wrap">{{ row.detail }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tbody id="vt-providers-more" class="vt-providers-more" style="display: none;">
+                                    {% for row in virus_url_result.engine_rows[20:] %}
+                                    <tr>
+                                        <td class="http-hdr-td-name ip-geo-mono">{{ row.engine }}</td>
+                                        <td>{{ row.category_label }}</td>
+                                        <td class="dns-txt-wrap">{{ row.detail }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if virus_url_result.engine_rows|length > 20 %}
+                        <button type="button" class="action-button-clear vt-providers-toggle-btn" id="vt-providers-toggle" onclick="toggleVtProvidersMore()">Показать полный список</button>
+                        {% endif %}
+                        {% else %}
+                        <p class="ip-geo-disclaimer" style="margin: 12px 0 0;">Перечень ответов по поставщикам для этого результата недоступен.</p>
+                        {% endif %}
+                    </div>
+
+                    <div id="vt-url-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">URL: {{ virus_url_result.url }}
+{% if virus_url_result.last_final_url %}Финальный URL: {{ virus_url_result.last_final_url }}
+{% endif %}{% if virus_url_result.source_note %}{{ virus_url_result.source_note }}
+{% endif %}{% if virus_url_result.scan_duration_sec is not none %}Длительность на портале: {{ virus_url_result.scan_duration_display }}
+{% endif %}Вердикт: {{ virus_url_result.verdict_text }}
+Движков в сводке: {{ virus_url_result.engines_total }}
+{% for row in virus_url_result.stats_rows %}{{ row.label }}: {{ row.count }}
+{% endfor %}Поставщиков: {{ virus_url_result.providers_count }}
+{% for row in virus_url_result.engine_rows %}{{ row.engine }} — {{ row.category_label }} — {{ row.detail }}
+{% endfor %}</div>
+
+                    <button type="button" onclick="copyVtUrlResult()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">Ожидание нового скана может занять до нескольких минут</p>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== ПРОВЕРКА ФАЙЛА (ВРЕДОНОСНОЕ ПО) ========== -->
+        {% if tool_slug == 'virus-file' %}
+        <div class="tool-section-network tool-section-vt-file">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">📎</div>
+                <div>
+                    <div class="tool-header-title">Проверка файла</div>
+                    <div class="tool-header-desc">Файл отправляется на сервер портала и передаётся в сервис проверки (до 32 МБ)</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Файл</div>
+                        <form method="post" id="vt-file-form" class="ip-geo-form-row" enctype="multipart/form-data" action="{{ request.full_path }}" style="flex-wrap: wrap;" onsubmit="return vtFileFormSubmit(this);">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="file" name="vt_file" id="vt-file-input" class="form-input" required autocomplete="off" style="flex: 1; min-width: 200px;"
+                                accept=".7z,.apk,.bat,.bin,.cab,.cmd,.com,.dll,.doc,.docx,.exe,.gadget,.gz,.hta,.htm,.html,.iso,.jar,.js,.jse,.lnk,.msi,.msp,.pdf,.pps,.ppt,.pptx,.ps1,.py,.rar,.rtf,.scr,.sys,.tar,.tmp,.txt,.url,.vbs,.wsf,.xls,.xlsx,.xml,.zip">
+                            <button type="submit" class="action-button" id="vt-file-submit-btn">🔍 Проверить</button>
+                            <p id="vt-file-submit-hint" class="ip-geo-disclaimer vt-file-busy-hint" hidden style="width:100%; margin-top:12px;">Файл отправлен. Идёт проверка на стороне сервиса — обычно <strong>1–5 минут</strong>. Страница обновится сама; не закрывайте вкладку и не нажимайте «Назад».</p>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if virus_file_result %}
+            <div id="vt-file-result-anchor" tabindex="-1"></div>
+                {% if virus_file_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ virus_file_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>📊</span> Результат</div>
+
+                    {% if virus_file_result.source_note %}
+                    <p class="ip-geo-disclaimer" style="margin-bottom: 12px;">{{ virus_file_result.source_note }}</p>
+                    {% endif %}
+
+                    <div class="ip-geo-grid">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Имя файла</div>
+                            <div class="ip-geo-tile-value ip-geo-mono dns-txt-wrap">{{ virus_file_result.filename }}</div>
+                        </div>
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">SHA-256</div>
+                            <div class="ip-geo-tile-value ip-geo-mono dns-txt-wrap">{{ virus_file_result.sha256 }}</div>
+                        </div>
+                        {% if virus_file_result.size is not none %}
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Размер (байт)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ virus_file_result.size }}</div>
+                        </div>
+                        {% endif %}
+                        {% if virus_file_result.last_analysis_iso %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Время последнего анализа (UTC)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ virus_file_result.last_analysis_iso }}</div>
+                        </div>
+                        {% endif %}
+                        {% if virus_file_result.scan_duration_sec is not none %}
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Длительность на стороне портала</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ virus_file_result.scan_duration_display }}</div>
+                            {% if virus_file_result.scan_duration_hint %}
+                            <div class="tool-header-desc" style="margin-top: 8px;">{{ virus_file_result.scan_duration_hint }}</div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="ssl-check-hero" style="margin-top: 16px;">
+                        <div class="ssl-check-hero-text">
+                            <div class="ssl-check-meta-line" style="margin-bottom: 8px;">
+                                {% if virus_file_result.verdict_class == 'bad' %}
+                                <span class="ssl-check-badge ssl-check-badge-bad">Риск</span>
+                                {% elif virus_file_result.verdict_class == 'warn' %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Внимание</span>
+                                {% elif virus_file_result.verdict_class == 'ok' %}
+                                <span class="ssl-check-badge ssl-check-badge-ok">Без явных детектов</span>
+                                {% else %}
+                                <span class="ssl-check-badge ssl-check-badge-warn">Нет данных</span>
+                                {% endif %}
+                                <span class="ssl-check-chip">Движков в сводке: {{ virus_file_result.engines_total }}</span>
+                                <span class="ssl-check-chip">Поставщиков в отчёте: {{ virus_file_result.providers_count }}</span>
+                            </div>
+                            <div class="tool-header-desc" style="margin: 0;">{{ virus_file_result.verdict_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="ip-geo-asn-card" style="margin-top: 14px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">📈</span> Сводка движков</div>
+                        <p class="ip-geo-disclaimer" style="margin: 0 0 12px;">По каждой строке — сколько поставщиков дали такой вердикт (не секунды). Пустые категории не показываются.</p>
+                        <div class="ip-geo-grid" style="margin-top: 10px;">
+                            {% for row in virus_file_result.stats_rows %}
+                            <div class="ip-geo-tile">
+                                <div class="ip-geo-tile-label">{{ row.label }}</div>
+                                <div class="ip-geo-tile-value">{{ row.count }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="http-hdr-card" style="margin-top: 14px;">
+                        <div class="http-hdr-card-title">Анализ поставщиков решений в области безопасности</div>
+                        {% if virus_file_result.engine_rows %}
+                        <div class="http-hdr-table-wrap vt-providers-table-wrap">
+                            <table class="http-hdr-table vt-providers-table">
+                                <thead>
+                                    <tr><th>Поставщик</th><th>Вердикт</th><th>Детали</th></tr>
+                                </thead>
+                                <tbody id="vt-file-providers-first">
+                                    {% for row in virus_file_result.engine_rows[:20] %}
+                                    <tr>
+                                        <td class="http-hdr-td-name ip-geo-mono">{{ row.engine }}</td>
+                                        <td>{{ row.category_label }}</td>
+                                        <td class="dns-txt-wrap">{{ row.detail }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tbody id="vt-file-providers-more" class="vt-providers-more" style="display: none;">
+                                    {% for row in virus_file_result.engine_rows[20:] %}
+                                    <tr>
+                                        <td class="http-hdr-td-name ip-geo-mono">{{ row.engine }}</td>
+                                        <td>{{ row.category_label }}</td>
+                                        <td class="dns-txt-wrap">{{ row.detail }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if virus_file_result.engine_rows|length > 20 %}
+                        <button type="button" class="action-button-clear vt-providers-toggle-btn" id="vt-file-providers-toggle" onclick="toggleVtFileProvidersMore()">Показать полный список</button>
+                        {% endif %}
+                        {% else %}
+                        <p class="ip-geo-disclaimer" style="margin: 12px 0 0;">Перечень ответов по поставщикам для этого результата недоступен.</p>
+                        {% endif %}
+                    </div>
+
+                    <div id="vt-file-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">Файл: {{ virus_file_result.filename }}
+SHA-256: {{ virus_file_result.sha256 }}
+{% if virus_file_result.source_note %}{{ virus_file_result.source_note }}
+{% endif %}{% if virus_file_result.scan_duration_sec is not none %}Длительность на портале: {{ virus_file_result.scan_duration_display }}
+{% endif %}Вердикт: {{ virus_file_result.verdict_text }}
+Движков в сводке: {{ virus_file_result.engines_total }}
+{% for row in virus_file_result.stats_rows %}{{ row.label }}: {{ row.count }}
+{% endfor %}Поставщиков: {{ virus_file_result.providers_count }}
+{% for row in virus_file_result.engine_rows %}{{ row.engine }} — {{ row.category_label }} — {{ row.detail }}
+{% endfor %}</div>
+
+                    <button type="button" onclick="copyVtFileResult()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">Ожидание нового скана может занять до нескольких минут. Не загружайте персональные и конфиденциальные данные без необходимости.</p>
+                </div>
+                {% endif %}
+                <script>
+                (function () {
+                    var el = document.getElementById('vt-file-result-anchor');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                })();
+                </script>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== АНАЛИЗ МЕТАДАННЫХ ФАЙЛОВ ========== -->
+        {% if tool_slug == 'metadata' %}
+        <div class="tool-section-network tool-section-metadata">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">📋</div>
+                <div>
+                    <div class="tool-header-title">Анализ метаданных</div>
+                    <div class="tool-header-desc">PDF, DOCX, JPEG или PNG — свойства документа, EXIF и встроенные поля (обработка в памяти на сервере портала)</div>
+                </div>
+            </div>
+
+            <div class="info-section http-hdr-legal">
+                <p class="http-hdr-legal-text">
+                    Загружайте только файлы, на анализ которых у вас есть право. Метаданные могут содержать ФИО, геометки, серийные номера оборудования и версии ПО — не публикуйте чужие персональные данные.
+                </p>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Файл (до 32 МБ)</div>
+                        <form method="post" id="metadata-file-form" class="ip-geo-form-row" enctype="multipart/form-data" action="{{ request.full_path }}" style="flex-wrap: wrap;" autocomplete="off">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="file" name="metadata_file" id="metadata-file-input" class="form-input" required autocomplete="off" style="flex: 1; min-width: 200px;"
+                                accept=".pdf,.docx,.jpg,.jpeg,.png,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png">
+                            <button type="submit" class="action-button" id="metadata-file-submit-btn">🔍 Извлечь метаданные</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if metadata_result %}
+            <div id="metadata-result-anchor" tabindex="-1"></div>
+                {% if metadata_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card http-hdr-error-card">
+                        <p class="ip-geo-error-text">{{ metadata_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>📊</span> Результат</div>
+                    <div class="ip-geo-grid" style="margin-bottom: 12px;">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Имя файла</div>
+                            <div class="ip-geo-tile-value ip-geo-mono dns-txt-wrap">{{ metadata_result.filename }}</div>
+                        </div>
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Тип</div>
+                            <div class="ip-geo-tile-value">{{ metadata_result.format_label }}</div>
+                        </div>
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Размер (байт)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ metadata_result.size_bytes }}</div>
+                        </div>
+                    </div>
+                    {% for note in metadata_result.notes %}
+                    <div class="ssl-check-warn" style="margin-bottom: 12px;">{{ note }}</div>
+                    {% endfor %}
+                    {% for sec in metadata_result.sections %}
+                    <div class="ip-geo-asn-card" style="margin-top: 12px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">🔖</span> {{ sec['title'] }}</div>
+                        <div class="http-hdr-table-wrap" style="margin-top: 8px;">
+                            <table class="http-hdr-table">
+                                <thead>
+                                    <tr><th>Поле</th><th>Значение</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in sec['items'] %}
+                                    <tr>
+                                        <td class="http-hdr-td-name">{{ row['label'] }}</td>
+                                        <td class="dns-txt-wrap">{{ row['value'] }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not metadata_result.sections %}
+                    <p class="ip-geo-disclaimer">Извлекаемые метаданные не найдены.</p>
+                    {% endif %}
+                    <p class="ip-geo-disclaimer" style="margin-top: 14px;">Сводка носит справочный характер; часть полей может отсутствовать в зависимости от программы, сохранившей файл.</p>
+                </div>
+                <script>
+                (function () {
+                    var el = document.getElementById('metadata-result-anchor');
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                })();
+                </script>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК DNS LOOKUP ========== -->
+        {% if tool.name == 'DNS lookup' %}
+        <div class="tool-section-network tool-section-ip-geo">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">🔧</div>
+                <div>
+                    <div class="tool-header-title">DNS lookup</div>
+                    <div class="tool-header-desc">Записи A, AAAA, MX, TXT, NS и CNAME через DNS резолвера сервера</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Домен или URL</div>
+                        <form method="post" id="dns-lookup-form" class="ip-geo-form-row">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="domain" id="dns-lookup-input" class="form-input" placeholder="example.ru или https://example.ru" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Запросить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if dns_lookup_result %}
+                {% if dns_lookup_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ dns_lookup_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>📋</span> Результат</div>
+                    <div class="ip-geo-grid" style="margin-bottom: 8px;">
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Имя в запросе</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ dns_lookup_result.domain }}</div>
+                        </div>
+                    </div>
+
+                    {% for rtype in dns_lookup_result.order %}
+                    {% set block = dns_lookup_result.by_type[rtype] %}
+                    <div class="ip-geo-asn-card" style="margin-top: 12px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">📌</span> {{ rtype }}</div>
+                        <div class="ip-geo-asn-body">
+                            {% if block.err %}
+                            <p class="ip-geo-error-text" style="margin: 0;">{{ block.err }}</p>
+                            {% elif block['items'] %}
+                            <ul class="ssl-check-san-list" style="margin: 0;">
+                                {% for line in block['items'] %}
+                                <li class="ip-geo-mono dns-txt-wrap">{{ line }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p style="margin: 0; color: var(--text-muted);">Нет записей этого типа</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <div id="dns-lookup-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">Домен: {{ dns_lookup_result.domain }}
+{% for rtype in dns_lookup_result.order %}{% set block = dns_lookup_result.by_type[rtype] %}{{ rtype }}: {% if block.err %}{{ block.err }}{% elif block['items'] %}{{ block['items'] | join(' | ') }}{% else %}—{% endif %}
+{% endfor %}</div>
+
+                    <button type="button" onclick="copyDnsLookupResult()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">Данные зависят от DNS-серверов, настроенных у хостинга портала. Кэш TTL может отличаться от того, что видите локально.</p>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК REVERSE DNS (PTR) ========== -->
+        {% if tool.name == 'Reverse DNS' %}
+        <div class="tool-section-network tool-section-ip-geo">
+            <div class="tool-header-network tool-header-ip-geo">
+                <div class="tool-header-icon">🔁</div>
+                <div>
+                    <div class="tool-header-title">Reverse DNS (PTR)</div>
+                    <div class="tool-header-desc">Доменное имя по IP-адресу через DNS-зону in-addr.arpa / ip6.arpa</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Публичный IP-адрес</div>
+                        <form method="post" id="reverse-dns-form" class="ip-geo-form-row">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="ip" id="reverse-dns-input" class="form-input" placeholder="например 8.8.8.8" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Узнать PTR</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if reverse_dns_result %}
+                {% if reverse_dns_result.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>⚠️</span> Ошибка</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ reverse_dns_result.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>📋</span> Результат</div>
+
+                    <div class="ip-geo-grid">
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">IP</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ reverse_dns_result.ip }}</div>
+                        </div>
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Запрос в DNS (обратная зона)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ reverse_dns_result.arpa }}</div>
+                        </div>
+                    </div>
+
+                    {% if reverse_dns_result.ptr_records %}
+                    <div class="ip-geo-asn-card" style="margin-top: 14px;">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">🏷️</span> PTR (имя хоста)</div>
+                        <ul class="ssl-check-san-list" style="margin: 0;">
+                            {% for name in reverse_dns_result.ptr_records %}
+                            <li class="ip-geo-mono">{{ name }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% elif reverse_dns_result.note %}
+                    <div class="result-card" style="margin-top: 14px;">
+                        <p class="ip-geo-error-text" style="margin: 0;">{{ reverse_dns_result.note }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div id="reverse-dns-copy-source" class="ip-geo-copy-hidden" aria-hidden="true">IP: {{ reverse_dns_result.ip }}
+Зона: {{ reverse_dns_result.arpa }}
+PTR: {% if reverse_dns_result.ptr_records %}{{ reverse_dns_result.ptr_records | join(', ') }}{% else %}—{% endif %}</div>
+
+                    <button type="button" onclick="copyReverseDnsResult()" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">Запрос PTR выполняется с сервера портала. Имя может не совпадать с тем, что видит ваш провайдер или корпоративный DNS. Наличие PTR не гарантирует легитимность хоста.</p>
+                </div>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- ========== БЛОК ГЕОЛОКАЦИЯ IP (мой IP в браузере + поиск на сервере) ========== -->
+        {% if tool_slug == 'ip-geo' %}
+        {% macro ip_geo_result_body(info, copy_el_id, section_emoji, section_title) %}
+                {% if info.error %}
+                <div class="info-section">
+                    <div class="section-title"><span>{{ section_emoji }}</span> {{ section_title }}</div>
+                    <div class="result-card ip-geo-error-card">
+                        <p class="ip-geo-error-text">{{ info.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="info-section ip-geo-result-wrap">
+                    <div class="section-title"><span>{{ section_emoji }}</span> {{ section_title }}</div>
+
+                    <div class="ip-geo-hero">
+                        <span class="ip-geo-hero-emoji" aria-hidden="true">{{ info.emoji or '🌐' }}</span>
+                        <div class="ip-geo-hero-text">
+                            <div class="ip-geo-country">{{ info.country or '—' }}</div>
+                            <div class="ip-geo-code-line">
+                                <span class="ip-geo-chip">ISO {{ info.code or '—' }}</span>
+                                {% if info.lat and info.lon %}
+                                <a class="ip-geo-map-link" href="https://www.openstreetmap.org/?mlat={{ info.lat }}&mlon={{ info.lon }}&zoom=11" target="_blank" rel="noopener noreferrer">Открыть на карте ↗</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ip-geo-grid">
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">IP</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ info.ip or '—' }}</div>
+                        </div>
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Город / населённый пункт</div>
+                            <div class="ip-geo-tile-value">{{ info.city or '—' }}</div>
+                        </div>
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Регион</div>
+                            <div class="ip-geo-tile-value">{{ info.region or '—' }}</div>
+                        </div>
+                        <div class="ip-geo-tile">
+                            <div class="ip-geo-tile-label">Координаты</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{% if info.lat and info.lon %}{{ info.lat }}, {{ info.lon }}{% else %}—{% endif %}</div>
+                        </div>
+                        <div class="ip-geo-tile ip-geo-tile-wide">
+                            <div class="ip-geo-tile-label">Часовой пояс (IANA)</div>
+                            <div class="ip-geo-tile-value ip-geo-mono">{{ info.timezone or '—' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="ip-geo-asn-card">
+                        <div class="ip-geo-asn-title"><span class="ip-geo-asn-icon">🔗</span> Автономная система (ASN)</div>
+                        <div class="ip-geo-asn-body">
+                            <div class="ip-geo-asn-row">
+                                <span class="ip-geo-asn-k">Номер AS</span>
+                                <span class="ip-geo-asn-v ip-geo-mono">{% if info.asn and info.asn.id %}AS{{ info.asn.id }}{% else %}—{% endif %}</span>
+                            </div>
+                            <div class="ip-geo-asn-row">
+                                <span class="ip-geo-asn-k">Имя</span>
+                                <span class="ip-geo-asn-v">{{ (info.asn and info.asn.name) or '—' }}</span>
+                            </div>
+                            <div class="ip-geo-asn-row ip-geo-asn-hosting">
+                                <span class="ip-geo-asn-k">Хостинг / датацентр</span>
+                                {% if info.asn and info.asn.hosting == true %}
+                                <span class="ip-geo-badge ip-geo-badge-yes">Вероятно да</span>
+                                {% elif info.asn and info.asn.hosting == false %}
+                                <span class="ip-geo-badge ip-geo-badge-no">Нет</span>
+                                {% else %}
+                                <span class="ip-geo-badge ip-geo-badge-unk">—</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="{{ copy_el_id }}" class="ip-geo-copy-hidden" aria-hidden="true">IP: {{ info.ip }}
+Страна: {{ info.country }} ({{ info.code }})
+Регион: {{ info.region }}
+Город: {{ info.city }}
+Координаты: {{ info.lat }}, {{ info.lon }}
+Часовой пояс: {{ info.timezone }}
+ASN: {% if info.asn and info.asn.id %}AS{{ info.asn.id }}{% else %}—{% endif %} — {{ (info.asn and info.asn.name) or '' }}
+Хостинг: {% if info.asn and info.asn.hosting == true %}да{% elif info.asn and info.asn.hosting == false %}нет{% else %}—{% endif %}</div>
+
+                    <button type="button" onclick="copyIpGeoResult('{{ copy_el_id }}', this)" class="copy-result-btn ip-geo-copy-btn">📋 Копировать сводку</button>
+
+                    <p class="ip-geo-disclaimer">Данные справочные; при VPN и прокси местоположение может не совпадать с реальным. Не используйте для идентификации личности.</p>
+                </div>
+                {% endif %}
+        {% endmacro %}
+
+        <div class="tool-section-network tool-section-ip-geo">
+            <div class="info-section">
+                <div class="section-title"><span>📡</span> Ваш IP-адрес</div>
+                <!-- <p class="ip-geo-disclaimer" style="margin-bottom: 12px;">Данные запрашиваются <strong>из вашего браузера</strong> у сервиса 2ip.io (как при открытии их API в новой вкладке), поэтому виден ваш публичный адрес, а не адрес локальной сети.</p> -->
+                <div
+                    id="ip-geo-my-client-root"
+                    class="ip-geo-my-client-root"
+                    {% if twoip_client_geo_url %}data-geo-url="{{ twoip_client_geo_url }}"{% endif %}
+                >
+                    <p class="ip-geo-disclaimer ip-geo-my-loading">Загрузка…</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tool-divider"><span>✦</span></div>
+
+        <div class="tool-section-network tool-section-ip-geo">
+            <div class="info-section">
+                <div class="section-title"><span>🗺️</span> Геолокация по IP-адресу</div>
+                <p class="ip-geo-disclaimer" style="margin-bottom: 14px;">Введите публичный IPv4 или IPv6 — страна, регион, координаты, часовой пояс и ASN.</p>
+                <div class="meta-grid" style="grid-template-columns: 1fr;">
+                    <div class="meta-item">
+                        <div class="meta-label">Укажите IP-адрес</div>
+                        <form method="post" id="ip-geo-form" class="ip-geo-form-row" action="{{ request.full_path }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="ip" id="ip-geo-input" class="form-input" placeholder="например 8.8.8.8 или 2001:4860:4860::8888" required autocomplete="off" style="flex: 1;">
+                            <button type="submit" class="action-button">🔍 Определить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            {% if ip_info %}
+            <div id="ip-geo-search-result-anchor" tabindex="-1"></div>
+            {{ ip_geo_result_body(ip_info, 'ip-geo-copy-source', '🗺️', 'Результат поиска') }}
+            {% endif %}
+        </div>
+        {% if ip_info and not ip_info.error %}
+        <script>
+        (function () {
+            var el = document.getElementById('ip-geo-search-result-anchor');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })();
+        </script>
+        {% endif %}
         {% endif %}
 
 

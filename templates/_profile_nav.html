@@ -1,0 +1,17 @@
+{# Личный кабинет и звезда «к изучению». Данные из context_processor wsgi. #}
+<div class="profile-nav-cluster">{%- if show_bookmark_star %}
+    {%- if portal_user %}
+        {%- if bookmark_already %}
+            <span class="bookmark-star bookmark-star--on" title="Уже в «К изучению»">★</span>
+        {%- else %}
+            <form method="post" action="/profile/bookmarks/add" class="bookmark-add-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="path" value="{{ bookmark_target_path }}">
+                <input type="hidden" name="title" value="{{ bookmark_target_title }}">
+                <button type="submit" class="bookmark-star bookmark-star--btn" title="Добавить в «К изучению»">☆</button>
+            </form>
+        {%- endif %}
+    {%- else %}
+            <a href="/login?next={{ bookmark_login_next }}" class="bookmark-star bookmark-star--guest" title="Войдите, чтобы добавить страницу">☆</a>
+    {%- endif %}
+{%- endif -%}</div>

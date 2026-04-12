@@ -24,6 +24,7 @@
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
                     <span id="themeIcon">☀️</span>
                 </button>
+                {% include '_profile_nav.html' %}
                 <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
                     🤖 PRO ИБ БОТ
                 </a>
@@ -43,7 +44,7 @@
                 {% if count == limit %}
                     <span class="limit-btn active">{{ count }}</span>
                 {% else %}
-                    <a href="/search_laws?q={{ query }}&page=1&limit={{ count }}" class="limit-btn">{{ count }}</a>
+                    <a href="/search_laws?q={{ query|urlencode }}&page=1&limit={{ count }}" class="limit-btn">{{ count }}</a>
                 {% endif %}
             {% endfor %}
         </div>
@@ -79,7 +80,7 @@
                 <div class="vuln-description">{{ norm['description'][:150] }}{% if norm['description']|length > 150 %}...{% endif %}</div>
                 <div class="meta-row">
                     <span class="date-badge">📁 {{ norm['groups'] }}</span>
-                   <a href="/law/{{ norm['rowid'] }}?page={{ page }}&limit={{ limit }}&q={{ query }}" class="detail-link">Подробнее →</a>
+                   <a href="/law/{{ norm['rowid'] }}?page={{ page }}&limit={{ limit }}&q={{ query|urlencode }}" class="detail-link">Подробнее →</a>
                 </div>
             </div>
             {% endfor %}
@@ -90,7 +91,7 @@
         {% if norms and total_pages > 1 %}
         <div class="pagination-wrapper">
             {% if page > 1 %}
-                <a href="/search_laws?q={{ query }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+                <a href="/search_laws?q={{ query|urlencode }}&page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
             {% else %}
                 <span class="pagination-btn disabled">← Назад</span>
             {% endif %}
@@ -98,7 +99,7 @@
             <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
             
             {% if page < total_pages %}
-                <a href="/search_laws?q={{ query }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
+                <a href="/search_laws?q={{ query|urlencode }}&page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
             {% else %}
                 <span class="pagination-btn disabled">Вперёд →</span>
             {% endif %}

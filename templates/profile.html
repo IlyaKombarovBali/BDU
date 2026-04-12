@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Личный кабинет — ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Личный кабинет</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Переключить тему">
+                    <span id="themeIcon" aria-hidden="true">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                {% if portal_user %}
+                <form method="post" action="/logout" class="logout-inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="nav-auth-link nav-auth-link--logout" title="Выйти">Выход</button>
+                </form>
+                {% endif %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" rel="noopener noreferrer" class="bot-badge">🤖 PRO ИБ БОТ</a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Привет, {{ portal_user.username }}</h1>
+        </div>
+    </div>
+
+    <div class="filters-scroll">
+        <span class="filter-chip active" role="status">📚 {{ bookmark_total }} в подборке</span>
+    </div>
+
+    <div class="limit-row">
+        <span class="limit-label">Выводить по:</span>
+        <div class="limit-buttons">
+            {% for count in [10, 20, 50, 100] %}
+                {% if count == limit %}
+                    <span class="limit-btn active" data-limit="{{ count }}">{{ count }}</span>
+                {% else %}
+                    <a href="/profile?page=1&limit={{ count }}" class="limit-btn" data-limit="{{ count }}">{{ count }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                <div class="flash-banner flash-banner--{{ cat }}">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="vuln-list">
+            {% if bookmarks %}
+            {% for b in bookmarks %}
+            <div class="vuln-card">
+                <div class="card-header">
+                    <span class="identifier">{{ b.kind_label }}</span>
+                    <span class="severity-tag">{{ b.created_at }}</span>
+                </div>
+                <div class="vuln-name">{{ b.display_title }}</div>
+                {% if b.display_description %}
+                <div class="vuln-description">{{ b.display_description[:150] }}{% if b.display_description|length > 150 %}...{% endif %}</div>
+                {% endif %}
+                <div class="meta-row">
+                    <span class="date-badge">⭐ К изучению</span>
+                    <div class="profile-card-actions">
+                        <a href="{{ b.href }}" class="detail-link">Подробнее →</a>
+                        <form method="post" action="/profile/bookmarks/remove" class="bookmark-remove-form profile-bookmark-remove-form" onsubmit="return confirm('Убрать из списка?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="bookmark_id" value="{{ b.id }}">
+                            <button type="submit" class="profile-bookmark-remove-btn">Удалить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="vuln-card">
+                <div class="vuln-name">Пока ничего не сохранено</div>
+                <div class="vuln-description">Откройте закон, CVE, новость или инструмент и нажмите ☆ в шапке страницы.</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="pagination-wrapper">
+        {% if page > 1 %}
+            <a href="/profile?page={{ page - 1 }}&limit={{ limit }}" class="pagination-btn">← Назад</a>
+        {% else %}
+            <span class="pagination-btn disabled">← Назад</span>
+        {% endif %}
+
+        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+
+        {% if page < total_pages %}
+            <a href="/profile?page={{ page + 1 }}&limit={{ limit }}" class="pagination-btn">Вперёд →</a>
+        {% else %}
+            <span class="pagination-btn disabled">Вперёд →</span>
+        {% endif %}
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item active">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+<script src="/static/theme.js"></script>
+</body>
+</html>

@@ -20,6 +20,7 @@
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
                     <span id="themeIcon">☀️</span>
                 </button>
+                {% include '_profile_nav.html' %}
                 <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
                     🤖 PRO ИБ БОТ
                 </a>
@@ -88,7 +89,7 @@
         <!-- пагинация -->
         <div class="pagination-wrapper">
             {% if page > 1 %}
-                <a href="/full_cve?page={{ page - 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">← Назад</a>
+                <a href="/full_cve?page={{ page - 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q')|urlencode }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter')|urlencode }}{% endif %}" class="pagination-btn">← Назад</a>
             {% else %}
                 <span class="pagination-btn disabled">← Назад</span>
             {% endif %}
@@ -96,7 +97,7 @@
             <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
             
             {% if page < total_pages %}
-                <a href="/full_cve?page={{ page + 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q') }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter') }}{% endif %}" class="pagination-btn">Вперёд →</a>
+                <a href="/full_cve?page={{ page + 1 }}&limit={{ limit }}{% if request.args.get('q') %}&q={{ request.args.get('q')|urlencode }}{% endif %}{% if request.args.get('filter') %}&filter={{ request.args.get('filter')|urlencode }}{% endif %}" class="pagination-btn">Вперёд →</a>
             {% else %}
                 <span class="pagination-btn disabled">Вперёд →</span>
             {% endif %}

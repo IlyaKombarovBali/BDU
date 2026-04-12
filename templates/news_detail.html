@@ -17,9 +17,9 @@
                 <a href="/news">Новости</a>
                 <span>→</span>
                 {% if back_query %}
-                    <a href="/search_news?q={{ back_query }}">Поиск: {{ back_query[:20] }}</a>
+                    <a href="/search_news?q={{ back_query|urlencode }}">Поиск: {{ back_query[:20] }}</a>
                     <span>→</span>
-                    <a href="/search_news?q={{ back_query }}&page={{ back_page }}&limit={{ back_limit }}">Стр. {{ back_page }}</a>
+                    <a href="/search_news?q={{ back_query|urlencode }}&page={{ back_page }}&limit={{ back_limit }}">Стр. {{ back_page }}</a>
                 {% else %}
                     <a href="/news?page={{ back_page }}&limit={{ back_limit }}">Страница {{ back_page }}</a>
                 {% endif %}
@@ -30,6 +30,7 @@
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
                     <span id="themeIcon">☀️</span>
                 </button>
+                {% include '_profile_nav.html' %}
                 <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">
                     🤖 PRO ИБ
                 </a>

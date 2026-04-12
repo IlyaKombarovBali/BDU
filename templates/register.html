@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>Регистрация — ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Регистрация</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">🤖 PRO ИБ БОТ</a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Регистрация</h1>
+        </div>
+    </div>
+
+    <div class="auth-page-wrap">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                <div class="flash-banner flash-banner--{{ cat }}">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="auth-card">
+            <p class="auth-lead">Логин сохраняется в нижнем регистре. Пароль — не менее 8 символов. Email пригодится, если забудете пароль.</p>
+            <form method="post" class="auth-form" action="/register" autocomplete="off">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <label class="auth-label">Логин</label>
+                <input type="text" name="username" class="form-input auth-input" required minlength="3" maxlength="32" value="{{ username or '' }}" autocomplete="username">
+
+                <label class="auth-label">Email <span class="auth-optional">(необязательно, для сброса пароля)</span></label>
+                <input type="email" name="email" class="form-input auth-input" maxlength="120" value="{{ email or '' }}" autocomplete="email" placeholder="если нужен сброс пароля по почте">
+
+                <label class="auth-label">Пароль</label>
+                <input type="password" name="password" class="form-input auth-input" required minlength="8" autocomplete="new-password">
+
+                <label class="auth-label">Пароль ещё раз</label>
+                <input type="password" name="password2" class="form-input auth-input" required minlength="8" autocomplete="new-password">
+
+                <button type="submit" class="action-button auth-submit">Создать аккаунт</button>
+            </form>
+            <p class="auth-footer-link">Уже есть аккаунт? <a href="/login">Вход</a></p>
+        </div>
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+<script src="/static/theme.js"></script>
+</body>
+</html>

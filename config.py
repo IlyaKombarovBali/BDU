@@ -552,7 +552,53 @@ def search_news_page(query, limit, offset):
     con.close()
     return news
 
-#страница tools
+#страница tools — порядок карточек (имена как в столбце tools.name; старые имена для совместимости с БД)
+_TOOLS_DISPLAY_ORDER_GROUPS = (
+    ("Мой IP Поиск Геолокации по IP-адресу", "Мой IP. Поиск геолокации по IP-адресу", "Геолокация IP"),
+    ("Генератор паролей",),
+    ("WHOIS",),
+    ("Проверка файла на вирусы (.docx, .exe, .pdf, .txt, .zip и др.)",),
+    ("Проверка ссылки на вирусы (URL)",),
+    ("Анализ JWT токенов",),
+    ("DNS lookup",),
+    ("Проверка SSL-сертификата",),
+    ("Анализ заголовков HTTP",),
+    ("Reverse DNS",),
+    ("Хэширование текста / CSP-подпись",),
+    ("Кодирование Base64",),
+    ("Кодировать и декодировать URL",),
+    ("Поиск доменов организации по ИНН или названию",),
+    ("Анализатор доверия к сайту",),
+    ("Анализ метаданных файлов",),
+)
+
+
+def _sql_tools_order_expression():
+    parts = []
+    for idx, names in enumerate(_TOOLS_DISPLAY_ORDER_GROUPS):
+        for n in names:
+            esc = str(n).replace("'", "''")
+            parts.append(f"WHEN '{esc}' THEN {idx}")
+    return "CASE name " + " ".join(parts) + " ELSE 999 END"
+
+
+# Заголовок карточки на /tools: в БД может остаться старое name, а показываем каноническое
+TOOLS_LIST_TITLE_OVERRIDES = {
+    "Геолокация IP": "Мой IP Поиск Геолокации по IP-адресу",
+    "Мой IP. Поиск геолокации по IP-адресу": "Мой IP Поиск Геолокации по IP-адресу",
+}
+
+
+def tools_rows_with_display_titles(rows):
+    """sqlite Row → dict с полем display_name для шаблона tools.html."""
+    out = []
+    for row in rows:
+        d = {k: row[k] for k in row.keys()}
+        db_name = d.get("name") or ""
+        d["display_name"] = TOOLS_LIST_TITLE_OVERRIDES.get(db_name, db_name)
+        out.append(d)
+    return out
+
 
 def get_tools_count_by_filter(category, search_query):
     con = get_norm_db()
@@ -608,7 +654,7 @@ def get_tools_page_by_filter(category, search_query, limit, offset):
         if category and category != 'all':
             sql += " AND category = ?"
             params.append(category)
-        sql += " ORDER BY id LIMIT ? OFFSET ?"
+        sql += f" ORDER BY {_sql_tools_order_expression()}, id LIMIT ? OFFSET ?"
         params.extend([limit, offset])
     else:
         sql = "SELECT id, name, description, category, url FROM tools WHERE 1=1"
@@ -616,7 +662,7 @@ def get_tools_page_by_filter(category, search_query, limit, offset):
         if category and category != 'all':
             sql += " AND category = ?"
             params.append(category)
-        sql += " ORDER BY id LIMIT ? OFFSET ?"
+        sql += f" ORDER BY {_sql_tools_order_expression()}, id LIMIT ? OFFSET ?"
         params.extend([limit, offset])
     
     cursor.execute(sql, params)
@@ -628,34 +674,46 @@ def get_tool_by_name(tool_name):
     con = get_norm_db()
     cursor = con.cursor()
     
-    # Преобразуем URL-имя в название из БД
+    # Преобразуем URL-имя в название из БД (порядок ключей — как на странице /tools)
     name_map = {
+        'ip-geo': 'Мой IP Поиск Геолокации по IP-адресу',
         'password-generator': 'Генератор паролей',
+        'whois': 'WHOIS',
+        'virus-file': 'Проверка файла на вирусы (.docx, .exe, .pdf, .txt, .zip и др.)',
+        'virus-url': 'Проверка ссылки на вирусы (URL)',
+        'jwt': 'Анализ JWT токенов',
+        'dns-lookup': 'DNS lookup',
+        'ssl-check': 'Проверка SSL-сертификата',
+        'http-headers': 'Анализ заголовков HTTP',
+        'reverse-dns': 'Reverse DNS',
         'hash': 'Хэширование текста / CSP-подпись',
         'base64': 'Кодирование Base64',
         'url-encode': 'Кодировать и декодировать URL',
-        'jwt': 'Анализ JWT токенов',
-        'whois': 'WHOIS',
-        'ip-geo': 'Геолокация IP',
-        'ssl-check': 'Проверка SSL-сертификата',
-        'http-headers': 'Анализ заголовков HTTP',
-        'port-check': 'Проверка открытых портов',
-        'reverse-dns': 'Reverse DNS',
-        'dns-lookup': 'DNS lookup',
-        'email-breach': 'Проверка email в утечках',
-        'virus-url': 'Проверка на вирусы (URL)',
-        'virus-file': 'Проверка на вирусы (файл)',
-        'domain-search': 'Поиск доменов организации',
+        'domain-search': 'Поиск доменов организации по ИНН или названию',
         'trust-score': 'Анализатор доверия к сайту',
         'metadata': 'Анализ метаданных файлов',
-        'log-analyzer': 'Анализатор логов',
-        'pcap-analyzer': 'Анализатор PCAP',
-        'code-stats': 'Статистический анализ кода',
-        'evtx-analyzer': 'Анализ событий Windows (.evtx)'
     }
     
     real_name = name_map.get(tool_name, tool_name)
     cursor.execute("SELECT id, name, description, category, url FROM tools WHERE name = ?", (real_name,))
     tool = cursor.fetchone()
+    if tool is None:
+        cursor.execute(
+            "SELECT id, name, description, category, url FROM tools WHERE url = ?",
+            (f"/tools/{tool_name}",),
+        )
+        tool = cursor.fetchone()
+    if tool is None and tool_name == "ip-geo":
+        for legacy in (
+            "Геолокация IP",
+            "Мой IP. Поиск геолокации по IP-адресу",
+        ):
+            cursor.execute(
+                "SELECT id, name, description, category, url FROM tools WHERE name = ?",
+                (legacy,),
+            )
+            tool = cursor.fetchone()
+            if tool:
+                break
     con.close()
     return tool
