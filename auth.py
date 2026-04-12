@@ -27,49 +27,61 @@ def _conn():
     return con
 
 
-def init_auth_db():
-    con = _conn()
-    con.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-        CREATE TABLE IF NOT EXISTS user_bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            path TEXT NOT NULL,
-            title TEXT NOT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            UNIQUE(user_id, path),
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON user_bookmarks(user_id);
-        CREATE TABLE IF NOT EXISTS password_resets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            token_hash TEXT NOT NULL,
-            expires_at TEXT NOT NULL,
-            used INTEGER NOT NULL DEFAULT 0,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token_hash);
-        """
-    )
-    cols = [r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()]
-    if "email" not in cols:
-        con.execute("ALTER TABLE users ADD COLUMN email TEXT")
+def upgrade_site_db_auth(db_path):
+    """
+    Создаёт таблицы/индексы учётных записей и закладок в указанном site.db
+    (копия с прода, другой путь и т.д.). Идемпотентно.
+    """
+    p = Path(db_path).resolve()
+    con = sqlite3.connect(str(p))
     try:
-        con.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email "
-            "ON users(email) WHERE email IS NOT NULL AND trim(email) != ''"
+        con.execute("PRAGMA foreign_keys=ON")
+        con.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS user_bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                path TEXT NOT NULL,
+                title TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(user_id, path),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_bookmarks_user ON user_bookmarks(user_id);
+            CREATE TABLE IF NOT EXISTS password_resets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL,
+                expires_at TEXT NOT NULL,
+                used INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token_hash);
+            """
         )
-    except sqlite3.OperationalError:
-        pass
-    con.commit()
-    con.close()
+        cols = [r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+        if cols and "email" not in cols:
+            con.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        try:
+            con.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email "
+                "ON users(email) WHERE email IS NOT NULL AND trim(email) != ''"
+            )
+        except sqlite3.OperationalError:
+            pass
+        con.commit()
+    finally:
+        con.close()
+
+
+def init_auth_db():
+    upgrade_site_db_auth(SITE_DB)
 
 
 def smtp_configured() -> bool:

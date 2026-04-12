@@ -9,7 +9,16 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 import auth as auth_portal
 import bookmark_meta
 import config
-from flask import Flask, flash, render_template, request, redirect, jsonify, session
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+)
 from flask_wtf.csrf import CSRFProtect
 from urllib.parse import quote, urlencode
 from tools_logic import (
@@ -42,6 +51,15 @@ auth_portal.init_auth_db()
 
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        app.static_folder,
+        "favicon.ico",
+        mimetype="image/vnd.microsoft.icon",
+    )
 
 
 @app.context_processor
