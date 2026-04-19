@@ -2464,3 +2464,156 @@ html.dark .bookmark-star {
     color: var(--text-muted);
     font-size: 12px;
 }
+
+/* OWASP cheat sheet (standalone HTML) */
+.cheatsheet-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    font-weight: 400;
+    margin-top: 0.5rem;
+    max-width: 36rem;
+    line-height: 1.45;
+}
+
+.cheatsheet-doc-card {
+    max-width: 100%;
+}
+
+.owasp-prose {
+    color: var(--description-text);
+    line-height: 1.65;
+    font-size: 15px;
+}
+
+.owasp-prose h2 {
+    font-size: 1.35rem;
+    margin-top: 1.75rem;
+    margin-bottom: 0.65rem;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.owasp-prose h3 {
+    font-size: 1.1rem;
+    margin-top: 1.35rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.owasp-prose h4 {
+    font-size: 1rem;
+    margin-top: 1.1rem;
+    margin-bottom: 0.4rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.owasp-prose p {
+    margin-bottom: 0.85rem;
+}
+
+.owasp-prose ul {
+    padding-left: 1.35rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.owasp-prose li {
+    margin-bottom: 0.35rem;
+}
+
+.owasp-prose a {
+    color: var(--accent-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.owasp-prose code {
+    background: var(--bg-chip);
+    padding: 0.12em 0.38em;
+    border-radius: 5px;
+    font-size: 0.88em;
+    word-break: break-word;
+}
+
+/* Горизонтальная прокрутка широких таблиц на мобильных (как у блоков кода) */
+.owasp-prose .cheatsheet-table-window {
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow-x: auto;
+    overflow-y: visible;
+    background: var(--bg-meta);
+    box-shadow: var(--shadow-sm);
+    -webkit-overflow-scrolling: touch;
+}
+
+.owasp-prose .cheatsheet-table-window table {
+    border-collapse: collapse;
+    margin: 0;
+    width: max-content;
+    min-width: 100%;
+    font-size: 0.88rem;
+}
+
+.owasp-prose .cheatsheet-table-window th,
+.owasp-prose .cheatsheet-table-window td {
+    border: 1px solid var(--border-color);
+    padding: 0.45rem 0.55rem;
+    vertical-align: top;
+}
+
+.owasp-prose .cheatsheet-table-window thead th {
+    background: var(--bg-chip);
+    font-weight: 600;
+}
+
+.owasp-prose img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 1rem 0;
+    border-radius: 8px;
+}
+
+.owasp-prose ol {
+    padding-left: 1.35rem;
+    margin: 0.75rem 0 1rem;
+}
+
+.cheatsheet-code-window {
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-meta);
+    box-shadow: var(--shadow-sm);
+}
+
+.cheatsheet-code-window pre {
+    margin: 0;
+    padding: 0.95rem 1.05rem;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+}
+
+.cheatsheet-code-window pre code.hljs {
+    background: transparent !important;
+    padding: 0;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+}
+
+.cheatsheet-license-note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+html.dark .cheatsheet-code-window .hljs {
+    background: transparent !important;
+}

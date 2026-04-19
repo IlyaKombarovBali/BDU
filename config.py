@@ -552,6 +552,134 @@ def search_news_page(query, limit, offset):
     con.close()
     return news
 
+CHEATSHEET_CATEGORY_ORDER = (
+    "Основы контроля доступа и аутентификации",
+    "Защита от веб-атак (OWASP Top 10)",
+    "Безопасность разработки и CI/CD",
+    "Современные угрозы и методы защиты",
+    "Безопасность популярных технологий и фреймворков",
+    "Безопасность облачных и контейнерных сред",
+    "Безопасность специфичных платформ и устройств",
+    "Общие термины и методология",
+)
+
+CHEATSHEET_CATEGORY_ICONS = {
+    "Основы контроля доступа и аутентификации": "🔐",
+    "Защита от веб-атак (OWASP Top 10)": "🎯",
+    "Безопасность разработки и CI/CD": "⚙️",
+    "Современные угрозы и методы защиты": "⚡",
+    "Безопасность популярных технологий и фреймворков": "🧩",
+    "Безопасность облачных и контейнерных сред": "☁️",
+    "Безопасность специфичных платформ и устройств": "📱",
+    "Общие термины и методология": "📋",
+}
+
+
+def cheatsheet_category_by_filter(filter_raw):
+    if filter_raw is None or filter_raw == "" or str(filter_raw).lower() == "all":
+        return None
+    try:
+        idx = int(filter_raw)
+        if 0 <= idx < len(CHEATSHEET_CATEGORY_ORDER):
+            return CHEATSHEET_CATEGORY_ORDER[idx]
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def cheatsheet_filter_label(filter_raw):
+    cat = cheatsheet_category_by_filter(filter_raw)
+    if cat:
+        return cat
+    if filter_raw and str(filter_raw).strip().lower() not in ("", "all"):
+        return str(filter_raw)
+    return "Все категории"
+
+
+def get_cheatsheets_count(category=None):
+    con = get_norm_db()
+    cursor = con.cursor()
+    if category:
+        cursor.execute(
+            "SELECT COUNT(*) FROM cheatsheets WHERE category = ?", (category,)
+        )
+    else:
+        cursor.execute("SELECT COUNT(*) FROM cheatsheets")
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+
+def get_cheatsheets_page(limit, offset, category=None):
+    con = get_norm_db()
+    cursor = con.cursor()
+    if category:
+        cursor.execute(
+            """
+            SELECT id, title, category, short_description, url
+            FROM cheatsheets
+            WHERE category = ?
+            ORDER BY title COLLATE NOCASE
+            LIMIT ? OFFSET ?
+            """,
+            (category, limit, offset),
+        )
+    else:
+        cursor.execute(
+            """
+            SELECT id, title, category, short_description, url
+            FROM cheatsheets
+            ORDER BY category COLLATE NOCASE, title COLLATE NOCASE
+            LIMIT ? OFFSET ?
+            """,
+            (limit, offset),
+        )
+    rows = cursor.fetchall()
+    con.close()
+    return rows
+
+
+def search_cheatsheets_count(query):
+    q = (query or "").strip()
+    if not q:
+        return 0
+    pat = f"%{q}%"
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM cheatsheets
+        WHERE title LIKE ? OR short_description LIKE ? OR category LIKE ?
+        """,
+        (pat, pat, pat),
+    )
+    count = cursor.fetchone()[0]
+    con.close()
+    return count
+
+
+def search_cheatsheets_page(query, limit, offset):
+    q = (query or "").strip()
+    if not q:
+        return []
+    pat = f"%{q}%"
+    con = get_norm_db()
+    cursor = con.cursor()
+    cursor.execute(
+        """
+        SELECT id, title, category, short_description, url
+        FROM cheatsheets
+        WHERE title LIKE ? OR short_description LIKE ? OR category LIKE ?
+        ORDER BY category COLLATE NOCASE, title COLLATE NOCASE
+        LIMIT ? OFFSET ?
+        """,
+        (pat, pat, pat, limit, offset),
+    )
+    rows = cursor.fetchall()
+    con.close()
+    return rows
+
+
 #страница tools — порядок карточек (имена как в столбце tools.name; старые имена для совместимости с БД)
 _TOOLS_DISPLAY_ORDER_GROUPS = (
     ("Мой IP Поиск Геолокации по IP-адресу", "Мой IP. Поиск геолокации по IP-адресу", "Геолокация IP"),

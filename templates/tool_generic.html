@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
     {% include "_theme_boot.html" %}
     {% include "_favicon.html" %}
+    {% include "_yandex_metrika.html" %}
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% set page_tool_title = ('Мой IP Поиск Геолокации по IP-адресу' if tool_slug == 'ip-geo' else tool.name) %}
     <title>{{ page_tool_title }} Онлайн — ПРО ИБ</title>

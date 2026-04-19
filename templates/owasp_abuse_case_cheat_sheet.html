@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    {% include "_theme_boot.html" %}
+    {% include "_favicon.html" %}
+    {% include "_yandex_metrika.html" %}
+    <title>Abuse Case (сценарии злоупотреблений) | OWASP Cheat Sheet | ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/default.min.css">
+</head>
+<body class="cheatsheet-standalone-body">
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <a href="/owasp">OWASP</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Abuse Case</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" class="bot-badge">🤖 PRO ИБ БОТ</a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Abuse Case Cheat Sheet</h1>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="vuln-detail-card cheatsheet-doc-card">
+            <div class="cheatsheet-article owasp-prose">
+{% include 'owasp_abuse_case_article.html' %}
+            </div>
+            <p class="cheatsheet-license-note">© Перевод на русский язык. Оригинальные материалы: <a href="https://cheatsheetseries.owasp.org/" target="_blank" rel="noopener">OWASP Cheat Sheet Series</a>.<br>
+            Этот проект использует материалы OWASP, распространяемые по лицензии <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</p>
+        </div>
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item"><div class="tab-icon">🏠</div><span>Главная</span></a>
+        <a href="/owasp" class="tab-item"><div class="tab-icon">📚</div><span>Статьи</span></a>
+        <a href="/donate" class="tab-item"><div class="tab-icon">❤️</div><span>Поддержка</span></a>
+        <a href="/feedback" class="tab-item"><div class="tab-icon">💬</div><span>Связь</span></a>
+    </div>
+</div>
+<script src="/static/theme.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>

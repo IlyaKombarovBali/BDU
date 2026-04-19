@@ -10,10 +10,12 @@ DESC_MAX = 240
 LIST_SECTION_TITLE = {
     "/laws": "Законы и НПА",
     "/news": "Новости ИБ",
+    "/owasp": "Статьи OWASP",
     "/full_cve": "База уязвимостей БДУ",
     "/search": "Поиск CVE",
     "/search_laws": "Поиск по законам",
     "/search_news": "Поиск по новостям",
+    "/search_cheatsheets": "Поиск по статьям OWASP",
 }
 
 NEWS_FILTER_LABELS = {
@@ -37,8 +39,24 @@ CVE_FILTER_LABELS = {
 NO_FILTER_TITLE = {
     "/laws": "Все тематики",
     "/news": "Все источники",
+    "/owasp": "Все категории",
     "/full_cve": "Все уязвимости",
 }
+
+OWASP_CHEATSHEET_PAGE_TITLES = {
+    "/owasp/cheatsheets/XSS_Filter_Evasion_Cheat_Sheet.html": "Обход XSS-фильтров (OWASP Cheat Sheet)",
+    "/owasp/cheatsheets/Abuse_Case_Cheat_Sheet.html": "Abuse Case — сценарии злоупотреблений (OWASP Cheat Sheet)",
+}
+
+
+def owasp_cheatsheet_bookmark_title(path_only: str) -> str:
+    po = (path_only or "").split("?", 1)[0]
+    if po in OWASP_CHEATSHEET_PAGE_TITLES:
+        return OWASP_CHEATSHEET_PAGE_TITLES[po]
+    base = po.rsplit("/", 1)[-1] if "/" in po else po
+    if base.endswith(".html"):
+        base = base[:-5]
+    return f"OWASP: {base.replace('_', ' ')}"
 
 
 def _snip(text, max_len=DESC_MAX):
@@ -62,6 +80,8 @@ def _filter_raw_list(path: str, po: str) -> Optional[str]:
     qs = _qs(path)
     if po == "/news":
         v = (qs.get("source") or qs.get("filter") or [None])[0]
+    elif po == "/owasp":
+        v = (qs.get("filter") or qs.get("source") or [None])[0]
     else:
         v = (qs.get("filter") or [None])[0]
     if v is None:
@@ -75,6 +95,8 @@ def _filter_raw_list(path: str, po: str) -> Optional[str]:
 def filter_human_label(po: str, raw: str) -> str:
     if po == "/news":
         return NEWS_FILTER_LABELS.get(raw, raw)
+    if po == "/owasp":
+        return config.cheatsheet_filter_label(raw)
     if po == "/full_cve":
         return CVE_FILTER_LABELS.get(raw, raw)
     if po == "/laws":
@@ -103,7 +125,7 @@ def bookmark_title_from_path_normalized(fp: str) -> str:
 
     if po in LIST_SECTION_TITLE:
         section = LIST_SECTION_TITLE[po]
-        if po in ("/search", "/search_laws", "/search_news"):
+        if po in ("/search", "/search_laws", "/search_news", "/search_cheatsheets"):
             q = (qs.get("q") or [""])[0].strip()
             if q:
                 return f"{section}: «{_snip(q, 100)}»"
@@ -112,6 +134,9 @@ def bookmark_title_from_path_normalized(fp: str) -> str:
         if raw:
             return f"{section} — {filter_human_label(po, raw)}"
         return section
+
+    if po.startswith("/owasp/cheatsheets/"):
+        return owasp_cheatsheet_bookmark_title(po)
 
     labels = {
         "/": "Главная",
@@ -174,9 +199,15 @@ def enrich_bookmark(bookmark: dict) -> dict:
             b["kind_label"] = "Инструмент"
         return b
 
+    if po.startswith("/owasp/cheatsheets/"):
+        b["kind_label"] = "Статья OWASP"
+        if not stored_title or stored_title == path or stored_title == po:
+            b["display_title"] = owasp_cheatsheet_bookmark_title(po)
+        return b
+
     if po in LIST_SECTION_TITLE:
         b["kind_label"] = LIST_SECTION_TITLE[po]
-        if po in ("/search", "/search_laws", "/search_news"):
+        if po in ("/search", "/search_laws", "/search_news", "/search_cheatsheets"):
             q = (_qs(path).get("q") or [""])[0].strip()
             if q:
                 b["display_title"] = f"Запрос: «{_snip(q, 96)}»"
@@ -198,6 +229,8 @@ def enrich_bookmark(bookmark: dict) -> dict:
         "/search": "Поиск CVE",
         "/search_laws": "Поиск по законам",
         "/search_news": "Поиск по новостям",
+        "/owasp": "Статьи OWASP",
+        "/search_cheatsheets": "Поиск по статьям OWASP",
         "/tools": "Инструменты",
         "/donate": "Поддержка",
         "/feedback": "Обратная связь",

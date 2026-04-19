@@ -322,6 +322,98 @@ def search_news():
         limit=limit
     )
 
+
+OWASP_DIR = Path(__file__).resolve().parent / "owasp"
+
+
+def _owasp_cheatsheets_list():
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    filter_raw = request.args.get("filter") or request.args.get("source", "all")
+    category = config.cheatsheet_category_by_filter(filter_raw)
+    filter_param = None
+    if category is not None:
+        filter_param = str(config.CHEATSHEET_CATEGORY_ORDER.index(category))
+    offset = (page - 1) * limit
+    total = config.get_cheatsheets_count(category)
+    cheatsheets = config.get_cheatsheets_page(limit, offset, category)
+    total_pages = (total + limit - 1) // limit if total else 1
+    if total_pages < 1:
+        total_pages = 1
+    return render_template(
+        "owasp.html",
+        cheatsheets=cheatsheets,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        filter_param=filter_param,
+        cheat_categories=config.CHEATSHEET_CATEGORY_ORDER,
+        category_icons=config.CHEATSHEET_CATEGORY_ICONS,
+    )
+
+
+@app.route("/owasp")
+@app.route("/owasp/")
+def owasp_cheatsheets():
+    return _owasp_cheatsheets_list()
+
+
+@app.route("/owasp/owasp.html")
+def owasp_cheatsheets_html_alias():
+    return _owasp_cheatsheets_list()
+
+
+@app.route("/owasp/Abuse_Case_Cheat_Sheet.html")
+@app.route("/owasp/abuse_case_cheat_sheet.html")
+def owasp_abuse_case_cheat_sheet_alias():
+    return redirect("/owasp/cheatsheets/Abuse_Case_Cheat_Sheet.html", code=302)
+
+
+@app.route("/search_cheatsheets")
+def search_cheatsheets():
+    query = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    offset = (page - 1) * limit
+    if not query:
+        return redirect("/owasp")
+    total = config.search_cheatsheets_count(query)
+    cheatsheets = config.search_cheatsheets_page(query, limit, offset)
+    total_pages = (total + limit - 1) // limit if total else 1
+    if total_pages < 1:
+        total_pages = 1
+    return render_template(
+        "search_cheatsheets.html",
+        cheatsheets=cheatsheets,
+        query=query,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        total_count=total,
+        category_icons=config.CHEATSHEET_CATEGORY_ICONS,
+    )
+
+
+@app.route("/owasp/assets/<path:fname>")
+def owasp_assets_file(fname):
+    return send_from_directory(OWASP_DIR / "assets", fname)
+
+
+@app.route("/owasp/cheatsheets/XSS_Filter_Evasion_Cheat_Sheet.html")
+def owasp_xss_filter_evasion_cheat_sheet():
+    return render_template("owasp_xss_filter_evasion.html")
+
+
+@app.route("/owasp/cheatsheets/Abuse_Case_Cheat_Sheet.html")
+def owasp_abuse_case_cheat_sheet():
+    return render_template("owasp_abuse_case_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/<path:fname>")
+def owasp_cheatsheet_file(fname):
+    return send_from_directory(OWASP_DIR / "cheatsheets", fname)
+
+
 @app.route('/tools', methods=['GET', 'POST'])
 def tools():
     page = request.args.get('page', 1, type=int)
