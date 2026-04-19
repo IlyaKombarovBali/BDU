@@ -7,6 +7,10 @@
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
     <title>{{ news['title'][:60] }} | {{ news['source']|upper }}</title>
+    {% set seo_meta_title = news['title'][:60] ~ ' | ' ~ (news['source']|upper) %}
+    {% set seo_meta_description = 'Новость ИБ: «' ~ news['title'][:100] ~ '». Источник: ' ~ (news['source']|upper) ~ '. ПРО ИБ (24ib.ru).' %}
+    {% set seo_meta_keywords = news['title'][:50] ~ ', новости ИБ, ' ~ (news['source']|upper) ~ ', ПРО ИБ' %}
+    {% include '_seo_meta.html' %}
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

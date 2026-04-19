@@ -11,6 +11,7 @@ import bookmark_meta
 import config
 from flask import (
     Flask,
+    abort,
     flash,
     jsonify,
     redirect,
@@ -298,6 +299,105 @@ def news_detail(news_id):
         back_url = _query_url("/search_news", query, page, limit)
     
     return render_template('news_detail.html', news=news, back_url=back_url, back_page=page, back_limit=limit, back_query=query)
+
+
+DOC_ROOT = Path(__file__).resolve().parent / "doc"
+
+
+@app.route("/doc/<path:rel>")
+def serve_doc_pdf(rel):
+    """Раздача PDF из папки doc/ (пути из колонки link вида doc/…)."""
+    base = DOC_ROOT.resolve()
+    try:
+        target = (DOC_ROOT / rel).resolve()
+        target.relative_to(base)
+    except ValueError:
+        abort(404)
+    if not target.is_file():
+        abort(404)
+    return send_from_directory(DOC_ROOT, rel)
+
+
+@app.route("/templates_zac")
+def templates_zac():
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    filter_raw = (request.args.get("filter") or request.args.get("source") or "all").strip().lower()
+    allowed = {"all", "pdn", "general", "kii", "gis"}
+    filter_group = filter_raw if filter_raw in allowed else "all"
+    offset = (page - 1) * limit
+
+    if filter_group != "all":
+        total = config.get_doc_count_by_group(filter_group)
+        docs = config.get_doc_page_by_group(filter_group, limit, offset)
+    else:
+        total = config.get_doc_count()
+        docs = config.get_doc_page(limit, offset)
+
+    total_pages = (total + limit - 1) // limit if total else 1
+    if total_pages < 1:
+        total_pages = 1
+
+    return render_template(
+        "templates_zac.html",
+        docs=docs,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        filter_group=filter_group,
+    )
+
+
+@app.route("/templates_zac/<int:doc_id>")
+def templates_zac_detail(doc_id):
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    query = request.args.get("q", "")
+
+    row = config.get_doc_by_id(doc_id)
+    if row is None:
+        return "Документ не найден", 404
+
+    back_url = f"/templates_zac?page={page}&limit={limit}"
+    if query:
+        back_url = _query_url("/search_templates_zac", query, page, limit)
+
+    return render_template(
+        "templates_zac_detail.html",
+        doc=row,
+        back_url=back_url,
+        back_page=page,
+        back_limit=limit,
+        back_query=query,
+    )
+
+
+@app.route("/search_templates_zac")
+def search_templates_zac():
+    query = request.args.get("q", "").strip()
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    offset = (page - 1) * limit
+
+    if not query:
+        return redirect("/templates_zac")
+
+    total = config.search_doc_count(query)
+    docs = config.search_doc_page(query, limit, offset)
+    total_pages = (total + limit - 1) // limit if total else 1
+    if total_pages < 1:
+        total_pages = 1
+
+    return render_template(
+        "search_templates_zac.html",
+        docs=docs,
+        query=query,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        total_count=total,
+    )
+
 
 @app.route('/search_news')
 def search_news():

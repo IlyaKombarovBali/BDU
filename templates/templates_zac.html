@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    {% include "_theme_boot.html" %}
+    {% include "_favicon.html" %}
+    {% include "_yandex_metrika.html" %}
+    <title>Шаблоны документов — ПРО ИБ</title>
+    {% set seo_meta_title = 'Шаблоны документов — ПРО ИБ' %}
+    {% set seo_meta_description = 'Каталог шаблонов документов по ИБ, ПДн, КИИ и ГИС: акты, приказы, регламенты. ПРО ИБ (24ib.ru).' %}
+    {% set seo_meta_keywords = 'шаблоны документов, ИБ, ПДн, КИИ, ГИС, приказы, ПРО ИБ' %}
+    {% include '_seo_meta.html' %}
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">ШАБЛОНЫ</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" rel="noopener noreferrer" class="bot-badge">
+                    🤖 PRO ИБ БОТ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Шаблоны документов</h1>
+        </div>
+    </div>
+
+    <div class="filters-scroll" id="filtersContainer">
+        <!--<span data-filter="all" class="filter-chip{% if filter_group == 'all' %} active{% endif %}">📚 Все</span>-->
+        <span data-filter="pdn" class="filter-chip{% if filter_group == 'pdn' %} active{% endif %}">🔐 ПДн</span>
+        <span data-filter="general" class="filter-chip{% if filter_group == 'general' %} active{% endif %}">📋 Общие</span>
+        <span data-filter="kii" class="filter-chip{% if filter_group == 'kii' %} active{% endif %}">🏭 КИИ</span>
+        <span data-filter="gis" class="filter-chip{% if filter_group == 'gis' %} active{% endif %}">🏛️ ГИС</span>
+    </div>
+
+    <div class="limit-row">
+        <span class="limit-label">Выводить по:</span>
+        <div class="limit-buttons">
+            {% for count in [10, 20, 50, 100] %}
+                {% if count == limit %}
+                    <span class="limit-btn active" data-limit="{{ count }}">{{ count }}</span>
+                {% else %}
+                    <a href="/templates_zac?page=1&limit={{ count }}{% if filter_group != 'all' %}&filter={{ filter_group|urlencode }}{% endif %}" class="limit-btn" data-limit="{{ count }}">{{ count }}</a>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="search-container">
+        <form action="/search_templates_zac" method="get" class="search-form">
+            <input type="text" name="q" placeholder="Поиск по шаблонам....." value="{{ request.args.get('q', '') }}">
+            <button type="submit">🔍 Найти</button>
+        </form>
+    </div>
+
+    <div class="main-content">
+        <div class="vuln-list">
+            {% for item in docs %}
+            <div class="vuln-card">
+                <div class="card-header">
+                    <span class="identifier">
+                        {% set g = (item['group'] or '')|lower %}
+                        {% if g == 'pdn' %}🔐{% elif g == 'general' %}📋{% elif g == 'kii' %}🏭{% elif g == 'gis' %}🏛️{% else %}📄{% endif %}
+                        {{ (item['group'] or '—')|upper }}
+                    </span>
+                    <span class="severity-tag">ID {{ item['id'] }}</span>
+                </div>
+                <div class="vuln-name">{{ item['title'] }}</div>
+                {% set desc = item['description'] if item['description'] else 'Описание отсутствует' %}
+                <div class="vuln-description">{{ desc[:150] }}{% if desc|length > 150 %}...{% endif %}</div>
+                <div class="meta-row">
+                    {% if item['link'] and item['link'].startswith('doc/') %}
+                    <a href="/doc/{{ item['link'][4:] }}" class="date-badge" target="_blank" rel="noopener noreferrer">📎 PDF</a>
+                    {% else %}
+                    <span class="date-badge">📎</span>
+                    {% endif %}
+                    <a href="/templates_zac/{{ item['id'] }}?page={{ page }}&limit={{ limit }}{% if filter_group != 'all' %}&filter={{ filter_group|urlencode }}{% endif %}" class="detail-link">Подробнее →</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="pagination-wrapper">
+        {% if page > 1 %}
+            <a href="/templates_zac?page={{ page - 1 }}&limit={{ limit }}{% if filter_group != 'all' %}&filter={{ filter_group|urlencode }}{% endif %}" class="pagination-btn">← Назад</a>
+        {% else %}
+            <span class="pagination-btn disabled">← Назад</span>
+        {% endif %}
+
+        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
+
+        {% if page < total_pages %}
+            <a href="/templates_zac?page={{ page + 1 }}&limit={{ limit }}{% if filter_group != 'all' %}&filter={{ filter_group|urlencode }}{% endif %}" class="pagination-btn">Вперёд →</a>
+        {% else %}
+            <span class="pagination-btn disabled">Вперёд →</span>
+        {% endif %}
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+
+<script src="/static/theme.js"></script>
+</body>
+</html>

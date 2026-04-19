@@ -552,6 +552,95 @@ def search_news_page(query, limit, offset):
     con.close()
     return news
 
+
+# --- Каталог шаблонов (таблица doc в site.db) ---
+
+
+def get_doc_count():
+    con = get_norm_db()
+    try:
+        return con.execute("SELECT COUNT(*) FROM doc").fetchone()[0]
+    finally:
+        con.close()
+
+
+def get_doc_count_by_group(group: str):
+    con = get_norm_db()
+    try:
+        return con.execute(
+            'SELECT COUNT(*) FROM doc WHERE "group" = ?', (group,)
+        ).fetchone()[0]
+    finally:
+        con.close()
+
+
+def get_doc_page(limit: int, offset: int):
+    con = get_norm_db()
+    try:
+        return con.execute(
+            'SELECT id, "group", title, description, link FROM doc '
+            "ORDER BY id ASC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+    finally:
+        con.close()
+
+
+def get_doc_page_by_group(group: str, limit: int, offset: int):
+    con = get_norm_db()
+    try:
+        return con.execute(
+            'SELECT id, "group", title, description, link FROM doc '
+            'WHERE "group" = ? ORDER BY id ASC LIMIT ? OFFSET ?',
+            (group, limit, offset),
+        ).fetchall()
+    finally:
+        con.close()
+
+
+def get_doc_by_id(doc_id: int):
+    con = get_norm_db()
+    try:
+        return con.execute(
+            'SELECT id, "group", title, description, link FROM doc WHERE id = ?',
+            (doc_id,),
+        ).fetchone()
+    finally:
+        con.close()
+
+
+def search_doc_count(query: str):
+    q = (query or "").strip()
+    if not q:
+        return 0
+    con = get_norm_db()
+    try:
+        like = f"%{q}%"
+        return con.execute(
+            'SELECT COUNT(*) FROM doc WHERE title LIKE ? OR description LIKE ?',
+            (like, like),
+        ).fetchone()[0]
+    finally:
+        con.close()
+
+
+def search_doc_page(query: str, limit: int, offset: int):
+    q = (query or "").strip()
+    if not q:
+        return []
+    con = get_norm_db()
+    try:
+        like = f"%{q}%"
+        return con.execute(
+            'SELECT id, "group", title, description, link FROM doc '
+            "WHERE title LIKE ? OR description LIKE ? "
+            "ORDER BY id ASC LIMIT ? OFFSET ?",
+            (like, like, limit, offset),
+        ).fetchall()
+    finally:
+        con.close()
+
+
 CHEATSHEET_CATEGORY_ORDER = (
     "Основы контроля доступа и аутентификации",
     "Защита от веб-атак (OWASP Top 10)",

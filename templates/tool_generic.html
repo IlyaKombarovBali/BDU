@@ -9,6 +9,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     {% set page_tool_title = ('Мой IP Поиск Геолокации по IP-адресу' if tool_slug == 'ip-geo' else tool.name) %}
     <title>{{ page_tool_title }} Онлайн — ПРО ИБ</title>
+    {% set seo_meta_title = page_tool_title ~ ' Онлайн — ПРО ИБ' %}
+    {% set seo_meta_description = 'Онлайн-инструмент «' ~ page_tool_title ~ '» на платформе ПРО ИБ (24ib.ru). Информационная безопасность.' %}
+    {% set seo_meta_keywords = page_tool_title ~ ', инструмент ИБ онлайн, ПРО ИБ' %}
+    {% include '_seo_meta.html' %}
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

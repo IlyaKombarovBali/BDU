@@ -7,6 +7,10 @@
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
     <title>Поиск по статьям OWASP — {{ query }}</title>
+    {% set seo_meta_title = 'Поиск по статьям OWASP — ' ~ query %}
+    {% set seo_meta_description = 'Поиск статей OWASP Cheat Sheet по запросу «' ~ query ~ '». ПРО ИБ (24ib.ru).' %}
+    {% set seo_meta_keywords = query ~ ', OWASP, поиск, ПРО ИБ' %}
+    {% include '_seo_meta.html' %}
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>

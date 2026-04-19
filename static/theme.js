@@ -85,12 +85,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             // Если кликнули не по ссылке (чтобы не срабатывало дважды)
-            if (!e.target.closest('.detail-link')) {
-                // Ищем ссылку внутри карточки
-                const link = this.querySelector('.detail-link');
-                if (link) {
-                    window.location.href = link.href;
-                }
+            if (e.target.closest('a')) {
+                return;
+            }
+            // Ищем ссылку «Подробнее» внутри карточки
+            const link = this.querySelector('.detail-link');
+            if (link) {
+                window.location.href = link.href;
             }
         });
     });

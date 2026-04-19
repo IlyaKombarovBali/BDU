@@ -16,6 +16,15 @@ LIST_SECTION_TITLE = {
     "/search_laws": "Поиск по законам",
     "/search_news": "Поиск по новостям",
     "/search_cheatsheets": "Поиск по статьям OWASP",
+    "/templates_zac": "Шаблоны документов",
+    "/search_templates_zac": "Поиск по шаблонам",
+}
+
+DOC_FILTER_LABELS = {
+    "pdn": "ПДн",
+    "general": "Общие",
+    "kii": "КИИ",
+    "gis": "ГИС",
 }
 
 NEWS_FILTER_LABELS = {
@@ -41,6 +50,7 @@ NO_FILTER_TITLE = {
     "/news": "Все источники",
     "/owasp": "Все категории",
     "/full_cve": "Все уязвимости",
+    "/templates_zac": "Все категории",
 }
 
 OWASP_CHEATSHEET_PAGE_TITLES = {
@@ -80,6 +90,8 @@ def _filter_raw_list(path: str, po: str) -> Optional[str]:
     qs = _qs(path)
     if po == "/news":
         v = (qs.get("source") or qs.get("filter") or [None])[0]
+    elif po == "/templates_zac":
+        v = (qs.get("source") or qs.get("filter") or [None])[0]
     elif po == "/owasp":
         v = (qs.get("filter") or qs.get("source") or [None])[0]
     else:
@@ -99,6 +111,8 @@ def filter_human_label(po: str, raw: str) -> str:
         return config.cheatsheet_filter_label(raw)
     if po == "/full_cve":
         return CVE_FILTER_LABELS.get(raw, raw)
+    if po == "/templates_zac":
+        return DOC_FILTER_LABELS.get(raw, raw)
     if po == "/laws":
         return raw
     return raw
@@ -118,6 +132,8 @@ def bookmark_title_from_path_normalized(fp: str) -> str:
         return f"Закон №{po[5:]}"
     if po.startswith("/news/"):
         return f"Новость №{po[6:]}"
+    if po.startswith("/templates_zac/"):
+        return f"Шаблон №{po[len('/templates_zac/'):]}"
     if po.startswith("/tools/"):
         return f"Инструмент: {po[7:]}"
 
@@ -125,7 +141,13 @@ def bookmark_title_from_path_normalized(fp: str) -> str:
 
     if po in LIST_SECTION_TITLE:
         section = LIST_SECTION_TITLE[po]
-        if po in ("/search", "/search_laws", "/search_news", "/search_cheatsheets"):
+        if po in (
+            "/search",
+            "/search_laws",
+            "/search_news",
+            "/search_cheatsheets",
+            "/search_templates_zac",
+        ):
             q = (qs.get("q") or [""])[0].strip()
             if q:
                 return f"{section}: «{_snip(q, 100)}»"
@@ -181,6 +203,15 @@ def enrich_bookmark(bookmark: dict) -> dict:
             b["kind_label"] = "Новость"
         return b
 
+    m = re.match(r"^/templates_zac/(\d+)$", po)
+    if m:
+        row = config.get_doc_by_id(int(m.group(1)))
+        if row:
+            b["display_title"] = row["title"] or stored_title
+            b["display_description"] = _snip(row["description"] or "")
+            b["kind_label"] = "Шаблон"
+        return b
+
     m = re.match(r"^/cve/([^/]+)$", po)
     if m:
         vuln = config.get_vuln_by_identifier(m.group(1))
@@ -207,7 +238,13 @@ def enrich_bookmark(bookmark: dict) -> dict:
 
     if po in LIST_SECTION_TITLE:
         b["kind_label"] = LIST_SECTION_TITLE[po]
-        if po in ("/search", "/search_laws", "/search_news", "/search_cheatsheets"):
+        if po in (
+            "/search",
+            "/search_laws",
+            "/search_news",
+            "/search_cheatsheets",
+            "/search_templates_zac",
+        ):
             q = (_qs(path).get("q") or [""])[0].strip()
             if q:
                 b["display_title"] = f"Запрос: «{_snip(q, 96)}»"
@@ -231,6 +268,8 @@ def enrich_bookmark(bookmark: dict) -> dict:
         "/search_news": "Поиск по новостям",
         "/owasp": "Статьи OWASP",
         "/search_cheatsheets": "Поиск по статьям OWASP",
+        "/templates_zac": "Шаблоны документов",
+        "/search_templates_zac": "Поиск по шаблонам",
         "/tools": "Инструменты",
         "/donate": "Поддержка",
         "/feedback": "Обратная связь",

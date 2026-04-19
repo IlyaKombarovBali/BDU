@@ -7,6 +7,8 @@
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
     <title>ПРО ИБ — Главная</title>
+    {% set seo_meta_title = 'ПРО ИБ — Главная' %}
+    {% include '_seo_meta.html' %}
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -51,7 +53,7 @@
 
     <!-- сетка карточек 2x2 -->
     <div class="sections-grid">
-        <a href="templates_zac" class="section-card">
+        <a href="/templates_zac" class="section-card">
             <div class="card-icon">📋</div>
             <div class="card-title">Шаблоны</div>
             <div class="card-sub">300+ документов</div>

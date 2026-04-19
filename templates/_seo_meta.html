@@ -1,0 +1,22 @@
+{# Перед include задайте seo_meta_title (коротко, как в <title>). По желанию: seo_meta_description, seo_meta_keywords #}
+{% if seo_meta_description is defined and seo_meta_description %}
+    {% set _seo_desc = seo_meta_description %}
+{% elif seo_meta_title is defined and seo_meta_title %}
+    {% set _seo_desc = seo_meta_title ~ ' — платформа ПРО ИБ (24ib.ru). Информационная безопасность, обучение, справочники.' %}
+{% else %}
+    {% set _seo_desc = 'ПРО ИБ — образовательная платформа по информационной безопасности (24ib.ru): CVE, законы, OWASP, шаблоны документов, инструменты ИБ.' %}
+{% endif %}
+{% if seo_meta_keywords is defined and seo_meta_keywords %}
+    {% set _seo_kw = seo_meta_keywords %}
+{% elif seo_meta_title is defined and seo_meta_title %}
+    {% set _seo_kw = seo_meta_title ~ ', ПРО ИБ, информационная безопасность, ИБ, 24ib.ru' %}
+{% else %}
+    {% set _seo_kw = 'ПРО ИБ, информационная безопасность, CVE, БДУ, OWASP, ПДн, КИИ, уязвимости, шаблоны документов' %}
+{% endif %}
+<meta name="description" content="{{ _seo_desc|e }}">
+<meta name="keywords" content="{{ _seo_kw|e }}">
+<meta name="author" content="ПРО ИБ">
+<meta name="robots" content="index, follow">
+<meta name="googlebot" content="index, follow">
+<meta name="bingbot" content="index, follow">
+<meta name="yandexbot" content="index, follow">

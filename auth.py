@@ -63,6 +63,14 @@ def upgrade_site_db_auth(db_path):
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_pwreset_token ON password_resets(token_hash);
+            CREATE TABLE IF NOT EXISTS doc (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                "group" TEXT,
+                title TEXT,
+                description TEXT,
+                link TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_doc_group ON doc("group");
             """
         )
         cols = [r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()]

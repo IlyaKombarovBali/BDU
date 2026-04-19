@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    {% include "_theme_boot.html" %}
+    {% include "_favicon.html" %}
+    {% include "_yandex_metrika.html" %}
+    <title>Шаблон документа | {{ doc['title'][:60] }} | {{ (doc['group'] or '')|upper }}</title>
+    {% set seo_meta_title = 'Шаблон документа | ' ~ doc['title'][:60] ~ ' | ' ~ (doc['group'] or '')|upper %}
+    {% set seo_meta_description = 'Шаблон документа «' ~ doc['title'][:100] ~ '». Категория: ' ~ (doc['group'] or '')|upper ~ '. ПРО ИБ (24ib.ru).' %}
+    {% set seo_meta_keywords = doc['title'][:60] ~ ', ' ~ (doc['group'] or '')|upper ~ ', шаблоны документов, ПРО ИБ' %}
+    {% include '_seo_meta.html' %}
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <a href="/templates_zac">Шаблоны</a>
+                <span>→</span>
+                {% if back_query %}
+                    <a href="/search_templates_zac?q={{ back_query|urlencode }}">Поиск: {{ back_query[:20] }}</a>
+                    <span>→</span>
+                    <a href="/search_templates_zac?q={{ back_query|urlencode }}&page={{ back_page }}&limit={{ back_limit }}">Стр. {{ back_page }}</a>
+                {% else %}
+                    <a href="/templates_zac?page={{ back_page }}&limit={{ back_limit }}">Страница {{ back_page }}</a>
+                {% endif %}
+                <span>→</span>
+                <span style="color: var(--identifier-text);">{{ doc['title'][:40] }}{% if doc['title']|length > 40 %}...{% endif %}</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" rel="noopener noreferrer" class="bot-badge">
+                    🤖 PRO ИБ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Шаблон документа</h1>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="vuln-detail-card">
+            <div class="identifier-badge">
+                {% set g = (doc['group'] or '')|lower %}
+                {% if g == 'pdn' %}🔐{% elif g == 'general' %}📋{% elif g == 'kii' %}🏭{% elif g == 'gis' %}🏛️{% else %}📄{% endif %}
+                {{ (doc['group'] or '—')|upper }}
+            </div>
+            <div class="vuln-name">{{ doc['title'] }}</div>
+
+            <div class="info-section">
+                <div class="section-title"><span>🏷️</span> Категория</div>
+                <div class="description-text">{{ (doc['group'] or '—')|upper }}</div>
+            </div>
+
+            <div class="info-section">
+                <div class="section-title"><span>📄</span> Описание</div>
+                <div class="description-text">{{ doc['description'] if doc['description'] else 'Описание отсутствует' }}</div>
+            </div>
+
+            {% if doc['link'] %}
+            <div class="info-section">
+                <div class="section-title"><span>🔗</span> Файл</div>
+                <div class="links-list">
+                    {% if doc['link'].startswith('doc/') %}
+                    <a href="/doc/{{ doc['link'][4:] }}" class="link-item" target="_blank" rel="noopener noreferrer">
+                        📎 Открыть PDF
+                    </a>
+                    {% else %}
+                    <a href="{{ doc['link'] }}" class="link-item" target="_blank" rel="noopener noreferrer">
+                        🔗 Ссылка на материал
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <a href="{{ back_url }}" class="back-button">← Назад</a>
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+
+<script src="/static/theme.js"></script>
+</body>
+</html>
