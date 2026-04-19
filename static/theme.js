@@ -2,7 +2,9 @@
 (function() {
     const themeToggle = document.getElementById('themeToggle');
     const themeIcon = document.getElementById('themeIcon');
-    
+    const HLJS_LIGHT = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css';
+    const HLJS_DARK = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css';
+
     const savedTheme = localStorage.getItem('proib_theme');
     let isDark = false;
     if (savedTheme === 'dark') {
@@ -12,8 +14,17 @@
     } else {
         isDark = false;
     }
-    
+
     const root = document.documentElement;
+
+    function updateHljsTheme(dark) {
+        const link = document.getElementById('hljs-theme');
+        if (!link) return;
+        var href = dark ? HLJS_DARK : HLJS_LIGHT;
+        if (link.getAttribute('href') !== href) {
+            link.setAttribute('href', href);
+        }
+    }
 
     function setTheme(dark) {
         if (dark) {
@@ -25,10 +36,11 @@
             if (themeIcon) themeIcon.textContent = '☀️';
             localStorage.setItem('proib_theme', 'light');
         }
+        updateHljsTheme(dark);
     }
-    
+
     setTheme(isDark);
-    
+
     if (themeToggle) {
         themeToggle.addEventListener('click', function() {
             setTheme(!root.classList.contains('dark'));

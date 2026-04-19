@@ -1,0 +1,319 @@
+<h1 id="kubernetes-security-cheat-sheet">Статья по безопасности Kubernetes (Kubernetes Security Cheat Sheet)</h1>
+<h2 id="overview">Обзор</h2>
+<p>Эта Статья — отправная точка для защиты кластера Kubernetes. Структура:</p>
+<ul>
+<li>Уведомления об обновлениях Kubernetes</li>
+<li>Введение: что такое Kubernetes</li>
+<li>Защита хостов Kubernetes</li>
+<li>Защита компонентов Kubernetes</li>
+<li>Использование веб-интерфейса (Dashboard)</li>
+<li>Практики безопасности: этап сборки (Build)</li>
+<li>Практики безопасности: этап развёртывания (Deploy)</li>
+<li>Практики безопасности: этап эксплуатации (Runtime)</li>
+</ul>
+<p>Дополнительные материалы по Kubernetes — в разделе «Ссылки» в конце.</p>
+<h2 id="receive-alerts-for-security-updates-and-reporting-vulnerabilities">Уведомления об обновлениях безопасности и сообщение об уязвимостях</h2>
+<p>Подпишитесь на рассылку <a href="https://kubernetes.io/docs/reference/issues-security/security/">kubernetes-announce</a> и следуйте <a href="https://kubernetes.io/docs/reference/issues-security/security">официальной странице безопасности Kubernetes</a> для отчётов об уязвимостях.</p>
+<h2 id="introduction-what-is-kubernetes">Введение: что такое Kubernetes?</h2>
+<p>Kubernetes — открытая система оркестрации контейнеров для автоматизации развёртывания, масштабирования и управления приложениями в контейнерах. Проект входит в <a href="https://www.cncf.io/">CNCF</a>.</p>
+<p>После развёртывания вы получаете <strong>кластер</strong>: набор рабочих узлов (<strong>nodes</strong>), на которых выполняются поды с контейнерами, и <strong>control plane</strong>, управляющий узлами и подами.</p>
+<h3 id="control-plane-components">Компоненты control plane</h3>
+<p>Компоненты плоскости управления принимают глобальные решения по кластеру и реагируют на события: <strong>kube-apiserver</strong>, <strong>etcd</strong>, <strong>kube-scheduler</strong>, <strong>kube-controller-manager</strong>, <strong>cloud-controller-manager</strong>.</p>
+<p><strong>kube-apiserver</strong> — публикует Kubernetes API; точка входа в control plane.</p>
+<p><strong>etcd</strong> — согласованное высокодоступное key-value хранилище; бэкенд данных кластера.</p>
+<p><strong>kube-scheduler</strong> — назначает узел новым подам без привязки к ноде.</p>
+<p><strong>kube-controller-manager</strong> — процессы контроллеров (в одном бинарнике для упрощения).</p>
+<p><strong>cloud-controller-manager</strong> — связывает кластер с API облачного провайдера, отделяя облачную интеграцию от остальной логики.</p>
+<h3 id="node-components">Компоненты узла</h3>
+<p>На каждом узле: <strong>kubelet</strong> (агент, следит за контейнерами в подах), <strong>kube-proxy</strong> (сетевой прокси для сервисов), <strong>container runtime</strong> (запуск контейнеров).</p>
+<h2 id="section-1-securing-kubernetes-hosts">Раздел 1. Защита хостов Kubernetes</h2>
+<p>Kubernetes разворачивают на «железе», on-prem и в облаке (свой кластер на ВМ или managed-сервис). Гибкость повышает поверхность атаки — команда должна понимать векторы угроз для своей модели.</p>
+<p>Рекомендации по хостам: актуальная ОС, укрепление (hardening), патч- и конфигурационный менеджмент, фаервол, меры безопасности ЦОД/облака.</p>
+<h3 id="updating-kubernetes">Обновление Kubernetes</h3>
+<p>Лучшая базовая защита — стабильная актуальная версия Kubernetes. При уязвимостях в образах обновляйте исходный образ и пересоздавайте контейнеры; <strong>избегайте правок «на лету» внутри работающих контейнеров</strong>, чтобы не ломать связь образ–контейнер.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash"># Пример обновления пакетов на узле (иллюстрация)
+apt-get update
+</code></pre></div>
+<p><strong>Rolling updates</strong> Kubernetes позволяют постепенно обновлять приложение, подменяя образы на новые версии.</p>
+<h4 id="release-schedule-for-kubernetes">График релизов</h4>
+<p>Проект поддерживает ветки для трёх последних минорных релизов и бэкпортит исправления безопасности. Держите кластер на последней стабильной версии; см. <a href="https://kubernetes.io/docs/setup/release/version-skew-policy/">политику версионного сдвига</a>. Используйте rolling update, миграции node pool и т.п., чтобы снизить простой.</p>
+<h2 id="section-2-securing-kubernetes-components">Раздел 2. Защита компонентов Kubernetes</h2>
+<ul>
+<li>Безопасность Dashboard</li>
+<li>Ограничение доступа к etcd</li>
+<li>Сетевой доступ к чувствительным портам</li>
+<li>Доступ к Kubernetes API</li>
+<li>RBAC</li>
+<li>Ограничение доступа к Kubelet</li>
+</ul>
+<h3 id="securing-the-kubernetes-dashboard">Безопасность Kubernetes Dashboard</h3>
+<p>Dashboard — отдельное веб-приложение; часто в туториалах создают service account с чрезмерными правами. Из-за публично доступного Dashboard пострадали в том числе Tesla (<a href="https://arstechnica.com/information-technology/2018/02/tesla-cloud-resources-are-hacked-to-run-cryptocurrency-mining-malware/">Ars Technica</a>).</p>
+<ul>
+<li>Не выставляйте Dashboard в интернет без дополнительной аутентификации.</li>
+<li>Включите RBAC и ограничьте права service account Dashboard.</li>
+<li>Выдавайте права по пользователям, принцип наименьших привилегий.</li>
+<li>Сетевые политики могут блокировать доступ к Dashboard из подов (не мешает <code>kubectl proxy</code>).</li>
+<li>До версии 1.8 у Dashboard был широкий доступ — проверьте отсутствие привязок роли <code>cluster-admin</code>.</li>
+<li>Развёртывайте Dashboard за reverse proxy с MFA и OIDC / impersonation вместо привилегированного ServiceAccount.</li>
+</ul>
+<h3 id="restricting-access-to-etcd-important">Ограничение доступа к etcd (важно)</h3>
+<p>etcd хранит состояние и секреты. <strong>Запись в etcd API-сервера эквивалентна root в кластере</strong>; даже чтение часто позволяет эскалировать привилегии. Планировщик читает etcd; прямой обход API-сервера ломает политики вроде PodSecurityPolicies.</p>
+<p>Используйте сильную аутентификацию между apiserver и etcd (например, mTLS), изолируйте etcd за фаерволом, доступ только с API-серверов.</p>
+<h4 id="limiting-access-to-the-primary-etcd-instance">Доступ к основному etcd</h4>
+<p>Доступ других компонентов кластера к полному keyspace основного etcd сопоставим с <code>cluster-admin</code>. Разделяйте экземпляры etcd или применяйте ACL по подмножеству ключей.</p>
+<h3 id="controlling-network-access-to-sensitive-ports">Сетевой доступ к чувствительным портам</h3>
+<p>Включайте аутентификацию и авторизацию; кластеры слушают характерные порты — их проще найти атакующим. Ограничьте доступ; API-сервер по возможности только из доверенных сетей.</p>
+<p><strong>Control plane:</strong></p>
+<div class="cheatsheet-table-window">
+<table>
+<thead>
+<tr>
+<th>Протокол</th>
+<th>Порты</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>TCP</td><td>6443</td><td>Kubernetes API Server</td></tr>
+<tr><td>TCP</td><td>2379–2380</td><td>клиентский API etcd</td></tr>
+<tr><td>TCP</td><td>10250</td><td>Kubelet API</td></tr>
+<tr><td>TCP</td><td>10259</td><td>kube-scheduler</td></tr>
+<tr><td>TCP</td><td>10257</td><td>kube-controller-manager</td></tr>
+<tr><td>TCP</td><td>10255</td><td>read-only Kubelet API</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Рабочие узлы:</strong></p>
+<div class="cheatsheet-table-window">
+<table>
+<thead>
+<tr>
+<th>Протокол</th>
+<th>Порты</th>
+<th>Назначение</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>TCP</td><td>10248</td><td>Kubelet healthz</td></tr>
+<tr><td>TCP</td><td>10249</td><td>метрики kube-proxy</td></tr>
+<tr><td>TCP</td><td>10250</td><td>Kubelet API</td></tr>
+<tr><td>TCP</td><td>10255</td><td>read-only Kubelet API</td></tr>
+<tr><td>TCP</td><td>10256</td><td>healthz kube-proxy</td></tr>
+<tr><td>TCP</td><td>30000–32767</td><td>NodePort</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="controlling-access-to-the-kubernetes-api">Доступ к Kubernetes API</h3>
+<p>Первая линия защиты — ограничение и защита запросов к API. См. <a href="https://kubernetes.io/docs/reference/access-authn-authz/controlling-access/">документацию</a>.</p>
+<h4 id="how-kubernetes-handles-api-authorization">Как устроена авторизация</h4>
+<p>Сначала аутентификация, затем авторизация. По умолчанию запросы запрещены, пока политика явно не разрешит все части запроса.</p>
+<h4 id="external-api-authentication-for-kubernetes-recommended">Внешняя аутентификация API (рекомендуется)</h4>
+<p>Для продакшена предпочтительны внешние механизмы: <a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#openid-connect-tokens">OpenID Connect</a>, IAM в GKE/EKS/AKS, <a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#user-impersonation">Impersonation</a>. Для привилегированного доступа к API используйте MFA.</p>
+<p>Подробнее: <a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication">Authentication</a>.</p>
+<h4 id="options-for-kubernetes-built-in-api-authentication-not-recommended">Встроенная аутентификация API (не рекомендуется для продакшена)</h4>
+<ul>
+<li><a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#static-token-file">Static Token File</a> — токены в CSV; смена без перезапуска apiserver невозможна.</li>
+<li><a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#x509-client-certs">X509 client certs</a> — слабое отзывание (<a href="https://github.com/kubernetes/kubernetes/issues/18982">issue</a>).</li>
+<li><a href="https://kubernetes.io/docs/reference/access-authn-authz/authentication/#service-account-tokens">Service account tokens</a> — в основном для подов; как учётные записи пользователей — осторожно.</li>
+</ul>
+<h3 id="implementing-role-based-access-control-in-kubernetes">RBAC в Kubernetes</h3>
+<p>RBAC сопоставляет пользователей/группы с ролями (глаголы + ресурсы, область namespace или кластер). Включайте Node и RBAC authorizers вместе с admission plugin <strong>NodeRestriction</strong>.</p>
+<p>Пример флага apiserver:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kube-apiserver --authorization-mode=Example,RBAC --other-options ...
+</code></pre></div>
+<p>Детали: <a href="https://kubernetes.io/docs/reference/access-authn-authz/rbac">RBAC</a>.</p>
+<h3 id="limiting-access-to-the-kubelets">Ограничение доступа к Kubelet</h3>
+<p>Kubelet предоставляет мощный HTTPS API. По умолчанию возможен неаутентифицированный доступ — в продакшене включайте аутентификацию и авторизацию: <a href="https://kubernetes.io/docs/reference/access-authn-authz/kubelet-authn-authz/">Kubelet authn/authz</a>.</p>
+<h2 id="section-3-kubernetes-security-best-practices-build-phase">Раздел 3. Практики безопасности: этап сборки (Build)</h2>
+<p>На этапе сборки закрепляйте безопасные образы и сканируйте их на уязвимости.</p>
+<h3 id="what-is-a-container-image">Что такое образ контейнера</h3>
+<p>Образ — неизменяемый пакет с кодом, рантаймом, библиотеками и конфигурацией. Собирайте на утверждённой базе, сканируйте базу и производные образы, храните артефакты в доверенных реестрах.</p>
+<h4 id="ensure-that-cis-are-up-to-date">Актуальность образов</h4>
+<p>Обновляйте собственные и сторонние компоненты в образах.</p>
+<h3 id="only-use-authorized-images-in-your-environment">Только разрешённые образы</h3>
+<p>Запуск образов из неизвестных источников опасен. Разрешайте только образы, соответствующие политике организации.</p>
+<h3 id="use-a-ci-pipeline-to-control-and-identify-vulnerabilities">CI/CD и сканирование</h3>
+<p>Используйте приватный реестр одобренных образов; в пайплайн встройте SAST/сканирование уязвимостей (например <a href="https://github.com/aquasecurity/trivy">Trivy</a>, <a href="https://github.com/anchore/grype">Grype</a>). Блокируйте публикацию при находках. См. также <a href="/owasp/cheatsheets/CI_CD_Security_Cheat_Sheet.html">CI/CD Security Cheat Sheet</a> и <a href="https://github.com/kubernetes/kubernetes/pull/27129">обсуждение плагинов авторизации образов</a>.</p>
+<h3 id="minimize-features-in-all-cis">Минимизация содержимого образов</h3>
+<p>Уменьшайте поверхность атаки: по возможности <strong>distroless</strong> или <strong>scratch</strong> для статически слинкованных бинарников. Не включайте пакетные менеджеры и shell без необходимости. <a href="https://github.com/GoogleContainerTools/distroless">distroless</a>, <a href="https://hub.docker.com/_/scratch">scratch</a>.</p>
+<h4 id="use-distroless-or-empty-images-when-possible">Distroless и пустые образы</h4>
+<p>Distroless снижает набор пакетов и отсутствие shell; scratch — минимальная база для Go и подобных случаев.</p>
+<hr />
+<h2 id="section-4-kubernetes-security-best-practices-deploy-phase">Раздел 4. Практики безопасности: этап развёртывания (Deploy)</h2>
+<p>До выката нагрузок настройте инфраструктуру и обеспечьте наблюдаемость: <strong>что</strong> деплоится, <strong>куда</strong>, <strong>как</strong> (привилегии, сеть, securityContext), <strong>к чему есть доступ</strong> (секреты, тома, API), <strong>соответствие политикам</strong>.</p>
+<h3 id="code-that-uses-namespaces-to-isolate-kubernetes-resources">Пространства имён (namespaces)</h3>
+<p>Namespaces дают логическое разделение и границы для RBAC.</p>
+<h4 id="setting-the-namespace-for-a-request">Флаг namespace</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kubectl run nginx --image=nginx --namespace=&lt;имя-ns&gt;
+kubectl get pods --namespace=&lt;имя-ns&gt;
+</code></pre></div>
+<h4 id="setting-the-namespace-preference">Контекст по умолчанию</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kubectl config set-context --current --namespace=&lt;имя-ns&gt;
+kubectl config view --minify | grep namespace:
+</code></pre></div>
+<p><a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces">Документация по namespaces</a>.</p>
+<h3 id="use-the-imagepolicywebhook-to-govern-image-provenance">ImagePolicyWebhook</h3>
+<p>Admission controller <strong>ImagePolicyWebhook</strong> отклоняет поды с неодобренными образами (несканированные, неразрешённая база, небезопасный реестр). <a href="https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#imagepolicywebhook">Документация</a>.</p>
+<h3 id="implement-continuous-security-vulnerability-scanning">Непрерывное сканирование уязвимостей</h3>
+<p>Регулярно сканируйте перво- и сторонние образы в продакшене. Инструменты: <a href="https://github.com/deepfence/ThreatMapper">ThreatMapper</a> и др.</p>
+<h3 id="apply-security-context-to-your-pods-and-containers">Security context подов и контейнеров</h3>
+<p>Задавайте в манифестах: <code>runAsNonRoot</code>, <code>capabilities</code>, <code>readOnlyRootFilesystem</code>, <code>podSecurityContext</code> и т.д.</p>
+<h4 id="security-context-example-a-pod-definition-that-includes-security-context-parameters">Пример Pod</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: hello-world
+spec:
+  containers:
+  # ...
+  securityContext:
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+</code></pre></div>
+<p><a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context">Security context</a>.</p>
+<h4 id="utilize-pod-security-standards-and-the-built-in-pod-security-admission-controller-to-enforce-container-privilege-levels">Pod Security Standards и Pod Security admission</h4>
+<p>Профили: <strong>Privileged</strong>, <strong>Baseline</strong>, <strong>Restricted</strong> — см. <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/#profile-details">детали</a>. Режимы admission: <code>enforce</code>, <code>audit</code>, <code>warn</code>.</p>
+<p>Пример namespace с уровнем <code>restricted</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Namespace
+metadata:
+  name: policy-test
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+</code></pre></div>
+<p>Для тонкой настройки — OPA Gatekeeper, Kyverno, <a href="https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/">Validating Admission Policy</a> (GA с 1.30).</p>
+<h4 id="use-pod-security-policies-to-control-the-security-related-attributes-of-pods-which-includes-container-privilege-levels">Pod Security Policies (устарело)</h4>
+<blockquote>
+<p><strong>Внимание.</strong> PSP удалены в Kubernetes 1.25. Используйте Pod Security Standards и Pod Security admission.</p>
+</blockquote>
+<p>Типовые требования к политикам: не root, запрет privilege escalation, read-only root FS, маскированный <code>/proc</code>, не использовать <code>hostNetwork: true</code> без необходимости (NetworkPolicies не применяются к host network), урезать capabilities, SELinux, отдельный ServiceAccount на приложение, не монтировать credentials API, если они не нужны. <a href="https://kubernetes.io/docs/concepts/policy/pod-security-policy/">Историческая документация PSP</a>.</p>
+<h3 id="providing-extra-security-with-a-service-mesh">Service mesh</h3>
+<p>Mesh даёт наблюдаемость, mTLS между сервисами, контроль ingress/egress, единые политики и RBAC на уровне mesh; но добавляет сложность, требует экспертизы и может замедлять внедрение. Оценивайте TCO и риски.</p>
+<h3 id="implementing-centralized-policy-management">Централизованные политики</h3>
+<p><a href="https://www.openpolicyagent.org/">OPA</a>, <a href="https://kyverno.io/">Kyverno</a>, Validating Admission Policy — единая точка для admission и (частично) для приложений и mesh.</p>
+<h3 id="limiting-resource-usage-on-a-cluster">Квоты ресурсов</h3>
+<p>По умолчанию лимиты CPU/памяти не заданы — риск DoS и «шумных соседей». Используйте <a href="https://kubernetes.io/docs/concepts/policy/resource-quotas/">ResourceQuota</a>.</p>
+<p>Пример <code>compute-resources.yaml</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-resources
+spec:
+  hard:
+    pods: "4"
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kubectl create -f ./compute-resources.yaml --namespace=myspace
+</code></pre></div>
+<h3 id="use-kubernetes-network-policies-to-control-traffic-between-pods-and-clusters">Сетевые политики</h3>
+<p>По умолчанию поды могут общаться друг с другом и выходить наружу — сегментируйте трафик <a href="https://kubernetes.io/docs/concepts/services-networking/network-policies">NetworkPolicy</a>. В оригинале приведён пример JSON для раннего API; в актуальных версиях используйте манифесты <code>NetworkPolicy</code> с <code>podSelector</code> и <code>ingress</code>/<code>egress</code>.</p>
+<h3 id="securing-data">Защита данных</h3>
+<h4 id="keep-secrets-as-secrets">Секреты</h4>
+<p>Монтируйте секреты в read-only тома, по возможности не через переменные окружения. Не смешивайте секреты с образами. См. <a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html">Secrets Management Cheat Sheet</a> и <a href="https://kubernetes.io/docs/concepts/configuration/secret/">документацию Secret</a>.</p>
+<h4 id="encrypt-secrets-at-rest">Шифрование секретов в покое</h4>
+<p>etcd содержит всё, доступное через API — шифруйте бэкапы и используйте <a href="https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/">encryption at rest</a> для Secret в etcd.</p>
+<h4 id="alternatives-to-kubernetes-secret-resources">Внешние хранилища секретов</h4>
+<p>Рассмотрите внешний secret manager для ротации и кросс-кластерных сценариев.</p>
+<h4 id="finding-exposed-secrets">Поиск утечек</h4>
+<p>Сканируйте ФС образов: <a href="https://github.com/deepfence/SecretScanner">SecretScanner</a>, <a href="https://github.com/deepfence/ThreatMapper">ThreatMapper</a>.</p>
+<hr />
+<h2 id="section-5-kubernetes-security-best-practices-runtime-phase">Раздел 5. Практики безопасности: этап эксплуатации (Runtime)</h2>
+<p>В runtime контролируйте процессы, сеть и аномалии; чем лучше build/deploy, тем меньше инцидентов в продакшене.</p>
+<h3 id="use-pod-security-admission-to-prevent-risky-containerspods-from-being-deployed">Pod Security admission</h3>
+<p>PSP заменены на <a href="https://kubernetes.io/docs/concepts/security/pod-security-admission/">Pod Security admission</a>. Минимум — профиль <code>baseline</code>; цель — <code>restricted</code>. <a href="https://kubernetes.io/docs/tasks/configure-pod-container/enforce-standards-admission-controller/">Настройка</a>.</p>
+<h3 id="container-runtime-security">Безопасность рантайма контейнеров</h3>
+<p>Мониторинг syscalls (например <a href="https://falco.org/">Falco</a>): shell в контейнере, монтирование чувствительных путей хоста, чтение <code>/etc/shadow</code>, неожиданные исходящие соединения.</p>
+<h3 id="container-sandboxing">Песочницы</h3>
+<ul>
+<li><a href="https://katacontainers.io/">Kata Containers</a> — лёгкие ВМ для изоляции.</li>
+<li><a href="https://gvisor.dev/">gVisor</a> — userspace-ядро между контейнером и хостом.</li>
+<li><a href="https://firecracker-microvm.github.io/">Firecracker</a> — минимальные ВМ с жёсткой поверхностью syscalls.</li>
+</ul>
+<h3 id="preventing-containers-from-loading-unwanted-kernel-modules">Загрузка модулей ядра</h3>
+<p>Заблокируйте ненужные модули (пример <code>/etc/modprobe.d/kubernetes-blacklist.conf</code>):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-plaintext"># DCCP — редко нужен, были уязвимости
+blacklist dccp
+# SCTP — часто не нужен в K8s
+blacklist sctp
+</code></pre></div>
+<p>SELinux и др. LSM могут запретить <code>module_request</code> из контейнеров.</p>
+<h3 id="compare-and-analyze-different-runtime-activity-in-pods-of-the-same-deployments">Сравнение поведения реплик</h3>
+<p>Реплики одного Deployment должны вести себя схоже; отклонения — сигнал для расследования. Интегрируйте алерты со Slack/PagerDuty/SIEM.</p>
+<h3 id="monitor-network-traffic-to-limit-unnecessary-or-insecure-communication">Мониторинг сети</h3>
+<p>Сравнивайте фактический трафик с NetworkPolicy; сужайте разрешённое. Инструменты: <a href="https://github.com/inspektor-gadget/inspektor-gadget">Inspektor Gadget</a>, <a href="https://github.com/deepfence/PacketStreamer">PacketStreamer</a>.</p>
+<h3 id="if-breached-scale-suspicious-pods-to-zero">При компрометации</h3>
+<p>Масштабируйте подозрительные поды в ноль или перезапускайте приложения средствами Kubernetes.</p>
+<h3 id="rotate-infrastructure-credentials-frequently">Ротация учётных данных</h3>
+<p>Короткий срок жизни сертификатов и токенов, автоматическая ротация, отзыв bootstrap-токенов после инициализации узлов.</p>
+<h3 id="logging">Логирование</h3>
+<p>Собирайте stdout/stderr (Fluentd/Fluent Bit → Elasticsearch/OpenSearch и т.д.).</p>
+<h4 id="enable-audit-logging">Audit API</h4>
+<p>Включите аудит apiserver и храните логи на защищённом сервере; отслеживайте ответы <code>Forbidden</code>. Уровни: None, Metadata, Request, RequestResponse. Флаг <code>--audit-policy-file</code>.</p>
+<h5 id="audit-logs">Пример записи аудита (фрагмент)</h5>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "kind": "Event",
+  "apiVersion": "audit.k8s.io/v1beta1",
+  "level": "Metadata",
+  "verb": "list",
+  "user": { "username": "user@example.org" },
+  "requestURI": "/api/v1/namespaces/default/persistentvolumeclaims"
+}
+</code></pre></div>
+<h5 id="container-logging">Логи контейнера</h5>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: example
+      image: busybox
+      args: [/bin/sh, -c, 'while true; do echo $(date); sleep 1; done']
+</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kubectl apply -f example.yaml
+kubectl logs &lt;container-name&gt;
+</code></pre></div>
+<h5 id="node-logging">Логи узла</h5>
+<p>Логи контейнеров часто в <code>/var/log/containers</code>; ротация на узле. Для systemd: <code>journalctl -u …</code>.</p>
+<h5 id="cluster-logging">Логи кластера</h5>
+<p>Собирайте логи компонентов control plane и события кластера.</p>
+<h4 id="events">События</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">kubectl get events -n &lt;namespace&gt;
+kubectl describe pod &lt;pod-name&gt;
+</code></pre></div>
+<h2 id="section-5-securing-a-managed-service-kubernetes-on-cloud-service-provider">Раздел 6. Управляемый Kubernetes у облачного провайдера</h2>
+<p>Для AWS EKS полезны инструменты вроде <a href="https://github.com/aws-samples/hardeneks">hardeneks</a> и <a href="https://github.com/DataDog/managed-kubernetes-auditing-toolkit">MKAD</a> (DataDog).</p>
+<h2 id="section-6-supply-chain-security">Раздел 7. Безопасность цепочки поставки</h2>
+<p>Защищайте базовые образы, CI/CD, реестры, Helm-манифесты и зависимости. Примеры инцидентов: SolarWinds, Codecov и др.</p>
+<h3 id="best-practices-for-securing-the-container-supply-chain">Практики</h3>
+<ol>
+<li>Доверенные минимальные базовые образы.</li>
+<li>Сканирование образов (Clair, Trivy, Aqua и др.).</li>
+<li>Защита пайплайнов и контроль доступа.</li>
+<li>Подпись и верификация образов (Notary, Cosign).</li>
+<li>Приватные реестры с ACL.</li>
+<li>Мониторинг новых CVE в зависимостях.</li>
+<li>Runtime-наблюдение и детекция аномалий.</li>
+</ol>
+<h2 id="section-7-final-thoughts">Раздел 8. Итоги</h2>
+<h3 id="embed-security-into-the-container-lifecycle-as-early-as-possible">Встройте безопасность рано</h3>
+<p>Согласуйте цели Security и DevOps; безопасность должна помогать выкатывать готовые к продакшену сервисы.</p>
+<h3 id="use-kubernetes-native-security-controls-to-reduce-operational-risk">Нативные механизмы Kubernetes</h3>
+<p>По возможности используйте встроенные NetworkPolicy, RBAC, admission — меньше конфликтов с оркестратором, чем у «прокладок» поверх.</p>
+<h3 id="leverage-the-context-that-kubernetes-provides-to-prioritize-remediation-efforts">Контекст для приоритизации</h3>
+<p>Уязвимость с CVSS ≥ 7 в привилегированном поде с выходом в интернет важнее, чем та же в тестовом окружении.</p>
+<p><img alt="Архитектура Kubernetes" src="/owasp/assets/Kubernetes_Architecture.png" loading="lazy" /></p>
+<h2 id="references">Ссылки</h2>
+<ul>
+<li><a href="https://kubernetes.io">kubernetes.io</a> — документация control plane</li>
+<li><a href="https://kubernetes.io/docs/tasks/administer-cluster/securing-a-cluster">Securing a Cluster</a></li>
+<li><a href="https://kubernetes.io/docs/concepts/security/security-checklist/">Security Checklist</a></li>
+<li><a href="https://kubernetes.io/blog/2018/07/18/11-ways-not-to-get-hacked">11 Ways (Not) to Get Hacked</a></li>
+<li><a href="https://www.cncf.io/blog/2019/01/14/9-kubernetes-security-best-practices-everyone-must-follow">CNCF: 9 security best practices</a></li>
+<li><a href="/owasp/cheatsheets/Docker_Security_Cheat_Sheet.html">Docker Security Cheat Sheet</a></li>
+</ul>

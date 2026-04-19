@@ -1,0 +1,205 @@
+<h1 id="serverless-faas-security-cheat-sheet">Статья по безопасности Serverless / FaaS (Serverless / FaaS Security Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Вычисления в модели serverless (функции как сервис — FaaS), например AWS Lambda, Azure Functions и Google Cloud Functions, упрощают разработку и масштабирование приложений. При этом модель выполнения (короткоживущие событийно-ориентированные функции в управляемой среде) создаёт <strong>особые риски безопасности</strong> по сравнению с классической архитектурой.</p>
+<p>Эта статья описывает практики защиты serverless-приложений и снижения поверхности атаки.</p>
+<h2 id="key-risks">Ключевые риски</h2>
+<ul>
+<li>Избыточные права функций (широкие роли IAM, политики с <code>*</code>).</li>
+<li>Непроверенные данные событий (API Gateway, S3, Pub/Sub, IoT).</li>
+<li>Утечки при холодном старте и в контексте выполнения (состояние, побочные каналы по времени).</li>
+<li>Злоупотребление цепочками вызовов (скомпрометированная функция вызывает другие).</li>
+<li>Риски общей среды (утечки в мультитенантности, повторное использование <code>/tmp</code>).</li>
+<li>Секреты в коде или переменных окружения.</li>
+<li>Чрезмерный сетевой доступ.</li>
+</ul>
+<h2 id="best-practices">Лучшие практики</h2>
+<h3 id="1-principle-of-least-privilege">1. Принцип наименьших привилегий</h3>
+<ul>
+<li>Назначайте функциям минимально необходимые права IAM.</li>
+<li>Отдельная роль на функцию (избегайте общих ролей с высокими привилегиями).</li>
+<li>Ограничивайте ключи к БД и API минимальным набором операций.</li>
+</ul>
+<p><strong>Плохая политика IAM (слишком широкая):</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "Effect": "Allow",
+  "Action": "*",
+  "Resource": "*"
+}
+</code></pre></div>
+<p><strong>Хорошая политика IAM (с ограничением области):</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "Effect": "Allow",
+  "Action": ["dynamodb:GetItem", "dynamodb:PutItem"],
+  "Resource": "arn:aws:dynamodb:us-east-1:123456789012:table/Orders"
+}
+</code></pre></div>
+<h3 id="2-environment-isolation">2. Изоляция окружений</h3>
+<ul>
+<li>Отключайте сетевой доступ по умолчанию, если он не нужен (например исходящий в интернет).</li>
+<li>Размещайте функции в приватных подсетях с контролируемым egress.</li>
+<li>Изолируйте чувствительные функции (платежи, аутентификация) от универсальных.</li>
+<li>Разделяйте продакшен и стенды жёсткими границами.</li>
+</ul>
+<p><strong>Конфигурация VPC для AWS Lambda (ограничительная):</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">VpcConfig:
+  SubnetIds:
+    - subnet-123456
+  SecurityGroupIds:
+    - sg-restrict-outbound
+</code></pre></div>
+<h3 id="3-secure-function-invocation">3. Безопасный вызов функций</h3>
+<ul>
+<li>Требуйте аутентификацию и авторизацию для всех триггеров (API Gateway, Pub/Sub, S3, IoT).</li>
+<li>Вызовы «функция — функция» подтверждайте подписанными токенами или workload identity.</li>
+<li>Применяйте rate limiting и throttling против DoS и злоупотреблений.</li>
+</ul>
+<p><strong>Пример авторизатора API Gateway (проверка JWT):</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "Type": "JWT",
+  "IdentitySource": "$request.header.Authorization",
+  "Issuer": "https://secure-idp.example.com/",
+  "Audience": "my-api-client"
+}
+</code></pre></div>
+<h3 id="4-event-data-validation">4. Валидация данных события</h3>
+<ul>
+<li>Считайте любое тело события недоверенным вводом.</li>
+<li>Применяйте строгую проверку и при необходимости нормализацию (длина, тип, формат).</li>
+<li>Защищайтесь от типовых инъекций (SQLi, XSS, JSON-инъекция, небезопасная десериализация).</li>
+<li>Удаляйте лишние поля и метаданные до обработки.</li>
+</ul>
+<p>Пример: проверка ввода в Python для Lambda</p>
+<div class="cheatsheet-code-window"><pre><code class="language-python">import json
+import re
+
+def lambda_handler(event, context):
+    body = json.loads(event["body"])
+    email = body.get("email", "")
+
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return {"statusCode": 400, "body": "Invalid email"}
+
+    # безопасная обработка
+    return {"statusCode": 200, "body": "OK"}
+</code></pre></div>
+<h3 id="5-cold-start-execution-context-security">5. Холодный старт и безопасность контекста выполнения</h3>
+<ul>
+<li>Не полагайтесь на то, что среда выполнения «чиста» между вызовами.</li>
+<li>Не храните секреты и временные чувствительные данные в глобальных или статических переменных.</li>
+<li>Учитывайте побочные каналы (разница во времени, оставшиеся файлы в <code>/tmp</code>).</li>
+<li>Для критичных нагрузок используйте одноразовые среды выполнения, если платформа это поддерживает.</li>
+</ul>
+<p><strong>Плохо:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-python"># Секрет остаётся в глобальной переменной между вызовами
+SECRET_KEY = "hardcoded-secret"
+</code></pre></div>
+<p><strong>Хорошо:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-python">import os
+from my_secrets_lib import get_secret
+
+def lambda_handler(event, context):
+    secret = get_secret("db-password")  # получать заново при необходимости
+    ...
+</code></pre></div>
+<h3 id="6-secrets-management">6. Управление секретами</h3>
+<ul>
+<li>По возможности не храните секреты в переменных окружения.</li>
+<li>Получайте секреты из хранилищ, используя локальные расширения с кэшем, а не только env.</li>
+<li>Используйте краткоживущие учётные данные (STS, федерация workload identity).</li>
+<li>Автоматизируйте ротацию секретов.</li>
+</ul>
+<p><strong>Получение секрета в AWS Lambda (Python через Parameters and Secrets Extension):</strong></p>
+<p><strong>Важно:</strong> для функции нужно подключить и включить расширение AWS Lambda Parameters and Secrets Extension (например слоём Lambda). Иначе <code>http://localhost:2773</code> будет недоступен, и запросы к нему завершатся ошибкой.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-python">import os
+import json
+import urllib.request
+import urllib.parse
+
+def get_secret(secret_name):
+    """
+    Читает секрет через локальный эндпоинт расширения Lambda.
+    Быстрее и дешевле за счёт локального кэша.
+    """
+    # Расширение слушает локальный HTTP на порту 2773
+    encoded_name = urllib.parse.quote_plus(secret_name)
+
+    secrets_extension_endpoint = (
+        f"http://localhost:2773/secretsmanager/get?secretId={encoded_name}"
+    )
+
+    # Аутентификация токеном окружения Lambda
+    session_token = os.environ.get("AWS_SESSION_TOKEN")
+    if not session_token:
+        raise RuntimeError(
+            "Missing AWS_SESSION_TOKEN required for "
+            "Parameters and Secrets Extension authentication."
+        )
+
+    headers = {
+        "X-Aws-Parameters-Secrets-Token": session_token
+    }
+
+    request = urllib.request.Request(
+        secrets_extension_endpoint,
+        headers=headers,
+        method="GET"
+    )
+
+    with urllib.request.urlopen(request, timeout=3) as response:
+        if response.status != 200:
+            raise Exception(
+                f"Error retrieving secret: {response.read().decode('utf-8')}"
+            )
+
+        response_json = json.loads(response.read())
+        secret_string = response_json["SecretString"]
+
+        return json.loads(secret_string)
+</code></pre></div>
+<p>См. также <a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html">Secrets Management Cheat Sheet</a>.</p>
+<h3 id="7-monitoring-logging">7. Мониторинг и журналирование</h3>
+<ul>
+<li>Централизованные логи (CloudWatch, Azure Monitor, GCP Logging).</li>
+<li>Маскируйте секреты и персональные данные.</li>
+</ul>
+<p>Пример: редактирование полей перед записью в лог</p>
+<div class="cheatsheet-code-window"><pre><code class="language-python">import logging
+
+def log_event(event):
+    safe_event = {k: ("***" if "password" in k else v) for k, v in event.items()}
+    logging.info(safe_event)
+</code></pre></div>
+<h3 id="8-supply-chain-security">8. Безопасность цепочки поставки</h3>
+<ul>
+<li>Сканируйте зависимости (<code>npm audit</code>, <code>pip-audit</code>, <code>safety</code>).</li>
+<li>Используйте минимальные пакеты для деплоя.</li>
+<li>Подписывайте пакеты и проверяйте контрольные суммы.</li>
+</ul>
+<p><strong>Проверка хеша слоя AWS Lambda:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">shasum -a 256 layer.zip
+</code></pre></div>
+<h2 id="dos-and-donts">Стоит и не стоит</h2>
+<p><strong>Стоит</strong>:</p>
+<ul>
+<li>Навязывать наименьшие привилегии для каждой функции.</li>
+<li>Проверять все входные данные событий.</li>
+<li>Брать секреты из хранилищ, а не только из переменных окружения.</li>
+<li>Ограничивать исходящий сетевой трафик.</li>
+<li>Мониторить вызовы и логи.</li>
+</ul>
+<p><strong>Не стоит</strong>:</p>
+<ul>
+<li>Вшивать секреты в код или конфигурацию в репозитории.</li>
+<li>Считать, что среда выполнения между вызовами гарантированно чистая.</li>
+<li>Выдавать права IAM с <code>*</code>.</li>
+<li>Оставлять чувствительные данные в <code>/tmp</code> или глобальных переменных.</li>
+<li>Слепо доверять источникам событий.</li>
+</ul>
+<h2 id="references">Ссылки</h2>
+<ul>
+<li><a href="https://owasp.org/www-project-serverless-top-10/">OWASP Serverless Top 10</a></li>
+<li><a href="https://docs.aws.amazon.com/lambda/latest/dg/best-practices.html">Рекомендации по безопасности AWS Lambda</a></li>
+<li><a href="https://learn.microsoft.com/en-us/azure/azure-functions/security-concepts">Безопасность Azure Functions</a></li>
+<li><a href="https://cloud.google.com/run/docs/securing/security">Безопасность Google Cloud (Functions / Run)</a></li>
+<li><a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html">OWASP Secrets Management Cheat Sheet</a></li>
+</ul>

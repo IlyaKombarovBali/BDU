@@ -1,0 +1,339 @@
+<h1 id="bean-validation-cheat-sheet">Статья по Bean Validation (Bean Validation Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Здесь собраны понятные и практичные рекомендации по использованию Bean Validation для безопасности приложений на Java.</p>
+<p>Bean Validation (также <a href="https://beanvalidation.org/">Jakarta Validation</a>) — один из самых распространённых способов <a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html">проверки ввода</a> в Java. Это спецификация, не привязанная к конкретному слою приложения: вы задаёте ограничения валидации на доменной модели и выполняете проверку на разных уровнях архитектуры.</p>
+<p>Плюс такого подхода — ограничения и валидаторы описываются один раз, дублирование снижается, правила единообразны:</p>
+<h3 id="typical-validation">Типичная валидация</h3>
+<p><img alt="Типичная валидация" src="/owasp/assets/Bean_Validation_Cheat_Sheet_Typical.png" loading="lazy" /></p>
+<h3 id="bean-validation">Bean Validation</h3>
+<p><img alt="Bean Validation" src="/owasp/assets/Bean_Validation_Cheat_Sheet_JSR.png" loading="lazy" /></p>
+<h2 id="setup">Настройка</h2>
+<p>В примерах используется Hibernate Validator.</p>
+<p>Добавьте Hibernate Validator в <strong>pom.xml</strong>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;dependency&gt;
+   &lt;groupId&gt;org.hibernate&lt;/groupId&gt;
+   &lt;artifactId&gt;hibernate-validator&lt;/artifactId&gt;
+   &lt;version&gt;USE_LATEST_VERSION&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre></div>
+<p>Включите поддержку bean validation в <strong>context.xml</strong> Spring:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;beans:beans ...&gt;
+   ...
+   &lt;mvc:annotation-driven /&gt;
+   ...
+&lt;/beans:beans&gt;
+</code></pre></div>
+<p>Подробнее — <a href="https://hibernate.org/validator/documentation/getting-started/">руководство по установке</a>.</p>
+<h2 id="basics">Основы</h2>
+<p>Чтобы начать пользоваться Bean Validation, добавьте к модели ограничения (<code>@Pattern</code>, <code>@Digits</code>, <code>@Min</code>, <code>@Max</code>, <code>@Size</code>, <code>@Past</code>, <code>@Future</code>, <code>@CreditCardNumber</code>, <code>@Email</code>, <code>@URL</code> и др.) и используйте аннотацию <code>@Valid</code> при передаче модели между слоями приложения.</p>
+<p>Ограничения можно навешивать на:</p>
+<ul>
+<li>поля;</li>
+<li>свойства (геттеры/сеттеры);</li>
+<li>классы.</li>
+</ul>
+<p>В Bean Validation 1.1 также на:</p>
+<ul>
+<li>параметры;</li>
+<li>возвращаемые значения;</li>
+<li>конструкторы.</li>
+</ul>
+<p>Для краткости ниже — ограничения на полях, валидация вызывается из контроллера. Полный перечень сценариев см. в документации Bean Validation.</p>
+<p>Обработка ошибок: Hibernate Validator возвращает <code>BindingResult</code> с <code>List&lt;ObjectError&gt;</code>. Примеры упрощены; в продакшене обычно добавляют логирование и перенаправление на страницы ошибок.</p>
+<h2 id="predefined-constraints">Встроенные ограничения</h2>
+<h3 id="pattern">@Pattern</h3>
+<p><strong>Аннотация:</strong> <code>@Pattern(regex=,flag=)</code></p>
+<p><strong>Тип данных:</strong> <code>CharSequence</code></p>
+<p><strong>Назначение:</strong> проверяет, что строка соответствует регулярному выражению <code>regex</code> с учётом флагов. Готовые шаблоны — в <a href="https://owasp.org/www-community/OWASP_Validation_Regex_Repository">OWASP Validation Regex Repository</a>.</p>
+<p><strong>Документация:</strong> <a href="https://docs.jboss.org/hibernate/validator/5.2/reference/en-US/html/ch02.html#section-builtin-constraints">Hibernate Validator</a></p>
+<p><strong>Модель:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.hibernate.validator.constraints.Pattern;
+
+public class Article {
+ // только буквы, цифры и пробел в заголовке
+ @Pattern(regexp = "[a-zA-Z0-9 ]")
+ private String articleTitle;
+ public String getArticleTitle() {
+  return articleTitle;
+ }
+ public void setArticleTitle(String articleTitle) {
+  this.articleTitle = articleTitle;
+ }
+
+ ...
+
+}
+</code></pre></div>
+<p><strong>Контроллер:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import javax.validation.Valid;
+import com.company.app.model.Article;
+
+@Controller
+public class ArticleController {
+
+ @RequestMapping(value = "/postArticle", method = RequestMethod.POST)
+ public @ResponseBody String postArticle(@Valid Article article,
+ BindingResult result, HttpServletResponse response) {
+  if (result.hasErrors()) {
+   String errorMessage = "";
+   response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+   List&lt;ObjectError&gt; errors = result.getAllErrors();
+   for (ObjectError e : errors) {
+    errorMessage += "ERROR: " + e.getDefaultMessage();
+   }
+   return errorMessage;
+  } else {
+   return "Validation Successful";
+  }
+ }
+}
+</code></pre></div>
+<h3 id="digits">@Digits</h3>
+<p><strong>Аннотация:</strong> <code>@Digits(integer=,fraction=)</code></p>
+<p><strong>Тип данных:</strong> <code>BigDecimal</code>, <code>BigInteger</code>, <code>CharSequence</code>, <code>byte</code>, <code>short</code>, <code>int</code>, <code>long</code> и обёртки; в Hibernate Validator также подтипы <code>Number</code>.</p>
+<p><strong>Назначение:</strong> проверяет, что значение — число с не более чем <code>integer</code> цифрами в целой части и <code>fraction</code> знаками после запятой.</p>
+<p><strong>Документация:</strong> <a href="https://docs.jboss.org/hibernate/validator/5.2/reference/en-US/html/ch02.html#section-builtin-constraints">Hibernate Validator</a></p>
+<p><strong>Модель:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.hibernate.validator.constraints.Digits;
+
+public class Customer {
+  // возраст — не более 3 цифр в целой части, дробная часть 0
+  @Digits(integer = 3, fraction = 0)
+  private int age;
+
+  public int getAge() {
+    return age;
+  }
+
+  public void setAge(int age) {
+      this.age = age;
+    }
+
+    ...
+
+}
+</code></pre></div>
+<p><strong>Контроллер:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import javax.validation.Valid;
+import com.company.app.model.Customer;
+
+@Controller
+public class CustomerController {
+
+ @RequestMapping(value = "/registerCustomer", method = RequestMethod.POST)
+ public @ResponseBody String registerCustomer(@Valid Customer customer, BindingResult result,
+ HttpServletResponse response) {
+
+  if (result.hasErrors()) {
+   String errorMessage = "";
+   response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+   List&lt;ObjectError&gt; errors = result.getAllErrors();
+
+   for (ObjectError e : errors) {
+    errorMessage += "ERROR: " + e.getDefaultMessage();
+   }
+   return errorMessage;
+  } else {
+   return "Validation Successful";
+  }
+ }
+}
+</code></pre></div>
+<h3 id="size">@Size</h3>
+<p><strong>Аннотация:</strong> <code>@Size(min=, max=)</code></p>
+<p><strong>Тип данных:</strong> <code>CharSequence</code>, <code>Collection</code>, <code>Map</code> и массивы.</p>
+<p><strong>Назначение:</strong> размер элемента от <code>min</code> до <code>max</code> включительно.</p>
+<p><strong>Документация:</strong> <a href="https://docs.jboss.org/hibernate/validator/5.2/reference/en-US/html/ch02.html#section-builtin-constraints">Hibernate Validator</a></p>
+<p><strong>Модель:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.hibernate.validator.constraints.Size;
+
+public class Message {
+
+   // длина сообщения от 10 до 500 символов
+   @Size(min = 10, max = 500)
+   private String message;
+
+   public String getMessage() {
+      return message;
+   }
+
+   public void setMessage(String message) {
+      this.message = message;
+   }
+
+...
+}
+</code></pre></div>
+<p><strong>Контроллер:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import javax.validation.Valid;
+import com.company.app.model.Message;
+
+@Controller
+public class MessageController {
+
+...
+
+@RequestMapping(value="/sendMessage", method=RequestMethod.POST)
+public @ResponseBody String sendMessage(@Valid Message message, BindingResult result,
+HttpServletResponse response){
+
+   if(result.hasErrors()){
+      String errorMessage = "";
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      List&lt;ObjectError&gt; errors = result.getAllErrors();
+      for( ObjectError e : errors){
+         errorMessage+= "ERROR: " + e.getDefaultMessage();
+      }
+      return errorMessage;
+   }
+   else{
+      return "Validation Successful";
+   }
+}
+}
+</code></pre></div>
+<h3 id="past-future">@Past / @Future</h3>
+<p><strong>Аннотация:</strong> <code>@Past</code>, <code>@Future</code></p>
+<p><strong>Тип данных:</strong> <code>java.util.Date</code>, <code>java.util.Calendar</code>, <code>java.time.chrono.ChronoZonedDateTime</code>, <code>java.time.Instant</code>, <code>java.time.OffsetDateTime</code></p>
+<p><strong>Назначение:</strong> дата в прошлом или в будущем.</p>
+<p><strong>Документация:</strong> <a href="https://docs.jboss.org/hibernate/validator/5.2/reference/en-US/html/ch02.html#section-builtin-constraints">Hibernate Validator</a></p>
+<p><strong>Модель:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.hibernate.validator.constraints.Past;
+import org.hibernate.validator.constraints.Future;
+
+public class DoctorVisit {
+
+   // дата рождения — в прошлом
+   @Past
+   private Date birthDate;
+
+   public Date getBirthDate() {
+      return birthDate;
+   }
+
+   public void setBirthDate(Date birthDate) {
+      this.birthDate = birthDate;
+   }
+
+   // запланированный визит — в будущем
+   @Future
+   private String scheduledVisitDate;
+
+   public String getScheduledVisitDate() {
+      return scheduledVisitDate;
+   }
+
+   public void setScheduledVisitDate(String scheduledVisitDate) {
+      this.scheduledVisitDate = scheduledVisitDate;
+   }
+
+...
+}
+</code></pre></div>
+<p><strong>Контроллер:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import javax.validation.Valid;
+import com.company.app.model.DoctorVisit;
+
+@Controller
+public class DoctorVisitController {
+
+   ...
+
+   @RequestMapping(value="/scheduleVisit", method=RequestMethod.POST)
+   public @ResponseBody String scheduleVisit(@Valid DoctorVisit doctorvisit, BindingResult result,
+   HttpServletResponse response){
+
+      if(result.hasErrors()){
+         String errorMessage = "";
+         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+         List&lt;ObjectError&gt; errors = result.getAllErrors();
+         for( ObjectError e : errors){
+            errorMessage+= "ERROR: " + e.getDefaultMessage();
+         }
+         return errorMessage;
+      }
+      else{
+         return "Validation Successful";
+      }
+   }
+}
+</code></pre></div>
+<h3 id="combining-constraints">Комбинирование ограничений</h3>
+<p>Аннотации валидации можно сочетать. Например, оценка <code>reviewRating</code> от 1 до 5:</p>
+<p><strong>Аннотации:</strong> <code>@Min(value=)</code>, <code>@Max(value=)</code></p>
+<p><strong>Тип данных:</strong> <code>BigDecimal</code>, <code>BigInteger</code>, <code>byte</code>, <code>short</code>, <code>int</code>, <code>long</code> и обёртки; в Hibernate Validator также подтипы <code>CharSequence</code> (интерпретируется числовое значение строки) и <code>Number</code>.</p>
+<p><strong>Назначение:</strong> значение не ниже минимума и не выше максимума (включительно).</p>
+<p><strong>Документация:</strong> <a href="https://docs.jboss.org/hibernate/validator/9.0/reference/en-US/html_single/#section-builtin-constraints">Hibernate Validator</a></p>
+<p><strong>Модель:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.hibernate.validator.constraints.Min;
+import org.hibernate.validator.constraints.Max;
+
+public class Review {
+
+ @Min(1)
+ @Max(5)
+ private int reviewRating;
+
+ public int getReviewRating() {
+  return reviewRating;
+ }
+
+ public void setReviewRating(int reviewRating) {
+  this.reviewRating = reviewRating;
+ }
+
+ ...
+}
+</code></pre></div>
+<p><strong>Контроллер:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import javax.validation.Valid;
+import com.company.app.model.ReviewRating;
+
+@Controller
+public class ReviewController {
+
+   ...
+
+   @RequestMapping(value="/postReview", method=RequestMethod.POST)
+   public @ResponseBody String postReview(@Valid Review review, BindingResult result,
+   HttpServletResponse response){
+
+      if(result.hasErrors()){
+         String errorMessage = "";
+         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+         List&lt;ObjectError&gt; errors = result.getAllErrors();
+         for( ObjectError e : errors){
+            errorMessage+= "ERROR: " + e.getDefaultMessage();
+         }
+         return errorMessage;
+      }
+      else{
+         return "Validation Successful";
+      }
+   }
+}
+</code></pre></div>
+<h3 id="cascading-constraints">Каскадная валидация</h3>
+<p>Проверка одного bean — хорошее начало, но объекты часто вложены или образуют граф. Чтобы проверить граф за один проход, используйте каскадную валидацию с <a href="https://docs.jboss.org/hibernate/validator/9.0/reference/en-US/html_single/#_cascaded_validation">@Valid</a>.</p>
+<h3 id="additional-constraints">Дополнительные ограничения Hibernate</h3>
+<p>Помимо набора ограничений JSR 303, Hibernate Validator добавляет, в частности:</p>
+<ul>
+<li><code>@CreditCardNumber</code></li>
+<li><code>@EAN</code></li>
+<li><code>@Email</code></li>
+<li><code>@Length</code></li>
+<li><code>@Range</code></li>
+<li><code>@ScriptAssert</code></li>
+<li><code>@URL</code></li>
+</ul>
+<p>Полный список — <a href="https://docs.jboss.org/hibernate/validator/9.0/reference/en-US/html_single/#validator-defineconstraints-hv-constraints">в документации</a>.</p>
+<p>Ограничение <code>@SafeHtml</code> объявлено устаревшим (см. <a href="https://in.relation.to/2019/11/20/hibernate-validator-610-6018-released/">заметку о релизах Hibernate Validator 6.1.0.Final и 6.0.18.Final</a>); не используйте <code>@SafeHtml</code>.</p>
+<h2 id="custom-constraints">Пользовательские ограничения</h2>
+<p>Сильная сторона Bean Validation — собственные ограничения сверх встроенных.</p>
+<p>Создание custom constraints выходит за рамки этой статьи; см. <a href="https://docs.jboss.org/hibernate/validator/">документацию Hibernate Validator</a>.</p>
+<h2 id="error-messages">Сообщения об ошибках</h2>
+<p>В аннотации можно указать идентификатор сообщения для локализации и кастомизации текста ошибки:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">@Pattern(regexp = "[a-zA-Z0-9 ]", message="article.title.error")
+private String articleTitle;
+</code></pre></div>
+<p>Spring MVC подставит текст по ключу <em>article.title.error</em> из настроенного <code>MessageSource</code>. Подробнее — в <a href="https://www.silverbaytech.com/2013/04/16/custom-messages-in-spring-validation/">материале Silver Bay Tech</a>.</p>

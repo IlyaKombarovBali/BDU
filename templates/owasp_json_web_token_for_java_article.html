@@ -1,0 +1,472 @@
+<h1 id="json-web-token-cheat-sheet-for-java">Статья по JSON Web Token для Java</h1>
+<h2 id="introduction">Введение</h2>
+<p>Многие приложения используют <strong>JSON Web Token</strong> (JWT), чтобы после аутентификации клиент мог подтверждать свою личность при дальнейшем обмене данными.</p>
+<p>Из <a href="https://jwt.io/introduction" target="_blank" rel="noopener">JWT.IO</a>:</p>
+<blockquote>
+<p>JSON Web Token (JWT) — открытый стандарт (RFC 7519), задающий компактный и самодостаточный способ безопасной передачи информации между сторонами в виде JSON-объекта. Её можно проверить и ей можно доверять, потому что данные цифровой подписью. JWT могут подписываться секретом (алгоритм HMAC) или парой ключей RSA.</p>
+</blockquote>
+<p>JWT переносят сведения об идентичности и свойствах (claims) клиента. Сервер подписывает эти данные, чтобы после отправки клиенту их нельзя было подменить. Это мешает злоумышленнику изменить идентичность или атрибуты — например, сменить роль с обычного пользователя на администратора или подменить логин.</p>
+<p>Токен создаётся при аутентификации (выдаётся после успешного входа) и проверяется сервером до обработки запроса. Приложение использует токен как «удостоверение личности» клиента; сервер может надёжно проверить его целостность и подлинность. Подход без состояния и переносим между технологиями клиента и сервера и по разным каналам — чаще всего по HTTP.</p>
+<h2 id="token-structure">Структура токена</h2>
+<p>Пример структуры токена с <a href="https://jwt.io/#debugger" target="_blank" rel="noopener">JWT.IO</a>:</p>
+<p><code>[Base64(HEADER)].[Base64(PAYLOAD)].[Base64(SIGNATURE)]</code></p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
+eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWV9.
+TJVA95OrM7E2cBab30RMHrHDcEfxjoYZgeFONFh7HgQ</code></pre></div>
+<p>Фрагмент 1: <strong>заголовок</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "alg": "HS256",
+  "typ": "JWT"
+}</code></pre></div>
+<p>Фрагмент 2: <strong>полезная нагрузка</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-json">{
+  "sub": "1234567890",
+  "name": "John Doe",
+  "admin": true
+}</code></pre></div>
+<p>Фрагмент 3: <strong>подпись</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">HMACSHA256( base64UrlEncode(header) + "." + base64UrlEncode(payload), KEY )</code></pre></div>
+<h2 id="objective">Цель</h2>
+<p>Эта статья помогает избежать типичных проблем безопасности при использовании JWT в Java.</p>
+<p>Советы ниже взяты из Java-проекта, демонстрирующего корректное создание и проверку JWT.</p>
+<p>Исходный проект: <a href="https://github.com/righettod/poc-jwt" target="_blank" rel="noopener">poc-jwt</a>; используется официальная <a href="https://jwt.io/#libraries" target="_blank" rel="noopener">библиотека JWT</a>.</p>
+<p>Далее слово <strong>токен</strong> означает именно <strong>JSON Web Token</strong> (JWT).</p>
+<h2 id="consideration-about-using-jwt">Стоит ли использовать JWT</h2>
+<p>JWT удобны и позволяют отдавать сервисы (часто REST) без состояния на сервере, но это не универсальное решение: есть вопросы хранения токена (ниже в статье) и другие ограничения.</p>
+<p>Если приложению не нужна полная безсостоятельность, можно использовать классические сессии веб-фреймворка и следовать <a href="/owasp/cheatsheets/Session_Management_Cheat_Sheet.html">статье по управлению сессиями</a>. Для безсостоятельных приложений при грамотной реализации JWT — хороший кандидат.</p>
+<h2 id="issues">Проблемы</h2>
+<h3 id="none-hashing-algorithm">Алгоритм хеширования «none»</h3>
+<h4 id="symptom">Симптом</h4>
+<p>Атака, описанная <a href="https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/" target="_blank" rel="noopener">здесь</a>: злоумышленник меняет токен и подменяет алгоритм в заголовке на <em>none</em>, якобы целостность уже проверена. Как указано в статье, <em>некоторые библиотеки считали токены с алгоритмом none валидными с проверенной подписью</em>, поэтому можно менять claims, и приложение всё равно доверяет токену.</p>
+<h4 id="how-to-prevent">Как предотвратить</h4>
+<p>Сначала используйте JWT-библиотеку, не подверженную этой уязвимости.</p>
+<p>Затем при проверке токена явно требуйте ожидаемый алгоритм.</p>
+<h4 id="implementation-example">Пример реализации</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Ключ HMAC — не сериализовать и не хранить как String в памяти JVM
+private transient byte[] keyHMAC = ...;
+
+...
+
+// Контекст проверки: явно требуем HMAC-256
+JWTVerifier verifier = JWT.require(Algorithm.HMAC256(keyHMAC)).build();
+
+// Проверка токена; при ошибке будет исключение
+DecodedJWT decodedToken = verifier.verify(token);</code></pre></div>
+<h3 id="token-sidejacking">Перехват токена (sidejacking)</h3>
+<h4 id="symptom_1">Симптом</h4>
+<p>Токен перехвачен или украден; злоумышленник использует его для доступа к системе от имени пользователя.</p>
+<h4 id="how-to-prevent_1">Как предотвратить</h4>
+<p>Один из способов — добавить в токен «контекст пользователя»:</p>
+<ul>
+<li>Случайная строка, сгенерированная при аутентификации. Отправьте её клиенту в <em>усиленной</em> cookie с флагами <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#Secure_and_HttpOnly_cookies" target="_blank" rel="noopener">HttpOnly и Secure</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies#SameSite_cookies" target="_blank" rel="noopener">SameSite</a>, <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie" target="_blank" rel="noopener">Max-Age</a> и <a href="https://googlechrome.github.io/samples/cookie-prefixes/" target="_blank" rel="noopener">префиксами cookie</a>. Не задавайте заголовок <em>expires</em>, чтобы cookie очищалась при закрытии браузера. <em>Max-Age</em> должен быть не больше срока жизни JWT — никогда не больше.</li>
+<li>В токен кладите SHA256-хеш этой строки (а не сырое значение), чтобы при XSS злоумышленник не прочитал случайную строку и не выставил ожидаемую cookie.</li>
+</ul>
+<p>Не используйте IP-адрес как часть контекста: IP может меняться в одной сессии по легитимным причинам (например, смена сети на мобильном). Кроме того, привязка к IP может конфликтовать с требованиями <a href="https://gdpr.eu/" target="_blank" rel="noopener">GDPR</a> в ЕС.</p>
+<p>При проверке токена, если контекст неверный (например, повторное использование украденного токена), токен нужно отклонить.</p>
+<h4 id="implementation-example_1">Пример реализации</h4>
+<p>Код создания токена после успешной аутентификации.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Ключ HMAC — не сериализовать и не хранить как String в памяти JVM
+private transient byte[] keyHMAC = ...;
+// Генератор случайных данных
+private SecureRandom secureRandom = new SecureRandom();
+
+...
+
+// Случайная строка — отпечаток пользователя
+byte[] randomFgp = new byte[50];
+secureRandom.nextBytes(randomFgp);
+String userFingerprint = DatatypeConverter.printHexBinary(randomFgp);
+
+// Отпечаток в усиленной cookie — вручную, т.к. javax.servlet.http.Cookie
+// не поддерживает атрибут SameSite
+String fingerprintCookie = "__Secure-Fgp=" + userFingerprint
+                           + "; SameSite=Strict; HttpOnly; Secure";
+response.addHeader("Set-Cookie", fingerprintCookie);
+
+// SHA256 отпечатка для claim в токене (не сырое значение), чтобы XSS
+// не мог прочитать отпечаток и выставить ожидаемую cookie
+MessageDigest digest = MessageDigest.getInstance("SHA-256");
+byte[] userFingerprintDigest = digest.digest(userFingerprint.getBytes("utf-8"));
+String userFingerprintHash = DatatypeConverter.printHexBinary(userFingerprintDigest);
+
+// Токен на 15 минут с контекстом клиента (отпечаток)
+Calendar c = Calendar.getInstance();
+Date now = c.getTime();
+c.add(Calendar.MINUTE, 15);
+Date expirationDate = c.getTime();
+Map&lt;String, Object&gt; headerClaims = new HashMap&lt;&gt;();
+headerClaims.put("typ", "JWT");
+String token = JWT.create().withSubject(login)
+   .withExpiresAt(expirationDate)
+   .withIssuer(this.issuerID)
+   .withIssuedAt(now)
+   .withNotBefore(now)
+   .withClaim("userFingerprint", userFingerprintHash)
+   .withHeader(headerClaims)
+   .sign(Algorithm.HMAC256(this.keyHMAC));</code></pre></div>
+<p>Код проверки токена.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Ключ HMAC — не сериализовать и не хранить как String в памяти JVM
+private transient byte[] keyHMAC = ...;
+
+...
+
+// Отпечаток из выделенной cookie
+String userFingerprint = null;
+if (request.getCookies() != null &amp;&amp; request.getCookies().length &gt; 0) {
+ List&lt;Cookie&gt; cookies = Arrays.stream(request.getCookies()).collect(Collectors.toList());
+ Optional&lt;Cookie&gt; cookie = cookies.stream().filter(c -&gt; "__Secure-Fgp"
+                                            .equals(c.getName())).findFirst();
+ if (cookie.isPresent()) {
+   userFingerprint = cookie.get().getValue();
+ }
+}
+
+// SHA256 отпечатка из cookie для сравнения с хешем в токене
+MessageDigest digest = MessageDigest.getInstance("SHA-256");
+byte[] userFingerprintDigest = digest.digest(userFingerprint.getBytes("utf-8"));
+String userFingerprintHash = DatatypeConverter.printHexBinary(userFingerprintDigest);
+
+JWTVerifier verifier = JWT.require(Algorithm.HMAC256(keyHMAC))
+                              .withIssuer(issuerID)
+                              .withClaim("userFingerprint", userFingerprintHash)
+                              .build();
+
+// Проверка токена; при ошибке будет исключение
+DecodedJWT decodedToken = verifier.verify(token);</code></pre></div>
+<h3 id="no-built-in-token-revocation-by-the-user">Нет встроенного отзыва токена пользователем</h3>
+<h4 id="symptom_2">Симптом</h4>
+<p>Свойство самих JWT: токен недействителен только после истечения срока. Пользователь не может явно «отозвать» токен; если его украли, заблокировать злоумышленника, просто инвалидировав токен, нельзя.</p>
+<h4 id="how-to-prevent_2">Как предотвратить</h4>
+<p>JWT без состояния: на серверах нет сессии для инвалидации. Грамотная защита от sidejacking (выше) снижает потребность в серверном списке отзыва: усиленная cookie в схеме sidejacking по уровню сравнима с ID сессии, и пока не перехвачены и cookie, и JWT, токеном нельзя воспользоваться. «Выход» можно имитировать, очистив JWT из sessionStorage. При закрытии браузера и cookie, и sessionStorage обычно очищаются.</p>
+<p>Другой вариант — список отозванных токенов (denylist), имитирующий выход как в классической сессии.</p>
+<p>В списке хранится дайджест токена (SHA-256 в HEX) и дата отзыва; запись должна жить минимум до истечения срока токена.</p>
+<p>При «выходе» вызывается сервис, добавляющий токен пользователя в список — дальнейшее использование токена в приложении блокируется.</p>
+<h4 id="implementation-example_2">Пример реализации</h4>
+<h5 id="block-list-storage">Хранилище блок-листа</h5>
+<p>Таблица в БД как центральное хранилище отозванных токенов.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-sql">create table if not exists revoked_token(jwt_token_digest varchar(255) primary key,
+  revocation_date timestamp default now());</code></pre></div>
+<h5 id="token-revocation-management">Управление отзывом токена</h5>
+<p>Код добавления токена в список отзыва и проверки, отозван ли токен.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/**
+* Обработка отзыва токена (выход).
+* БД позволяет нескольким инстансам проверять отзыв и централизованно чистить записи.
+*/
+public class TokenRevoker {
+
+ /** Подключение к БД */
+ @Resource("jdbc/storeDS")
+ private DataSource storeDS;
+
+ /**
+  * Проверка: есть ли в таблице отзыва дайджест (HEX) зашифрованного токена
+  *
+  * @param jwtInHex Токен в HEX
+  * @return true, если токен отозван
+  * @throws Exception Ошибка при работе с БД
+  */
+ public boolean isTokenRevoked(String jwtInHex) throws Exception {
+     boolean tokenIsPresent = false;
+     if (jwtInHex != null &amp;&amp; !jwtInHex.trim().isEmpty()) {
+         byte[] cipheredToken = DatatypeConverter.parseHexBinary(jwtInHex);
+
+         MessageDigest digest = MessageDigest.getInstance("SHA-256");
+         byte[] cipheredTokenDigest = digest.digest(cipheredToken);
+         String jwtTokenDigestInHex = DatatypeConverter.printHexBinary(cipheredTokenDigest);
+
+         try (Connection con = this.storeDS.getConnection()) {
+             String query = "select jwt_token_digest from revoked_token where jwt_token_digest = ?";
+             try (PreparedStatement pStatement = con.prepareStatement(query)) {
+                 pStatement.setString(1, jwtTokenDigestInHex);
+                 try (ResultSet rSet = pStatement.executeQuery()) {
+                     tokenIsPresent = rSet.next();
+                 }
+             }
+         }
+     }
+
+     return tokenIsPresent;
+ }
+
+
+ /**
+  * Добавить дайджест (HEX) зашифрованного токена в таблицу отзыва
+  *
+  * @param jwtInHex Токен в HEX
+  * @throws Exception Ошибка при работе с БД
+  */
+ public void revokeToken(String jwtInHex) throws Exception {
+     if (jwtInHex != null &amp;&amp; !jwtInHex.trim().isEmpty()) {
+         byte[] cipheredToken = DatatypeConverter.parseHexBinary(jwtInHex);
+
+         MessageDigest digest = MessageDigest.getInstance("SHA-256");
+         byte[] cipheredTokenDigest = digest.digest(cipheredToken);
+         String jwtTokenDigestInHex = DatatypeConverter.printHexBinary(cipheredTokenDigest);
+
+         if (!this.isTokenRevoked(jwtInHex)) {
+             try (Connection con = this.storeDS.getConnection()) {
+                 String query = "insert into revoked_token(jwt_token_digest) values(?)";
+                 int insertedRecordCount;
+                 try (PreparedStatement pStatement = con.prepareStatement(query)) {
+                     pStatement.setString(1, jwtTokenDigestInHex);
+                     insertedRecordCount = pStatement.executeUpdate();
+                 }
+                 if (insertedRecordCount != 1) {
+                     throw new IllegalStateException("Number of inserted record is invalid,"
+                     + " 1 expected but is " + insertedRecordCount);
+                 }
+             }
+         }
+
+     }
+ }
+}</code></pre></div>
+<h3 id="token-information-disclosure">Утечка информации из токена</h3>
+<h4 id="symptom_3">Симптом</h4>
+<p>Злоумышленник имеет токен (или набор), декодирует полезную нагрузку (Base64, не шифрование по умолчанию) и извлекает сведения о системе — роли, формат логина и т.д.</p>
+<h4 id="how-to-prevent_3">Как предотвратить</h4>
+<p>Шифровать токен, например симметричным алгоритмом.</p>
+<p>Важно защитить шифртекст от атак вроде <a href="https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/09-Testing_for_Weak_Cryptography/02-Testing_for_Padding_Oracle.html" target="_blank" rel="noopener">padding oracle</a> и других методов криптоанализа.</p>
+<p>Для этого подходит <em>AES-<a href="https://en.wikipedia.org/wiki/Galois/Counter_Mode" target="_blank" rel="noopener">GCM</a></em> — <em>Authenticated Encryption with Associated Data</em>.</p>
+<p>Подробнее в <a href="https://github.com/google/tink/blob/master/docs/PRIMITIVES.md#deterministic-authenticated-encryption-with-associated-data" target="_blank" rel="noopener">документации Tink</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">AEAD primitive (Authenticated Encryption with Associated Data) provides functionality of symmetric
+authenticated encryption.
+
+Implementations of this primitive are secure against adaptive chosen ciphertext attacks.
+
+When encrypting a plaintext one can optionally provide associated data that should be authenticated
+but not encrypted.
+
+That is, the encryption with associated data ensures authenticity (ie. who the sender is) and
+integrity (ie. data has not been tampered with) of that data, but not its secrecy.
+
+See RFC5116: https://tools.ietf.org/html/rfc5116</code></pre></div>
+<p><strong>Примечание:</strong></p>
+<p>Шифрование здесь в основном скрывает внутренние данные, но главная защита от подмены JWT — подпись. Подпись и её проверка обязательны.</p>
+<h4 id="implementation-example_3">Пример реализации</h4>
+<h5 id="token-ciphering">Шифрование токена</h5>
+<p>Класс для шифрования/расшифрования. Для операций используется <a href="https://github.com/google/tink" target="_blank" rel="noopener">Google Tink</a>.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/**
+ * Шифрование и расшифрование токена (AES-GCM).
+ *
+ * @see "https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md"
+ */
+public class TokenCipher {
+
+    /**
+     * Конструктор — регистрация конфигурации AEAD
+     *
+     * @throws Exception Ошибка регистрации AEAD
+     */
+    public TokenCipher() throws Exception {
+        AeadConfig.register();
+    }
+
+    /**
+     * Зашифровать JWT
+     *
+     * @param jwt          Исходный токен
+     * @param keysetHandle Набор ключей Tink
+     * @return Зашифрованный токен в HEX
+     * @throws Exception Ошибка шифрования
+     */
+    public String cipherToken(String jwt, KeysetHandle keysetHandle) throws Exception {
+        if (jwt == null || jwt.isEmpty() || keysetHandle == null) {
+            throw new IllegalArgumentException("Both parameters must be specified!");
+        }
+
+        Aead aead = AeadFactory.getPrimitive(keysetHandle);
+
+        byte[] cipheredToken = aead.encrypt(jwt.getBytes(), null);
+
+        return DatatypeConverter.printHexBinary(cipheredToken);
+    }
+
+    /**
+     * Расшифровать JWT
+     *
+     * @param jwtInHex     Токен в HEX
+     * @param keysetHandle Набор ключей Tink
+     * @return Токен в открытом виде
+     * @throws Exception Ошибка расшифрования
+     */
+    public String decipherToken(String jwtInHex, KeysetHandle keysetHandle) throws Exception {
+        if (jwtInHex == null || jwtInHex.isEmpty() || keysetHandle == null) {
+            throw new IllegalArgumentException("Both parameters must be specified !");
+        }
+
+        byte[] cipheredToken = DatatypeConverter.parseHexBinary(jwtInHex);
+
+        Aead aead = AeadFactory.getPrimitive(keysetHandle);
+
+        byte[] decipheredToken = aead.decrypt(cipheredToken, null);
+
+        return new String(decipheredToken);
+    }
+}</code></pre></div>
+<h5 id="creation-validation-of-the-token">Создание и проверка токена</h5>
+<p>Используйте шифрование при создании и проверке токена.</p>
+<p>Загрузите ключи (ключ шифрования сгенерирован и сохранён через <a href="https://github.com/google/tink/blob/master/docs/JAVA-HOWTO.md#generating-new-keysets" target="_blank" rel="noopener">Google Tink</a>) и инициализируйте шифрование.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Ключи из конфигурационных файлов, чтобы не держать секреты как String в JVM
+private transient byte[] keyHMAC = Files.readAllBytes(Paths.get("src", "main", "conf", "key-hmac.txt"));
+private transient KeysetHandle keyCiphering = CleartextKeysetHandle.read(JsonKeysetReader.withFile(
+Paths.get("src", "main", "conf", "key-ciphering.json").toFile()));
+
+...
+
+TokenCipher tokenCipher = new TokenCipher();</code></pre></div>
+<p>Создание токена.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Создание JWT через API...
+// Шифрование токена (строка JSON)
+String cipheredToken = tokenCipher.cipherToken(token, this.keyCiphering);
+// Отправка зашифрованного токена в HEX клиенту в ответе HTTP...</code></pre></div>
+<p>Проверка токена.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">// Получение зашифрованного токена в HEX из запроса HTTP...
+String token = tokenCipher.decipherToken(cipheredToken, this.keyCiphering);
+// Проверка JWT через API...
+// Проверка доступа...</code></pre></div>
+<h3 id="token-storage-on-client-side">Хранение токена на стороне клиента</h3>
+<h4 id="symptom_4">Симптом</h4>
+<p>Приложение хранит токен так, что:</p>
+<ul>
+<li>браузер отправляет его автоматически (<em>Cookie</em>);</li>
+<li>он доступен после перезапуска браузера (<em>localStorage</em>);</li>
+<li>его можно прочитать при <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html">XSS</a> (cookie, доступная для JavaScript, или токен в local/sessionStorage).</li>
+</ul>
+<h4 id="how-to-prevent_4">Как предотвратить</h4>
+<ol>
+<li>Храните токен в <em>sessionStorage</em> браузера или в замыканиях JavaScript с <em>приватными</em> переменными.</li>
+<li>Передавайте его заголовком HTTP <em>Authorization: Bearer</em> при вызовах API из JavaScript.</li>
+<li>Добавьте в токен <a href="/owasp/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html#token-sidejacking">отпечаток</a> (контекст), как описано выше.</li>
+</ol>
+<p>Хранение в <em>sessionStorage</em> оставляет риск кражи через XSS; отпечаток мешает использовать украденный токен на машине злоумышленника. Сузьте поверхность атаки: задайте <a href="/owasp/cheatsheets/Content_Security_Policy_Cheat_Sheet.html">Content Security Policy</a> в браузере.</p>
+<p><em>sessionStorage</em> не всегда удобен из‑за области «на вкладку»; балансируйте <em>безопасность</em> и <em>удобство</em>.</p>
+<p><em>localStorage</em> удобнее для сохранения между перезапусками и вкладками, но нужны жёсткие меры:</p>
+<ul>
+<li>короткое время жизни токена (например, простой 15–30 мин, абсолютный максимум ~8 ч);</li>
+<li>ротация токенов и refresh-токены.</li>
+</ul>
+<p>Если нужна связность между вкладками и при этом <em>sessionStorage</em>, рассмотрите <em>BroadcastChannel API</em> или SSO для повторной аутентификации в новых вкладках.</p>
+<p>Альтернатива session/localStorage — модуль на замыканиях: все запросы идут через JS-модуль с приватной переменной для токена.</p>
+<p><em>Примечание:</em></p>
+<ul>
+<li>Остаётся сценарий, когда злоумышленник использует контекст браузера жертвы как прокси; CSP ограничивает обмен с неожиданными доменами.</li>
+<li>Можно выдавать токен в усиленной cookie; тогда нужна защита от <a href="/owasp/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">CSRF</a>.</li>
+</ul>
+<h4 id="implementation-example_4">Пример реализации</h4>
+<p>JavaScript: сохранение токена после аутентификации.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">/* Запрос JWT и запись в sessionStorage */
+function authenticate() {
+    const login = $("#login").val();
+    const postData = "login=" + encodeURIComponent(login) + "&password=test";
+
+    $.post("/services/authenticate", postData, function (data) {
+        if (data.status == "Authentication successful!") {
+            ...
+            sessionStorage.setItem("token", data.token);
+        }
+        else {
+            ...
+            sessionStorage.removeItem("token");
+        }
+    })
+    .fail(function (jqXHR, textStatus, error) {
+        ...
+        sessionStorage.removeItem("token");
+    });
+}</code></pre></div>
+<p>JavaScript: заголовок <em>Bearer</em> при вызове сервиса (пример — проверка токена).</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">/* Проверка JWT */
+function validateToken() {
+    var token = sessionStorage.getItem("token");
+
+    if (token == undefined || token == "") {
+        $("#infoZone").removeClass();
+        $("#infoZone").addClass("alert alert-warning");
+        $("#infoZone").text("Obtain a JWT token first :)");
+        return;
+    }
+
+    $.ajax({
+        url: "/services/validate",
+        type: "POST",
+        beforeSend: function (xhr) {
+            xhr.setRequestHeader("Authorization", "bearer " + token);
+        },
+        success: function (data) {
+            ...
+        },
+        error: function (jqXHR, textStatus, error) {
+            ...
+        },
+    });
+}</code></pre></div>
+<p>JavaScript: замыкание с приватной переменной для токена.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">function myFetchModule() {
+    // Сохраняем оригинальный fetch от перезаписи через XSS
+    const fetch = window.fetch;
+
+    const authOrigins = ["https://yourorigin", "http://localhost"];
+    let token = '';
+
+    this.setToken = (value) => {
+        token = value
+    }
+
+    this.fetch = (resource, options) => {
+        let req = new Request(resource, options);
+        destOrigin = new URL(req.url).origin;
+        if (token &amp;&amp; authOrigins.includes(destOrigin)) {
+            req.headers.set('Authorization', token);
+        }
+        return fetch(req)
+    }
+}
+
+...
+
+// использование:
+const myFetch = new myFetchModule()
+
+function login() {
+  fetch("/api/login")
+      .then((res) => {
+          if (res.status == 200) {
+              return res.json()
+          } else {
+              throw Error(res.statusText)
+          }
+      })
+      .then(data => {
+          myFetch.setToken(data.token)
+          console.log("Token received and stored.")
+      })
+      .catch(console.error)
+}
+
+...
+
+// после входа:
+function makeRequest() {
+    myFetch.fetch("/api/hello", {headers: {"MyHeader": "foobar"}})
+        .then((res) => {
+            if (res.status == 200) {
+                return res.text()
+            } else {
+                throw Error(res.statusText)
+            }
+        }).then(responseText => console.log("helloResponse", responseText))
+        .catch(console.error)
+}</code></pre></div>
+<h3 id="weak-token-secret">Слабый секрет токена</h3>
+<h4 id="symptom_5">Симптом</h4>
+<p>При HMAC вся безопасность зависит от силы секрета. Получив валидный JWT, злоумышленник может офлайн подбирать секрет (<a href="https://github.com/magnumripper/JohnTheRipper" target="_blank" rel="noopener">John the Ripper</a>, <a href="https://github.com/hashcat/hashcat" target="_blank" rel="noopener">Hashcat</a>).</p>
+<p>При успехе можно менять claims и переподписывать токен — эскалация привилегий, компрометация чужих аккаунтов и т.д. Подробнее в <a href="https://www.notsosecure.com/crafting-way-json-web-tokens/" target="_blank" rel="noopener">руководствах</a>.</p>
+<h4 id="how-to-prevent_5">Как предотвратить</h4>
+<p>Секрет для подписи JWT должен быть длинным, уникальным и не вводиться человеком вручную — не меньше 64 символов, из <a href="/owasp/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#secure-random-number-generation">криптографически стойкого источника случайности</a>.</p>
+<p>Альтернатива — подпись RSA вместо HMAC и общего секрета.</p>
+<h4 id="further-reading">Дополнительно</h4>
+<ul>
+<li><a href="https://github.com/ticarpi/jwt_tool/wiki" target="_blank" rel="noopener">{JWT}.{Attack}.Playbook</a> — известные атаки и типичные ошибки конфигурации JWT.</li>
+<li><a href="https://datatracker.ietf.org/doc/draft-ietf-oauth-jwt-bcp/" target="_blank" rel="noopener">JWT Best Practices (Internet-Draft)</a></li>
+</ul>

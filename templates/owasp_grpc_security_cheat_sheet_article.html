@@ -1,0 +1,331 @@
+<h1 id="grpc-security-cheat-sheet">Статья по безопасности gRPC</h1>
+<h2 id="introduction"> Введение</h2>
+<p>gRPC (удаленный вызов процедур gRPC) — это высокопроизводительная, не зависящая от языка платформа RPC, которая использует HTTP/2 для транспорта и буферы протоколов для сериализации. Хотя gRPC предлагает значительные преимущества в производительности для микросервисов и распределенных систем, он создает уникальные проблемы безопасности, которые отличаются от традиционных API REST.</p>
+<p> В следующих разделах описаны основные меры безопасности для защиты служб gRPC от распространенных векторов атак.</p>
+<h2 id="transport-security"> Транспортная безопасность</h2>
+<h3 id="always-use-tls-in-production"> Всегда используйте TLS в производстве</h3>
+<p> В производственных развертываниях требуется шифрование TLS для защиты от перехвата и атак типа «человек посередине».</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Secure server with TLS
+creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+if err != nil {
+    log.Fatalf("Failed to load TLS credentials: %v", err)
+}
+s := grpc.NewServer(grpc.Creds(creds))</code></pre></div>
+<p> Настройте TLS 1.2 или более позднюю версию с наборами надежных шифров и отключите слабые протоколы и шифры.</p>
+<h3 id="implement-mutual-tls-mtls-for-service-to-service-communication"> Внедрение взаимного TLS (mTLS) для связи между службами.</h3>
+<p>mTLS обеспечивает взаимную аутентификацию, при которой и клиент, и сервер проверяют сертификаты друг друга, обеспечивая связь с нулевым доверием.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - mTLS client configuration
+cert, err := tls.LoadX509KeyPair(clientCertFile, clientKeyFile)
+caCert, err := ioutil.ReadFile(caCertFile)
+caCertPool := x509.NewCertPool()
+caCertPool.AppendCertsFromPEM(caCert)
+
+creds := credentials.NewTLS(&amp;tls.Config{
+    Certificates: []tls.Certificate{cert},
+    RootCAs:      caCertPool,
+})
+conn, err := grpc.Dial(address, grpc.WithTransportCredentials(creds))</code></pre></div>
+<p> Используйте сертификаты с коротким сроком действия (90 дней или менее) с автоматической ротацией, чтобы ограничить влияние скомпрометированных ключей.</p>
+<h2 id="authentication-and-authorization"> Аутентификация и авторизация</h2>
+<h3 id="implement-strong-authentication"> Внедрить строгую аутентификацию</h3>
+<p> Реализуйте проверки аутентификации для каждого защищенного метода службы.</p>
+<h4 id="token-based-authentication"> Аутентификация на основе токенов</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - JWT token validation interceptor
+func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+    md, ok := metadata.FromIncomingContext(ctx)
+    if !ok {
+        return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+    }
+
+    tokens := md["authorization"]
+    if len(tokens) == 0 {
+        return nil, status.Errorf(codes.Unauthenticated, "missing authorization token")
+    }
+
+    token := strings.TrimPrefix(tokens[0], "Bearer ")
+    if !validateJWT(token) {
+        return nil, status.Errorf(codes.Unauthenticated, "invalid token")
+    }
+
+    return handler(ctx, req)
+}</code></pre></div>
+<h4 id="api-key-authentication"> Аутентификация по ключу API</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - API key validation
+func validateAPIKey(ctx context.Context) error {
+    md, ok := metadata.FromIncomingContext(ctx)
+    if !ok {
+        return status.Error(codes.Unauthenticated, "missing metadata")
+    }
+
+    keys := md["x-api-key"]
+    if len(keys) == 0 || !isValidAPIKey(keys[0]) {
+        return status.Error(codes.Unauthenticated, "invalid API key")
+    }
+    return nil
+}</code></pre></div>
+<p> Внедрите механизмы истечения срока действия и обновления токенов с кратковременными токенами (15–60 минут). Избегайте внедрения учетных данных в параметры метода gRPC — используйте заголовки метаданных.</p>
+<h3 id="enforce-granular-authorization"> Принудительная детальная авторизация</h3>
+<p> Реализуйте проверки авторизации на уровне метода на основе принципа наименьших привилегий.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Role-based authorization
+func authorizeMethod(ctx context.Context, methodName string, userRoles []string) error {
+    requiredRole, exists := methodPermissions[methodName]
+    if !exists {
+        return status.Errorf(codes.PermissionDenied, "method not found")
+    }
+
+    for _, role := range userRoles {
+        if role == requiredRole {
+            return nil
+        }
+    }
+
+    return status.Errorf(codes.PermissionDenied, "insufficient permissions")
+}</code></pre></div>
+<p> Регистрируйте все ошибки авторизации, чтобы обнаружить потенциальные атаки и нарушения нормативных требований.</p>
+<h2 id="input-validation-and-data-security"> Проверка ввода и безопасность данных</h2>
+<h3 id="validate-all-protocol-buffer-messages"> Проверка всех сообщений буфера протокола</h3>
+<p> Буферы протоколов обеспечивают безопасность типов, но не проверку бизнес-логики. Всегда выполняйте тщательную проверку на стороне сервера.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-protobuf">// Use protoc-gen-validate for automatic validation
+syntax = "proto3";
+import "validate/validate.proto";
+
+message CreateUserRequest {
+  string email = 1 [(validate.rules).string.email = true];
+  string name = 2 [(validate.rules).string = {min_len: 1, max_len: 100}];
+  int32 age = 3 [(validate.rules).int32 = {gte: 0, lte: 150}];
+}</code></pre></div>
+<p> Используйте проверку списка разрешенных для ввода строк, чтобы предотвратить неожиданные символы и попытки внедрения.</p>
+<h3 id="prevent-injection-attacks"> Предотвращение инъекционных атак</h3>
+<p> Тщательно проверяйте вводимые пользователем данные при их использовании в запросах к базе данных или системных операциях.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Safe database query with parameterization
+func getUserByEmail(email string) (*User, error) {
+    if !isValidEmail(email) {
+        return nil, errors.New("invalid email format")
+    }
+
+    query := "SELECT id, name, email FROM users WHERE email = ?"
+    row := db.QueryRow(query, email)
+
+    var user User
+    err := row.Scan(&amp;user.ID, &amp;user.Name, &amp;user.Email)
+    return &amp;user, err
+}</code></pre></div>
+<p> Всегда используйте подготовленные операторы для операций с базой данных, чтобы предотвратить <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL-инъекция</a>.</p>
+<h3 id="implement-message-size-limits"> Внедрение ограничений размера сообщения</h3>
+<p> Возможности потоковой передачи gRPC позволяют клиентам отправлять сообщения произвольного размера, что потенциально исчерпает память сервера и вызовет условия отказа в обслуживании. Установите четкие ограничения на размеры сообщений.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Set message size limits
+s := grpc.NewServer(
+    grpc.MaxRecvMsgSize(4*1024*1024), // 4MB max receive
+    grpc.MaxSendMsgSize(4*1024*1024), // 4MB max send
+)</code></pre></div>
+<p> Ограничьте сеансы потоковой передачи и количество сообщений, чтобы предотвратить истощение ресурсов. Отслеживайте и обеспечивайте соблюдение максимального количества сообщений на поток и максимальной продолжительности сеанса.</p>
+<h2 id="rate-limiting-and-resource-protection"> Ограничение скорости и защита ресурсов</h2>
+<h3 id="implement-request-rate-limiting"> Внедрить ограничение скорости запросов</h3>
+<p> Защитите сервисы от лавинной рассылки запросов и истощения ресурсов.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Rate limiting with memory management
+import (
+    "golang.org/x/time/rate"
+    "sync"
+    "time"
+)
+
+type RateLimiterStore struct {
+    limiters map[string]*rateLimiterEntry
+    mu       sync.RWMutex
+}
+
+type rateLimiterEntry struct {
+    limiter  *rate.Limiter
+    lastSeen time.Time
+}
+
+var store = &amp;RateLimiterStore{
+    limiters: make(map[string]*rateLimiterEntry),
+}
+
+func rateLimitInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+    clientIP := getClientIP(ctx)
+
+    store.mu.Lock()
+    entry, exists := store.limiters[clientIP]
+    if !exists {
+        entry = &amp;rateLimiterEntry{
+            limiter:  rate.NewLimiter(rate.Limit(10), 20), // 10 req/sec, burst 20
+            lastSeen: time.Now(),
+        }
+        store.limiters[clientIP] = entry
+    }
+    entry.lastSeen = time.Now()
+    store.mu.Unlock()
+
+    if !entry.limiter.Allow() {
+        return nil, status.Errorf(codes.ResourceExhausted, "rate limit exceeded")
+    }
+
+    return handler(ctx, req)
+}
+
+// Cleanup old limiters periodically
+func cleanupOldLimiters() {
+    store.mu.Lock()
+    defer store.mu.Unlock()
+
+    cutoff := time.Now().Add(-time.Hour)
+    for ip, entry := range store.limiters {
+        if entry.lastSeen.Before(cutoff) {
+            delete(store.limiters, ip)
+        }
+    }
+}</code></pre></div>
+<p> Для производственных сред используйте внешние решения по ограничению скорости, такие как Redis или выделенные службы.</p>
+<h3 id="set-appropriate-timeouts"> Установите соответствующие таймауты</h3>
+<p> Настройте таймауты, чтобы предотвратить истощение ресурсов из-за длительных запросов.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Server-side timeout for resource protection
+func (s *server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
+    // Check if client already set a deadline
+    if deadline, ok := ctx.Deadline(); ok &amp;&amp; time.Until(deadline) &lt; 5*time.Second {
+        return processGetUser(ctx, req)
+    }
+
+    // Set defensive timeout to prevent resource exhaustion
+    ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+    defer cancel()
+
+    return processGetUser(ctx, req)
+}</code></pre></div>
+<p> Настройте тайм-ауты на стороне клиента и на стороне сервера в соответствии с вашим вариантом использования.</p>
+<h2 id="error-handling-and-information-disclosure"> Обработка ошибок и раскрытие информации</h2>
+<h3 id="secure-error-responses"> Безопасные ответы на ошибки</h3>
+<p> Подробные сообщения об ошибках могут раскрыть злоумышленникам внутреннюю структуру системы. Возвращайте общие сообщения об ошибках при регистрации подробной информации на стороне сервера.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Secure error handling
+func (s *server) ProcessPayment(ctx context.Context, req *pb.PaymentRequest) (*pb.PaymentResponse, error) {
+    if err := validatePayment(req); err != nil {
+        // Log detailed error server-side
+        log.Printf("Payment validation failed for user %s: %v", getUserID(ctx), err)
+        // Return generic error to client
+        return nil, status.Error(codes.InvalidArgument, "invalid payment request")
+    }
+
+    // Continue processing...
+}</code></pre></div>
+<p> Используйте соответствующие коды состояния gRPC:<code>UNAUTHENTICATED</code> для ошибок аутентификации,<code>PERMISSION_DENIED</code> за сбои авторизации,<code>INVALID_ARGUMENT</code> для ошибок проверки.</p>
+<h3 id="implement-structured-logging"> Внедрить структурированное журналирование</h3>
+<p> Регистрируйте события безопасности, чтобы помочь обнаруживать атаки и расследовать инциденты. Включите попытки аутентификации, сбои авторизации и подозрительные действия.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Security event logging
+func logSecurityEvent(event string, userID string, clientIP string, success bool) {
+    log.Printf("SECURITY_EVENT: %s | User: %s | IP: %s | Success: %t | Time: %s",
+        event, userID, clientIP, success, time.Now().UTC().Format(time.RFC3339))
+}</code></pre></div>
+<p> Включите идентификаторы корреляции для отслеживания запросов между распределенными службами и убедитесь, что журналы не содержат конфиденциальных данных, таких как пароли или токены.</p>
+<h2 id="service-discovery-and-reflection"> Обнаружение и отражение услуг</h2>
+<h3 id="disable-grpc-reflection-in-production"> Отключить отражение gRPC в производстве</h3>
+<p> Отражение gRPC позволяет клиентам обнаруживать методы обслуживания и схемы сообщений во время выполнения, что неоценимо для разработки и отладки. Однако эта же возможность предоставляет злоумышленникам подробную информацию о поверхности API вашего сервиса, что упрощает разработку целевых атак.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - Conditional reflection (development only)
+if os.Getenv("ENVIRONMENT") != "production" {
+    reflection.Register(s)
+}</code></pre></div>
+<h3 id="secure-service-discovery"> Безопасное обнаружение сервисов</h3>
+<p> Механизмы обнаружения служб требуют защиты, чтобы злоумышленники не могли внедрить вредоносные конечные точки службы или перехватить служебную информацию.</p>
+<p><strong> Консул с mTLS:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">consulConfig := &amp;api.Config{
+    Address:    "consul.example.com:8500",
+    Scheme:     "https",
+    TLSConfig: &amp;api.TLSConfig{
+        CertFile: "/path/to/client.crt",
+        KeyFile:  "/path/to/client.key",
+        CAFile:   "/path/to/ca.crt",
+    },
+}</code></pre></div>
+<p><strong> Кубернетес RBAC:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grpc-service-discovery
+rules:
+- apiGroups: [""]
+  resources: ["services", "endpoints"]
+  verbs: ["get", "list", "watch"]</code></pre></div>
+<p> Используйте решения Service Mesh, такие как Istio или Linkerd, для автоматического mTLS и централизованных политик безопасности.</p>
+<h2 id="monitoring-and-incident-response"> Мониторинг и реагирование на инциденты</h2>
+<h3 id="implement-security-monitoring"> Внедрить мониторинг безопасности</h3>
+<p> Отслеживайте службы gRPC на предмет событий безопасности и потенциальных атак.</p>
+<p> Ключевые показатели для мониторинга:</p>
+<ul>
+<li> Стоимость запроса за метод и клиента</li>
+<li> Частота неудачных попыток аутентификации и авторизации</li>
+<li> Частота и типы ошибок</li>
+<li> Необычные модели трафика</li>
+</ul>
+<p> Настройте оповещения для:</p>
+<ul>
+<li> Высокий процент неудачных попыток аутентификации</li>
+<li> Попытки доступа к несуществующим методам</li>
+<li> Модели истощения ресурсов</li>
+</ul>
+<h3 id="enable-distributed-tracing"> Включить распределенную трассировку</h3>
+<p> Отслеживайте запросы к микросервисам для анализа безопасности.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-go">// Go - OpenTelemetry tracing with security context
+tracer := otel.Tracer("grpc-service")
+ctx, span := tracer.Start(ctx, "grpc.method.call")
+defer span.End()
+
+span.SetAttributes(
+    attribute.String("grpc.method", info.FullMethod),
+    attribute.String("client.ip", getClientIP(ctx)),
+)</code></pre></div>
+<h2 id="testing-and-validation"> Тестирование и проверка</h2>
+<h3 id="perform-grpc-security-testing"> Выполните тестирование безопасности gRPC</h3>
+<p> Включите тесты безопасности, специфичные для gRPC, в свой конвейер разработки.</p>
+<p> Категории тестов:</p>
+<ul>
+<li> Попытки обхода аутентификации</li>
+<li> Тестирование границ полномочий</li>
+<li> Проверка входных данных и тестирование внедрения</li>
+<li> Эффективность ограничения скорости</li>
+<li> Обеспечение ограничения размера сообщения</li>
+</ul>
+<p> Используйте такие инструменты, как <code>grpcurl</code> и специальные тестовые клиенты для проверки мер безопасности.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash"># Test authentication requirement
+grpcurl -plaintext localhost:50051 list
+grpcurl -plaintext localhost:50051 myservice.MyService/GetUser
+
+# Test with invalid tokens
+grpcurl -plaintext -H "authorization: Bearer invalid_token" \
+  localhost:50051 myservice.MyService/GetUser</code></pre></div>
+<h3 id="security-assessment-guidelines"> Рекомендации по оценке безопасности</h3>
+<ul>
+<li> Проверьте все методы gRPC на предмет правильной аутентификации и авторизации.</li>
+<li> Проверьте правильность ввода во всех полях сообщения.</li>
+<li> Ограничение скорости тестирования и защита от исчерпания ресурсов</li>
+<li> Проверка конфигурации TLS и обработки сертификатов.</li>
+<li> Проверьте раскрытие информации в сообщениях об ошибках</li>
+</ul>
+<h2 id="language-specific-considerations"> Особенности языка</h2>
+<h3 id="go"> Идти</h3>
+<ul>
+<li> Используйте перехватчики для решения сквозных проблем безопасности.</li>
+<li> Используйте <code>context</code> пакет для информации о безопасности на уровне запроса</li>
+<li> Явная настройка TLS — gRPC Go требует ручной настройки TLS.</li>
+</ul>
+<h3 id="java"> Ява</h3>
+<ul>
+<li> Используйте богатую экосистему безопасности Java (Spring Security и т. д.)</li>
+<li> Правильно настройте Netty для настроек TLS</li>
+<li> Обеспечьте поддержку ALPN для HTTP/2.</li>
+</ul>
+<h3 id="python"> Питон</h3>
+<ul>
+<li> Проверьте все входные данные, поскольку динамическая типизация Python может скрыть проблемы с типами.</li>
+<li> Используйте безопасное управление учетными данными для хранения сертификатов.</li>
+<li> Помните об ограничениях GIL для сценариев с высоким уровнем параллелизма.</li>
+</ul>
+<h3 id="c-net"> С# (.NET)</h3>
+<ul>
+<li> Используйте встроенные функции безопасности ASP.NET Core.</li>
+<li> Используйте <code>[Authorize]</code> атрибут методов обслуживания</li>
+<li> Правильно настройте HTTPS в производственных средах</li>
+</ul>
+<h2 id="references"> Ссылки</h2>
+<ul>
+<li> <a href="https://grpc.io/docs/guides/auth/"> Документация по аутентификации gRPC</a></li>
+</ul>

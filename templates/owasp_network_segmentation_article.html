@@ -1,0 +1,132 @@
+<h1 id="network-segmentation-cheat-sheet">Статья по сегментации сети (Network segmentation Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Сегментация сети — основа многоуровневой глубины защиты современных сервисов. Она замедляет атакующего, если тот не может реализовать сценарии вроде:</p>
+<ul>
+<li>SQL-инъекций — см. <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL Injection Prevention Cheat Sheet</a>;</li>
+<li>компрометации рабочих станций сотрудников с повышенными привилегиями;</li>
+<li>компрометации другого сервера в периметре организации;</li>
+<li>компрометации целевого сервиса через LDAP, DNS и другие корпоративные сервисы и сайты, опубликованные в интернете.</li>
+</ul>
+<p>Главная цель этой статьи — показать базовые приёмы сетевой сегментации для противодействия атакам за счёт безопасной и максимально изолированной сетевой архитектуры сервиса.</p>
+<p>Сегментация помогает избежать ситуаций, когда:</p>
+<ul>
+<li>выполнение произвольных команд на публичном веб-сервере (Nginx, Apache, IIS) сразу даёт прямой доступ к базе данных;</li>
+<li>получив несанкционированный доступ к серверу БД, атакующий может выйти на C2 в интернете.</li>
+</ul>
+<h2 id="content">Содержание</h2>
+<ul>
+<li>Условные обозначения на схемах;</li>
+<li>Трёхуровневая сетевая архитектура;</li>
+<li>Межсервисное взаимодействие;</li>
+<li>Политика сетевой безопасности;</li>
+<li>Полезные ссылки.</li>
+</ul>
+<h2 id="schematic-symbols">Условные обозначения</h2>
+<p>Элементы, используемые на сетевых диаграммах:</p>
+<p><img alt="Условные обозначения" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_Schematic_symbols.drawio.png" loading="lazy" /></p>
+<p>Пересечение границы прямоугольника означает прохождение через фаервол:</p>
+<p><img alt="Трафик через два фаервола" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_firewall_1.drawio.png" loading="lazy" /></p>
+<p>На рисунке выше трафик проходит через два фаервола с именами FW1 и FW2.</p>
+<p><img alt="Трафик через один фаервол" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_firewall_2.drawio.png" loading="lazy" /></p>
+<p>На рисунке выше трафик проходит через один фаервол, за которым находятся два VLAN.</p>
+<p>Далее на схемах значки фаерволов не дублируются, чтобы не перегружать рисунки.</p>
+<h2 id="three-layer-network-architecture">Трёхуровневая сетевая архитектура</h2>
+<p>По умолчанию разрабатываемые информационные системы должны состоять как минимум из трёх компонентов (<strong>зон безопасности</strong>):</p>
+<ol>
+<li><a href="/owasp/cheatsheets/Network_Segmentation_Cheat_Sheet.html#frontend">FRONTEND</a>;</li>
+<li><a href="/owasp/cheatsheets/Network_Segmentation_Cheat_Sheet.html#middleware">MIDDLEWARE</a>;</li>
+<li><a href="/owasp/cheatsheets/Network_Segmentation_Cheat_Sheet.html#backend">BACKEND</a>.</li>
+</ol>
+<h3 id="frontend">FRONTEND</h3>
+<p>FRONTEND — набор сегментов со следующими сетевыми элементами:</p>
+<ul>
+<li>балансировщик нагрузки;</li>
+<li>межсетевой экран прикладного уровня (WAF);</li>
+<li>веб-сервер;</li>
+<li>веб-кэш.</li>
+</ul>
+<p><img alt="FRONTEND" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_FRONTEND.drawio.png" loading="lazy" /></p>
+<h3 id="middleware">MIDDLEWARE</h3>
+<p>MIDDLEWARE — набор сегментов для размещения элементов:</p>
+<ul>
+<li>веб-приложений с бизнес-логикой ИС (обработка запросов клиентов, других сервисов компании и внешних сервисов; выполнение запросов);</li>
+<li>сервисов авторизации;</li>
+<li>сервисов аналитики;</li>
+<li>очередей сообщений;</li>
+<li>платформ потоковой обработки.</li>
+</ul>
+<p><img alt="MIDDLEWARE" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_MIDDLEWARE.drawio.png" loading="lazy" /></p>
+<h3 id="backend">BACKEND</h3>
+<p>BACKEND — набор сетевых сегментов для размещения элементов:</p>
+<ul>
+<li>SQL-база данных;</li>
+<li>каталог LDAP (контроллер домена);</li>
+<li>хранилище криптографических ключей;</li>
+<li>файловый сервер.</li>
+</ul>
+<p><img alt="BACKEND" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_BACKEND.drawio.png" loading="lazy" /></p>
+<h3 id="example-of-three-layer-network-architecture">Пример трёхуровневой сетевой архитектуры</h3>
+<p><img alt="Пример трёх уровней" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_TIER_Example.drawio.png" loading="lazy" /></p>
+<p>Ниже — пример локальной сети организации с именем Contoso.</p>
+<p>Пограничный фаервол содержит 2 VLAN зоны безопасности <strong>FRONTEND</strong>:</p>
+<ul>
+<li><em>DMZ Inbound</em> — сегмент для сервисов и приложений, доступных из интернета; их нужно защищать WAF;</li>
+<li><em>DMZ Outgoing</em> — сегмент для сервисов, недоступных из интернета, но имеющих выход во внешние сети (в правилах фаервола нет разрешения входящего трафика извне).</li>
+</ul>
+<p>Внутренний фаервол содержит 4 VLAN:</p>
+<ul>
+<li>в зоне <strong>MIDDLEWARE</strong> один VLAN <em>APPLICATIONS</em> — для приложений ИС, взаимодействующих друг с другом (межсервисная связь) и с другими сервисами;</li>
+<li>в зоне <strong>BACKEND</strong>:<ul>
+<li><em>DATABASES</em> — сегмент для разграничения различных баз автоматизированной системы;</li>
+<li><em>AD SERVICES</em> — сегмент для сервисов Active Directory; в примере показан один сервер с контроллером домена contoso.com;</li>
+<li><em>LOGS</em> — сегмент для серверов журналирования; централизованно хранятся журналы приложений АС.</li>
+</ul>
+</li>
+</ul>
+<h2 id="interservice-interaction">Межсервисное взаимодействие</h2>
+<p>Информационные системы компании часто взаимодействуют друг с другом. Важно определить политику фаервола для таких связей.</p>
+<p>Базовые разрешённые взаимодействия показаны зелёными стрелками на рисунке:</p>
+<p><img alt="Межсервисное взаимодействие" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_interservice.drawio.png" loading="lazy" /></p>
+<p>На том же рисунке показан разрешённый доступ из сегментов FRONTEND и MIDDLEWARE во внешние сети (например в интернет).</p>
+<p>Из схемы следует:</p>
+<ol>
+<li>доступ между сегментами FRONTEND и MIDDLEWARE <em>разных</em> информационных систем запрещён;</li>
+<li>доступ из сегмента MIDDLEWARE к сегменту BACKEND <em>чужого</em> сервиса запрещён (нельзя ходить в чужую базу, минуя прикладной сервер).</li>
+</ol>
+<p>Запрещённые направления показаны красными стрелками:</p>
+<p><img alt="Запрещённое межсервисное взаимодействие" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_interservice_deny.drawio.png" loading="lazy" /></p>
+<h3 id="many-applications-on-the-same-network">Несколько приложений в одной сети</h3>
+<p>Если в организации меньше сетей и на каждой размещается больше приложений, допустимо разместить в такой сети балансировщик нагрузки, который распределяет трафик между приложениями.</p>
+<p>Тогда обычно открывают один порт на эту сеть, а балансировка выполняется, например, по параметрам HTTP-запроса.</p>
+<p>Пример такой сегментации:</p>
+<p><img alt="Межсервисная связь с балансировкой" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_interservice_balancer.drawio.png" loading="lazy" /></p>
+<p>Видно, что на каждую сеть приходится один входящий доступ — до балансировщика внутри сети. При этом классическая сегментация «по сетям» ослабевает: контроль доступа между приложениями из разных сегментов переносится на 7-й уровень модели OSI на балансировщике.</p>
+<h2 id="network-security-policy">Политика сетевой безопасности</h2>
+<p>Организация должна иметь зафиксированную «бумажную» политику с правилами фаерволов и базовыми разрешёнными сетевыми доступами.</p>
+<p>Она полезна как минимум:</p>
+<ul>
+<li>сетевым администраторам;</li>
+<li>представителям ИБ;</li>
+<li>ИТ-аудиторам;</li>
+<li>архитекторам ИС и ПО;</li>
+<li>разработчикам;</li>
+<li>ИТ-администраторам.</li>
+</ul>
+<p>Удобно, когда политика иллюстрируется схемами в едином стиле: информация краткая и наглядная.</p>
+<h3 id="examples-of-individual-policy-provisions">Примеры отдельных положений политики</h3>
+<p>Примеры в политике помогают коллегам быстро понять, какой доступ потенциально разрешён и может быть запрошен.</p>
+<h4 id="permissions-for-cicd">Разрешения для CI/CD</h4>
+<p>Политика может описывать базовые разрешения для системы разработки ПО. Пример:</p>
+<p><img alt="CI/CD" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_repo.drawio.png" loading="lazy" /></p>
+<h4 id="secure-logging">Безопасное журналирование</h4>
+<p>Важно, чтобы при компрометации ИС злоумышленник не мог подделать уже записанные журналы. Для этого, например, копируйте журналы на отдельный сервер по syslog: протокол не позволяет менять старые записи, только добавлять новые события.</p>
+<p>Фрагмент политики для такого сценария:</p>
+<p><img alt="Журналирование" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_logs.drawio.png" loading="lazy" /></p>
+<p>Речь и о прикладных журналах с событиями безопасности и признаками возможной атаки.</p>
+<h4 id="permissions-for-monitoring-systems">Разрешения для систем мониторинга</h4>
+<p>Если в компании для мониторинга используется Zabbix, политика может выглядеть так:</p>
+<p><img alt="Пример Zabbix" src="/owasp/assets/Network_Segmentation_Cheat_Sheet_Monitoring.drawio.png" loading="lazy" /></p>
+<h2 id="useful-links">Полезные ссылки</h2>
+<ul>
+<li>Полная шпаргалка по сегментации сети от <a href="https://github.com/sergiomarotco">sergiomarotco</a>: <a href="https://github.com/sergiomarotco/Network-segmentation-cheat-sheet">репозиторий</a>.</li>
+</ul>

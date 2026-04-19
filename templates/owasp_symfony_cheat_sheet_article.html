@@ -1,0 +1,379 @@
+{% raw %}
+<h1 id="symfony-cheat-sheet">Статья по безопасности Symfony (Symfony Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Статья даёт практические советы по безопасности при разработке на Symfony: типичные уязвимости и меры, чтобы приложение оставалось защищённым.</p>
+<p>В Symfony уже есть встроенные механизмы безопасности, но разработчик должен понимать риски и правильно их использовать. Материал полезен и новичкам, и тем, кто хочет систематизировать практики: следование рекомендациям снижает риски для пользователей и данных.</p>
+<h2 id="main-sections">Основные разделы</h2>
+<h3 id="cross-site-scripting-xss">Межсайтовый скриптинг (XSS)</h3>
+<p>XSS — внедрение вредоносного JavaScript в выводимые данные. Если в переменной <code>name</code> лежит <code>&lt;script&gt;alert('hello')&lt;/script&gt;</code>, а в HTML вывести <code>Hello {{ name }}</code>, скрипт выполнится при отображении.</p>
+<p>По умолчанию Twig экранирует вывод: конструкция <code>{{ }}</code> преобразует опасные символы.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-twig">&lt;p&gt;Hello {{ name }}&lt;/p&gt;
+{# если name — '&lt;script&gt;alert('hello!')&lt;/script&gt;', Twig выведет экранированный HTML #}</code></pre></div>
+<p>Для доверенного HTML используйте фильтр <code>raw</code> — он отключает экранирование для этого фрагмента.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-twig">&lt;p&gt;{{ product.title|raw }}&lt;/p&gt;
+{# если product.title — 'Lorem &lt;strong&gt;Ipsum&lt;/strong&gt;', вывод будет с тегами #}</code></pre></div>
+<p>См. <a href="https://twig.symfony.com/doc/3.x/api.html#escaper-extension" target="_blank" rel="noopener">документацию Twig по escaper</a> (блоки, отключение для шаблона).</p>
+<p>Общие меры: <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html">Cross Site Scripting Prevention Cheat Sheet</a>.</p>
+<h3 id="cross-site-request-forgery-csrf">CSRF (межсайтовая подделка запроса)</h3>
+<p>Компонент Form по умолчанию добавляет CSRF-токены; Symfony проверяет их автоматически.</p>
+<p>По умолчанию скрытое поле называется <code>_token</code>; параметры можно менять для каждой формы:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Component\Form\AbstractType;
+use Symfony\Component\OptionsResolver\OptionsResolver;
+
+class PostForm extends AbstractType
+{
+
+    public function configureOptions(OptionsResolver $resolver): void
+    {
+        $resolver->setDefaults([
+            // ...
+            'csrf_protection' => true,
+            'csrf_field_name' => '_csrf_token',
+            'csrf_token_id'   => 'post_item',
+        ]);
+    }
+
+}</code></pre></div>
+<p>Без Form можно генерировать и проверять токены вручную — установите пакет:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">composer require symfony/security-csrf</code></pre></div>
+<p>Включение/выключение в <code>config/packages/framework.yaml</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">framework:
+    csrf_protection: ~</code></pre></div>
+<p>Пример формы в Twig с <code>csrf_token()</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-twig">&lt;form action="{{ url('delete_post', { id: post.id }) }}" method="post"&gt;
+    &lt;input type="hidden" name="token" value="{{ csrf_token('delete-post') }}"&gt;
+    &lt;button type="submit"&gt;Delete post&lt;/button&gt;
+&lt;/form&gt;</code></pre></div>
+<p>В контроллере проверка (идентификатор должен совпадать с тем, что в <code>csrf_token()</code>):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Entity\Post;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
+
+class ExampleController extends AbstractController
+{
+
+    #[Route('/posts/{id}', methods: ['DELETE'], name: 'delete_post')]
+    public function delete(Post $post, Request $request): Response
+    {
+        $token = $request->request->get('token');
+        if ($this->isCsrfTokenValid('delete-post', $token)) {
+            // ...
+        }
+
+        // ...
+    }
+}</code></pre></div>
+<p>Дополнительно: <a href="/owasp/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">Cross-Site Request Forgery (CSRF) Prevention Cheat Sheet</a>.</p>
+<h3 id="sql-injection">SQL-инъекции</h3>
+<p>SQL-инъекция возникает, когда запрос к БД собирается из недоверенного ввода. С Doctrine чаще используют параметризованные запросы, но небезопасный DQL всё ещё возможен.</p>
+<p><strong>Небезопасный DQL:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class ExampleController extends AbstractController {
+
+    public function getPost(Request $request, EntityManagerInterface $em): Response
+    {
+        $id = $request->query->get('id');
+
+        $dql = "SELECT p FROM App\Entity\Post p WHERE p.id = " . $id . ";";
+        $query = $em->createQuery($dql);
+        $post = $query->getSingleResult();
+
+        // ...
+    }
+}</code></pre></div>
+<p><strong>Безопасные варианты:</strong></p>
+<ul>
+<li>Метод репозитория:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">$id = $request->query->get('id');
+$post = $em->getRepository(Post::class)->findOneBy(['id' => $id]);</code></pre></div>
+<ul>
+<li>DQL с параметром:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">$query = $em->createQuery("SELECT p FROM App\Entity\Post p WHERE p.id = :id");
+$query->setParameter('id', $id);
+$post = $query->getSingleResult();</code></pre></div>
+<ul>
+<li>Query Builder DBAL:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">$qb = $em->createQueryBuilder();
+$post = $qb->select('p')
+            ->from('posts','p')
+            ->where('id = :id')
+            ->setParameter('id', $id)
+            ->getQuery()
+            ->getSingleResult();</code></pre></div>
+<p>Документация Doctrine: <a href="https://www.doctrine-project.org/index.html" target="_blank" rel="noopener">doctrine-project.org</a>. Общий контекст: <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL Injection Prevention Cheat Sheet</a>.</p>
+<h3 id="command-injection">Инъекция команд</h3>
+<p>Подробнее: <a href="/owasp/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html">Command Injection Defense Cheat Sheet</a>.</p>
+<p>Пример без экранирования ввода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\AsController;
+use Symfony\Component\Routing\Annotation\Route;
+
+#[AsController]
+class ExampleController
+{
+
+    #[Route('/remove_file', methods: ['POST'])]
+    public function removeFile(Request $request): Response
+    {
+        $filename =  $request->request->get('filename');
+        exec(sprintf('rm %s', $filename));
+
+        // ...
+    }
+}</code></pre></div>
+<p>Ввод вроде <code>test.txt &amp;&amp; rm -rf .</code> опасен. Предпочтительнее <code>unlink()</code> или <a href="https://symfony.com/doc/current/components/filesystem.html" target="_blank" rel="noopener">Filesystem::remove()</a> вместо <code>exec()</code>. См. <a href="https://www.php.net/manual/en/refs.fileprocess.file.php" target="_blank" rel="noopener">документацию PHP по файловым функциям</a>.</p>
+<h3 id="open-redirection">Открытое перенаправление</h3>
+<p>Редирект на URL из непроверенного параметра ведёт к фишингу.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Routing\Annotation\Route;
+
+class ExampleController extends AbstractController
+{
+
+    #[Route('/dynamic_redirect', methods: ['GET'])]
+    public function dynamicRedirect(#[MapQueryParameter] string $url): Response
+    {
+        return $this->redirect($url);
+    }
+}</code></pre></div>
+<p>Валидируйте и нормализуйте URL перед редиректом; не передавайте недоверенный ввод напрямую в <code>redirect()</code>.</p>
+<h3 id="file-upload-vulnerabilities">Уязвимости загрузки файлов</h3>
+<p>Проверяйте тип и размер на сервере, ограничивайте размер против DoS.</p>
+<h4 id="validate-file-type-and-size">Тип и размер файла</h4>
+<p>Атрибуты PHP:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Validator\Constraints\File;
+
+class UploadDto
+{
+    public function __construct(
+        #[File(
+            maxSize: '1024k',
+            mimeTypes: [
+                'application/pdf',
+                'application/x-pdf',
+            ],
+        )]
+        public readonly UploadedFile $file,
+    ){}
+}</code></pre></div>
+<p>Через Form:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Validator\Constraints\File;
+
+class FileForm extends AbstractType
+{
+    public function buildForm(FormBuilderInterface $builder, array $options)
+    {
+        $builder
+            ->add('file', FileType::class, [
+                'constraints' => [
+                    new File([
+                        'maxSize' => '1024k',
+                        'mimeTypes' => [
+                            'application/pdf',
+                            'application/x-pdf',
+                        ],
+                    ]),
+                ],
+            ]);
+    }
+}</code></pre></div>
+<h4 id="use-unique-filenames">Уникальные имена файлов</h4>
+<p>Генерируйте уникальное имя (идентификатор + оригинальное имя), чтобы не перезаписывать существующие файлы.</p>
+<h4 id="store-uploaded-files-securely">Безопасное хранение</h4>
+<p>Храните загрузки вне публичного каталога или запретите прямой доступ на уровне веб-сервера.</p>
+<p>См. <a href="/owasp/cheatsheets/File_Upload_Cheat_Sheet.html">File Upload Cheat Sheet</a>.</p>
+<h3 id="directory-traversal">Обход каталога (path traversal)</h3>
+<p>Доступ к файлам через <code>../</code> и вариации. Подробнее: <a href="https://owasp.org/www-community/attacks/Path_Traversal" target="_blank" rel="noopener">OWASP Path Traversal</a>.</p>
+<p>Проверяйте, что реальный путь остаётся внутри каталога хранения, или используйте <code>basename()</code>.</p>
+<ul>
+<li><code>realpath</code> и префикс каталога:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
+use Symfony\Component\Routing\Annotation\Route;
+
+class ExampleController extends AbstractController
+{
+
+    #[Route('/download', methods: ['GET'])]
+    public function download(#[MapQueryParameter] string $filename): Response
+    {
+        $storagePath = $this->getParameter('kernel.project_dir') . '/storage';
+        $filePath = $storagePath . '/' . $filename;
+
+        $realBase = realpath($storagePath);
+        $realPath = realpath($filePath);
+
+        if ($realPath === false || !str_starts_with($realPath, $realBase))
+        {
+            // обход каталога
+        }
+
+        // ...
+
+    }
+}</code></pre></div>
+<ul>
+<li><code>basename</code>:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">// ...
+$storagePath = $this->getParameter('kernel.project_dir') . '/storage';
+$filePath = $storagePath . '/' . basename($filename);
+// ...</code></pre></div>
+<h3 id="dependencies-vulnerabilities">Уязвимости зависимостей</h3>
+<p>Обновляйте Symfony и сторонние библиотеки.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">composer update</code></pre></div>
+<p>См. <a href="https://symfony.com/doc/current/setup.html#checking-security-vulnerabilities" target="_blank" rel="noopener">Symfony Security Checker</a> (анализ <code>composer.lock</code>). Команда через <a href="https://github.com/symfony-cli/symfony-cli" target="_blank" rel="noopener">Symfony CLI</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">symfony check:security</code></pre></div>
+<h3 id="cross-origin-resource-sharing-cors">CORS</h3>
+<p>CORS в браузере ограничивает запросы между доменами. В Symfony часто используют <code>nelmio/cors-bundle</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">composer require nelmio/cors-bundle</code></pre></div>
+<p>Пример конфигурации для префикса <code>/api</code> (после установки через Flex файл появится в <code>config/packages</code>):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml"># config/packages/nelmio_cors.yaml
+nelmio_cors:
+    defaults:
+        origin_regex: true
+        allow_origin: ['*']
+        allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
+        allow_headers: ['*']
+        expose_headers: ['Link']
+        max_age: 3600
+    paths:
+        '^/api': ~  # ~ — наследовать defaults</code></pre></div>
+<p>На продакшене сузьте <code>allow_origin</code> и методы под реальные нужды.</p>
+<h3 id="security-related-headers">Заголовки безопасности</h3>
+<p>Имеет смысл выставлять, среди прочего:</p>
+<ul>
+<li>Strict-Transport-Security</li>
+<li>X-Frame-Options</li>
+<li>X-Content-Type-Options</li>
+<li>Content-Security-Policy</li>
+<li>X-Permitted-Cross-Domain-Policies</li>
+<li>Referrer-Policy</li>
+<li>Clear-Site-Data</li>
+<li>Cross-Origin-Embedder-Policy</li>
+<li>Cross-Origin-Opener-Policy</li>
+<li>Cross-Origin-Resource-Policy</li>
+<li>Cache-Control</li>
+</ul>
+<p>См. <a href="https://owasp.org/www-project-secure-headers/" target="_blank" rel="noopener">OWASP Secure Headers</a>. В Symfony — вручную, через <a href="https://symfony.com/doc/current/reference/events.html#kernel-response" target="_blank" rel="noopener">ResponseEvent</a> на каждый ответ или настройку Nginx/Apache.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+$response = new Response();
+$response->headers->set('X-Frame-Options', 'SAMEORIGIN');</code></pre></div>
+<h3 id="session-cookies-management">Сессии и cookie</h3>
+<p>Сессии по умолчанию настроены безопасно; детали — в <code>config/packages/framework.yaml</code> (<code>framework.session</code>).</p>
+<p>Не задавайте <code>cookie_secure</code> в <code>false</code> (по умолчанию <code>true</code>). <code>cookie_httponly: true</code> — cookie недоступны из JavaScript.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">cookie_httponly: true</code></pre></div>
+<p>Короткий TTL сессии: по <a href="/owasp/cheatsheets/Session_Management_Cheat_Sheet.html">рекомендациям OWASP</a> — 2–5 минут для высокоценных приложений, 15–30 для менее критичных.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">cookie_lifetime: 5</code></pre></div>
+<p><code>cookie_samesite</code>: <code>lax</code> или <code>strict</code> — ограничение отправки cookie с кросс-сайтовых запросов. <code>lax</code> допускает «безопасные» top-level навигации; <code>strict</code> — только тот же сайт.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">cookie_samesite: lax  # или strict</code></pre></div>
+<p><code>cookie_secure: auto</code> — cookie только по HTTPS там, где это уместно.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">cookie_secure: auto</code></pre></div>
+<p>Дополнительно: <a href="/owasp/cheatsheets/Session_Management_Cheat_Sheet.html">Session Management Cheat Sheet</a>, <a href="https://owasp.org/www-chapter-london/assets/slides/OWASPLondon20171130_Cookie_Security_Myths_Misconceptions_David_Johansson.pdf" target="_blank" rel="noopener">доклад о cookie</a>.</p>
+<hr />
+<p>В Symfony сессии управляются фреймворком, а не через <code>session.auto_start = 1</code> в php.ini. Рекомендуется отключить <code>session.auto_start</code>, чтобы избежать конфликтов с механизмом Symfony.</p>
+<h3 id="authentication">Аутентификация</h3>
+<p><a href="https://symfony.com/doc/current/security.html" target="_blank" rel="noopener">Symfony Security</a>: провайдеры, файрволы, access control. Настройки в <code>config/packages/security.yaml</code>.</p>
+<ul>
+<li>
+<p><strong>Провайдеры</strong> — откуда загружается пользователь (БД, LDAP и т.д.). Пример <a href="https://symfony.com/doc/current/security/user_providers.html#security-entity-user-provider" target="_blank" rel="noopener">Entity User Provider</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">providers:
+    app_user_provider:
+        entity:
+            class: App\Entity\User
+            property: email</code></pre></div>
+</li>
+<li>
+<p><strong>Файрволы</strong> — правила для частей приложения:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">firewalls:
+    dev:
+        pattern: ^/(_(profiler|wdt)|css|images|js)/
+        security: false
+    admin:
+        lazy: true
+        provider: app_user_provider
+        pattern: ^/admin
+        custom_authenticator: App\Security\AdminAuthenticator
+        logout:
+            path: app_logout
+            target: app_login
+    main:
+        lazy: true
+        provider: app_user_provider</code></pre></div>
+</li>
+<li>
+<p><strong>Access control</strong> — кто куда может зайти:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">access_control:
+    - { path: ^/admin, roles: ROLE_ADMIN }
+    - { path: ^/login, roles: PUBLIC_ACCESS }</code></pre></div>
+</li>
+</ul>
+<h3 id="error-handling-disclosure">Раскрытие информации в ошибках</h3>
+<p>По умолчанию подробные ошибки — только в dev; в prod показывается обобщённая страница, детали пишутся в лог.</p>
+<p>Общие рекомендации: <a href="/owasp/cheatsheets/Error_Handling_Cheat_Sheet.html">Error Handling Cheat Sheet</a>.</p>
+<h3 id="sensitive-data">Чувствительные данные</h3>
+<p>Конфигурацию и ключи API храните в переменных окружения. Symfony поддерживает <strong>secrets</strong> — значения шифруются и лежат в <code>config/secrets/...</code>.</p>
+<p>Генерация ключей (приватный ключ не коммитить):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">bin/console secrets:generate-keys</code></pre></div>
+<p>Задать секрет:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">bin/console secret:set API_KEY</code></pre></div>
+<p>В коде секреты читаются как env. <strong>Важно:</strong> если одно и то же имя задано и в env, и в secrets, <strong>побеждает значение из env</strong>.</p>
+<p>Подробнее: <a href="https://symfony.com/doc/current/configuration/secrets.html" target="_blank" rel="noopener">Symfony Secrets</a>.</p>
+<h3 id="summary">Краткий чеклист</h3>
+<ul>
+<li>
+<p>В продакшене не включайте отладку: <code>APP_ENV=prod</code></p>
+<div class="cheatsheet-code-window"><pre><code class="language-ini">APP_ENV=prod</code></pre></div>
+</li>
+<li>
+<p>Безопасная конфигурация PHP: <a href="/owasp/cheatsheets/PHP_Configuration_Cheat_Sheet.html">PHP Configuration Cheat Sheet</a>.</p>
+</li>
+<li>
+<p>Корректный TLS на веб-сервере, принудительный HTTPS.</p>
+</li>
+<li>
+<p>Заголовки безопасности.</p>
+</li>
+<li>
+<p>Права на файлы и каталоги.</p>
+</li>
+<li>
+<p>Резервное копирование БД и критичных файлов, план восстановления.</p>
+</li>
+<li>
+<p>Сканирование зависимостей на известные уязвимости.</p>
+</li>
+<li>
+<p>Мониторинг и отчёты об ошибках (например <a href="https://www.blackfire.io" target="_blank" rel="noopener">Blackfire.io</a>).</p>
+</li>
+</ul>
+<h2 id="references">Ссылки</h2>
+<ul>
+<li><a href="https://symfony.com/doc/current/security/csrf.html" target="_blank" rel="noopener">Symfony: CSRF</a></li>
+<li><a href="https://symfony.com/doc/current/templates.html" target="_blank" rel="noopener">Symfony: Twig</a></li>
+<li><a href="https://symfony.com/doc/current/validation.html" target="_blank" rel="noopener">Symfony: Validation</a></li>
+<li><a href="https://symfony.com/doc/current/the-fast-track/en/29-performance.html" target="_blank" rel="noopener">Symfony / Blackfire</a></li>
+<li><a href="https://www.doctrine-project.org/projects/doctrine-dbal/en/3.7/reference/security.html" target="_blank" rel="noopener">Doctrine: Security</a></li>
+</ul>
+{% endraw %}

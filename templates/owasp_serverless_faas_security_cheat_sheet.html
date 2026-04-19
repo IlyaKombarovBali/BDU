@@ -6,10 +6,10 @@
     {% include "_theme_boot.html" %}
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
-    <title>Abuse Case (сценарии злоупотреблений) | OWASP Cheat Sheet | ПРО ИБ</title>
-    {% set seo_meta_title = 'Abuse Case (сценарии злоупотреблений) | OWASP Cheat Sheet | ПРО ИБ' %}
-    {% set seo_meta_description = 'OWASP Cheat Sheet: abuse cases, сценарии злоупотреблений, моделирование угроз. ПРО ИБ (24ib.ru).' %}
-    {% set seo_meta_keywords = 'abuse case, OWASP, моделирование угроз, ПРО ИБ' %}
+    <title>Безопасность Serverless / FaaS | OWASP Cheat Sheet | ПРО ИБ</title>
+    {% set seo_meta_title = 'Безопасность Serverless / FaaS | OWASP Cheat Sheet | ПРО ИБ' %}
+    {% set seo_meta_description = 'OWASP Cheat Sheet: Lambda, FaaS, IAM, изоляция, валидация событий, секреты, мониторинг, supply chain. ПРО ИБ (24ib.ru).' %}
+    {% set seo_meta_keywords = 'Serverless, FaaS, Lambda, безопасность, OWASP, облако, ПРО ИБ' %}
     {% include '_seo_meta.html' %}
     <link rel="stylesheet" href="/static/style.css">
     <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css">
@@ -23,7 +23,7 @@
                 <span>→</span>
                 <a href="/owasp">OWASP</a>
                 <span>→</span>
-                <span style="color: var(--text-muted);">Abuse Case</span>
+                <span style="color: var(--text-muted);">Безопасность Serverless / FaaS</span>
             </div>
             <div class="header-right">
                 <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
@@ -34,14 +34,14 @@
             </div>
         </div>
         <div class="title-section">
-            <h1>Abuse Case Cheat Sheet</h1>
+            <h1>Безопасность Serverless / FaaS</h1>
         </div>
     </div>
 
     <div class="main-content">
         <div class="vuln-detail-card cheatsheet-doc-card">
             <div class="cheatsheet-article owasp-prose">
-{% include 'owasp_abuse_case_article.html' %}
+{% include 'owasp_serverless_faas_security_article.html' %}
             </div>
             <p class="cheatsheet-license-note">© Перевод на русский язык. Оригинальные материалы: <a href="https://cheatsheetseries.owasp.org/" target="_blank" rel="noopener">OWASP Cheat Sheet Series</a>.<br>
             Этот проект использует материалы OWASP, распространяемые по лицензии <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.</p>
@@ -56,7 +56,7 @@
     </div>
 </div>
 <script src="/static/theme.js"></script>
-<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
 <script>hljs.highlightAll();</script>
 </body>
 </html>

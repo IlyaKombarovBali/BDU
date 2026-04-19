@@ -1,0 +1,173 @@
+<h1 id="django-security-cheat-sheet">Статья по безопасности Django (Django Security Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Django — мощный веб-фреймворк на Python; в нём уже есть средства защиты от типичных уязвимостей, которые можно использовать «из коробки». В этой статье перечислены действия и советы по разработке более безопасных приложений на Django: она охватывает распространённые риски и помогает усилить защиту. У каждого пункта — краткое пояснение и примеры кода в контексте Django.</p>
+<p>Многие настройки Django по умолчанию ориентированы на безопасность, при этом компоненты гибко переопределяются под сложные сценарии. Неопытная настройка может ослабить защиту. Статья перечисляет типичные такие случаи.</p>
+<h2 id="general-recommendations">Общие рекомендации</h2>
+<ul>
+<li>Регулярно обновляйте Django и зависимости проекта, чтобы получать исправления уязвимостей.</li>
+<li>В продакшене приложение не должно работать в режиме <code>DEBUG</code>. Никогда не используйте <code>DEBUG = True</code> в бою.</li>
+<li>Подключайте пакеты вроде <a href="https://django-ratelimit.readthedocs.io/en/stable/"><code>django_ratelimit</code></a> или <a href="https://django-axes.readthedocs.io/en/latest/index.html"><code>django-axes</code></a> для ограничения частоты запросов и защиты от перебора паролей.</li>
+</ul>
+<h2 id="authentication">Аутентификация</h2>
+<ul>
+<li>Для входа, выхода, смены пароля и т.п. используйте приложение <code>django.contrib.auth</code> и его формы/представления. Подключите модуль и зависимости <code>django.contrib.contenttypes</code> и <code>django.contrib.sessions</code> в <code>INSTALLED_APPS</code> в <code>settings.py</code>.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">INSTALLED_APPS = [
+    # ...
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    # ...
+]</code></pre></div>
+<ul>
+<li>Декоратор <code>@login_required</code> ограничивает доступ к представлению только аутентифицированным пользователям. Ниже — типичные варианты.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">from django.contrib.auth.decorators import login_required
+
+# Неаутентифицированный пользователь перенаправляется на страницу входа по умолчанию.
+@login_required
+def my_view(request):
+    # логика представления
+    pass
+
+# Перенаправление на свой URL входа.
+@login_required(login_url='/login-page/')
+def my_view(request):
+    # логика представления
+    pass</code></pre></div>
+<ul>
+<li>Задайте политику паролей через валидаторы: настройте <code>AUTH_PASSWORD_VALIDATORS</code> в <code>settings.py</code> под требования приложения.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">AUTH_PASSWORD_VALIDATORS = [
+  {
+    # Сходство пароля с атрибутами пользователя.
+    'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    'OPTIONS': {
+      'user_attributes': ('username', 'email', 'first_name', 'last_name'),
+      'max_similarity': 0.7,
+    }
+  },
+  {
+    # Минимальная длина пароля.
+    'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    'OPTIONS': {
+      'min_length': 8,
+    }
+  },
+  {
+    # Проверка по списку распространённых паролей.
+    'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+  },
+  {
+    # Запрет полностью числового пароля.
+    'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+  }
+]</code></pre></div>
+<ul>
+<li>Для хеширования пароля в виде открытого текста используйте утилиту <code>make_password</code>.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">from django.contrib.auth.hashers import make_password
+# ...
+hashed_pwd = make_password('plaintext_password')</code></pre></div>
+<ul>
+<li>Проверку открытого пароля на соответствие хешу выполняйте через <code>check_password</code>.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">from django.contrib.auth.hashers import check_password
+# ...
+plain_pwd = 'plaintext_password'
+hashed_pwd = 'hashed_password_from_database'
+
+if check_password(plain_pwd, hashed_pwd):
+    print("The password is correct.")
+else:
+    print("The password is incorrect.")</code></pre></div>
+<h2 id="key-management">Управление ключами</h2>
+<p>Параметр <code>SECRET_KEY</code> в <code>settings.py</code> используется для криптографической подписи и должен храниться в секрете. Рекомендации:</p>
+<ul>
+<li>Генерируйте ключ длиной не менее 50 символов из букв, цифр и символов.</li>
+<li>Используйте криптостойкий генератор, например <code>get_random_secret_key()</code> в Django.</li>
+<li>Не зашивайте <code>SECRET_KEY</code> в репозиторий. Храните значение в переменных окружения или в менеджере секретов.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">import os
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')</code></pre></div>
+<ul>
+<li>Планируйте ротацию ключа с учётом того, что это инвалидирует сессии, токены сброса пароля и т.д. При компрометации ключ смените немедленно.</li>
+</ul>
+<h2 id="headers">Заголовки HTTP</h2>
+<p>Включите <code>django.middleware.security.SecurityMiddleware</code> в списке <code>MIDDLEWARE</code> в <code>settings.py</code>, чтобы добавлять к ответам заголовки, связанные с безопасностью. Среди прочего настраиваются:</p>
+<ul>
+<li><code>SECURE_CONTENT_TYPE_NOSNIFF</code>: установите <code>True</code>, чтобы включить <code>X-Content-Type-Options: nosniff</code> и снизить риск подмены MIME.</li>
+<li><code>SECURE_HSTS_SECONDS</code>: задаёт политику HSTS (доступ к сайту только по HTTPS).</li>
+</ul>
+<p>Подключите <code>django.middleware.clickjacking.XFrameOptionsMiddleware</code> в <code>MIDDLEWARE</code> (после <code>SecurityMiddleware</code> — порядок важен) для параметров вроде:</p>
+<ul>
+<li><code>X_FRAME_OPTIONS</code>: значение <code>DENY</code> или <code>SAMEORIGIN</code> добавляет заголовок <code>X-Frame-Options</code> ко всем ответам и помогает против clickjacking.</li>
+</ul>
+<h2 id="content-security-policy">Content Security Policy (CSP)</h2>
+<p>Встроенной поддержки CSP в Django по умолчанию нет. Реализуйте политику через сторонние библиотеки (например, <code>django-csp</code>) или через заголовки HTTP.</p>
+<p>Подробнее:</p>
+<ul>
+<li><a href="/owasp/cheatsheets/Content_Security_Policy_Cheat_Sheet.html">OWASP: статья по Content Security Policy</a></li>
+<li><a href="https://docs.djangoproject.com/en/stable/topics/security/">Официальная документация Django по безопасности</a></li>
+</ul>
+<h2 id="cookies">Файлы cookie</h2>
+<ul>
+<li><code>SESSION_COOKIE_SECURE = True</code> в <code>settings.py</code> — передавать cookie сессии только по HTTPS.</li>
+<li><code>CSRF_COOKIE_SECURE = True</code> — то же для CSRF-cookie.</li>
+<li>При установке своих cookie через <code>HttpResponse.set_cookie()</code> задавайте <code>secure=True</code>.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-python">response = HttpResponse("Some response")
+response.set_cookie('my_cookie', 'cookie_value', secure=True)</code></pre></div>
+<h2 id="cross-site-request-forgery-csrf">Межсайтовая подделка запроса (CSRF)</h2>
+<ul>
+<li>Включите <code>django.middleware.csrf.CsrfViewMiddleware</code> в <code>MIDDLEWARE</code> в <code>settings.py</code>.</li>
+<li>В формах используйте тег шаблона <code>{% raw %}{% csrf_token %}{% endraw %}</code>, как в примере ниже.</li>
+</ul>
+<div class="cheatsheet-code-window">{% raw %}<pre><code class="language-html">&lt;form method="post"&gt;
+    {% csrf_token %}
+    &lt;!-- поля формы --&gt;
+&lt;/form&gt;</code></pre>{% endraw %}</div>
+<ul>
+<li>Для AJAX сначала получите CSRF-токен и передайте его в запросе.</li>
+<li>Дополнительные меры описаны в <a href="https://docs.djangoproject.com/en/5.2/ref/csrf/">документации Django по защите от CSRF</a>.</li>
+</ul>
+<p>См. также <a href="/owasp/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html">OWASP: предотвращение CSRF</a>.</p>
+<h2 id="cross-site-scripting-xss">Межсайтовый скриптинг (XSS)</h2>
+<p>Рекомендации этого раздела дополняют общие меры против XSS.</p>
+<ul>
+<li>Используйте встроенный шаблонизатор Django. Автоэкранирование HTML описано в <a href="https://docs.djangoproject.com/en/5.2/ref/templates/language/#automatic-html-escaping">документации</a>.</li>
+<li>По возможности не отключайте экранирование фильтром <code>safe</code> и функцией <code>mark_safe</code>. Если без этого нельзя, убедитесь, что данные из доверенного источника; к пользовательскому вводу относитесь особенно осторожно.</li>
+<li>Для передачи данных в JavaScript из шаблонов используйте фильтр <a href="https://docs.djangoproject.com/en/5.2/ref/templates/builtins/#json_script"><code>json_script</code></a>.</li>
+<li>Подробнее — <a href="https://docs.djangoproject.com/en/5.2/topics/security/#cross-site-scripting-xss-protection">раздел Django про защиту от XSS</a>.</li>
+</ul>
+<p>См. <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html">OWASP: предотвращение XSS</a>.</p>
+<h2 id="https">HTTPS</h2>
+<ul>
+<li>Убедитесь, что в <code>MIDDLEWARE</code> есть <code>django.middleware.security.SecurityMiddleware</code>.</li>
+<li><code>SECURE_SSL_REDIRECT = True</code> в <code>settings.py</code> перенаправляет HTTP на HTTPS (301).</li>
+<li>За прокси или балансировщиком настройте <code>SECURE_PROXY_SSL_HEADER</code>, чтобы Django корректно определял схему исходного запроса. См. <a href="https://docs.djangoproject.com/en/5.2/ref/settings/#secure-proxy-ssl-header">документацию</a>.</li>
+</ul>
+<h2 id="admin-panel-url">URL панели администратора</h2>
+<p>Имеет смысл изменить стандартный путь к админке (<code>example.com/admin/</code>), чтобы усложнить автоматизированные атаки. В корневом <code>urls.py</code> проекта измените элемент в <code>urlpatterns</code>, ведущий на <code>admin.site.urls</code>, на путь, отличный от <code>admin/</code>.</p>
+<h2 id="djangos-built-in-command-check-deploy">Встроенная команда Django <code>check --deploy</code></h2>
+<p>Для проверок перед выкладкой используйте <a href="https://docs.djangoproject.com/en/stable/ref/django-admin/#cmdoption-check-deploy"><code>check --deploy</code></a>. Пример вывода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">$ ./manage.py check --deploy
+System check identified some issues:
+
+WARNINGS:
+?: (security.W004) You have not set a value for the SECURE_HSTS_SECONDS setting. If your entire site is served only over SSL, you may want to consider setting a value and enabling HTTP Strict Transport Security. Be sure to read the documentation first; enabling HSTS carelessly can cause serious, irreversible problems.
+?: (security.W008) Your SECURE_SSL_REDIRECT setting is not set to True. Unless your site should be available over both SSL and non-SSL connections, you may want to either set this setting True or configure a load balancer or reverse-proxy server to redirect all connections to HTTPS.
+?: (security.W009) Your SECRET_KEY has less than 50 characters, less than 5 unique characters, or it's prefixed with 'django-insecure-' indicating that it was generated automatically by Django. Please generate a long and random value, otherwise many of Django's security-critical features will be vulnerable to attack.
+?: (security.W012) SESSION_COOKIE_SECURE is not set to True. Using a secure-only session cookie makes it more difficult for network traffic sniffers to hijack user sessions.
+?: (security.W016) You have 'django.middleware.csrf.CsrfViewMiddleware' in your MIDDLEWARE, but you have not set CSRF_COOKIE_SECURE to True. Using a secure-only CSRF cookie makes it more difficult for network traffic sniffers to steal the CSRF token.
+?: (security.W018) You should not have DEBUG set to True in deployment.
+?: (security.W020) ALLOWED_HOSTS must not be empty in deployment.
+
+System check identified 7 issues (0 silenced).</code></pre></div>
+<p>Устранение предупреждений этой команды — практичный шаг к более жёсткой конфигурации в продакшене.</p>
+<h2 id="references">Ссылки</h2>
+<p>Дополнительная документация:</p>
+<ul>
+<li><a href="https://docs.djangoproject.com/en/5.2/topics/security/#clickjacking-protection">Защита от clickjacking</a></li>
+<li><a href="https://docs.djangoproject.com/en/5.2/ref/middleware/#module-django.middleware.security">Security Middleware</a></li>
+</ul>

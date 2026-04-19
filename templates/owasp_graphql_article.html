@@ -1,0 +1,235 @@
+<h1 id="graphql-cheat-sheet">Статья по безопасности GraphQL (GraphQL Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p><a href="https://graphql.org">GraphQL</a> — открытый язык запросов (изначально Facebook) для построения API как альтернативы REST и SOAP. Популярен с 2012 года за гибкость для разработчиков и клиентов. Есть серверы и клиенты на разных языках. <a href="https://foundation.graphql.org/">Многие компании</a> используют GraphQL, в том числе GitHub, Credit Karma, Intuit и PayPal.</p>
+<p>Эта статья охватывает ключевые темы безопасности GraphQL:</p>
+<ul>
+<li>Строгая <a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html">валидация входных данных</a>.</li>
+<li>Ограничение «дорогих» запросов против <a href="/owasp/cheatsheets/Denial_of_Service_Cheat_Sheet.html">отказа в обслуживании (DoS)</a>.</li>
+<li>Корректный <a href="/owasp/cheatsheets/Access_Control_Cheat_Sheet.html">контроль доступа</a>.</li>
+<li>Отключение небезопасных настроек по умолчанию (избыточные ошибки, интроспекция, GraphiQL и т.д.).</li>
+</ul>
+<h2 id="common-attacks">Типичные атаки</h2>
+<ul>
+<li><a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa8-injection.md">Инъекции</a> — в т.ч.:<ul>
+<li><a href="https://owasp.org/www-community/attacks/SQL_Injection">SQL</a> и <a href="https://www.netsparker.com/blog/web-security/what-is-nosql-injection/">NoSQL</a></li>
+<li><a href="https://owasp.org/www-community/attacks/Command_Injection">инъекции команд ОС</a></li>
+<li><a href="https://portswigger.net/web-security/ssrf">SSRF</a>, <a href="https://owasp.org/www-community/vulnerabilities/CRLF_Injection">CRLF</a>, <a href="https://www.acunetix.com/websitesecurity/crlf-injection/">инъекции</a>, <a href="https://portswigger.net/web-security/request-smuggling">подмена HTTP-запросов</a></li>
+</ul>
+</li>
+<li><a href="https://owasp.org/www-community/attacks/Denial_of_Service">DoS</a> (<a href="https://www.cloudflare.com/learning/ddos/glossary/denial-of-service/">отказ в обслуживании</a>)</li>
+<li>Нарушение авторизации: <a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa1-broken-object-level-authorization.md">недостаточная</a> или <a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa3-excessive-data-exposure.md">избыточная</a> выдача данных, в т.ч. <a href="https://portswigger.net/web-security/access-control/idor">IDOR</a></li>
+<li>Атаки пакетной обработки (batching) — специфичный для GraphQL способ брутфорса</li>
+<li>Злоупотребление небезопасными настройками по умолчанию</li>
+</ul>
+<h2 id="best-practices-and-recommendations">Практики и рекомендации</h2>
+<h3 id="input-validation">Валидация входных данных</h3>
+<p>Строгая валидация снижает риск инъекций и DoS. В GraphQL клиент передаёт идентификаторы, а бэкенд через резолверы ходит в HTTP, БД и др. Ввод попадает во внешние вызовы — это типичная поверхность для инъекций и DoS.</p>
+<p>См. шпаргалки OWASP: <a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html">Input Validation</a> и <a href="/owasp/cheatsheets/Injection_Prevention_Cheat_Sheet.html">Injection Prevention</a>.</p>
+<h4 id="general-practices">Общие практики</h4>
+<p>Принимайте только допустимые значения (белый список).</p>
+<ul>
+<li>Используйте строгие <a href="https://graphql.org/learn/schema/#type-language">типы</a> GraphQL: <a href="https://graphql.org/learn/schema/#scalar-types">скаляры</a>, <a href="https://graphql.org/learn/schema/#enumeration-types">enum</a>; для сложных правил — <a href="https://graphql.org/learn/validation/">валидаторы</a> и при необходимости <a href="https://itnext.io/custom-scalars-in-graphql-9c26f43133f3">пользовательские скаляры</a>.</li>
+<li>Задавайте <a href="https://graphql.org/learn/schema/#input-types">схемы входа для мутаций</a>.</li>
+<li><a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html#allow-list-vs-block-list">Явно разрешайте символы</a>, не полагайтесь на чёрный список.<ul>
+<li>Чем уже белый список, тем лучше; часто разумный старт — только буквы/цифры без Unicode, что отсекает многие атаки.</li>
+</ul>
+</li>
+<li>Для Unicode используйте <a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html#validating-free-form-unicode-text">единую внутреннюю кодировку</a>.</li>
+<li><a href="/owasp/cheatsheets/Error_Handling_Cheat_Sheet.html">Отклоняйте неверный ввод</a> без избыточных подсказок о внутренней логике API.</li>
+</ul>
+<h4 id="injection-prevention">Защита от инъекций</h4>
+<p>Если ввод передаётся в другой «интерпретатор» (SQL/NoSQL/ORM, ОС, LDAP, XML):</p>
+<ul>
+<li>Предпочитайте библиотеки с безопасным API (параметризация и т.п.).<ul>
+<li>Следуйте документации.</li>
+<li>ORM/ODM полезны, но при неправильном использовании возможны <a href="https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.7-Testing_for_ORM_Injection">ORM-инъекции</a>.</li>
+</ul>
+</li>
+<li>Иначе экранируйте/кодируйте по правилам целевого языка; выбирайте поддерживаемые библиотеки.</li>
+</ul>
+<p>Дополнительно:</p>
+<ul>
+<li><a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL Injection Prevention</a></li>
+<li><a href="https://www.netsparker.com/blog/web-security/what-is-nosql-injection/">NoSQL Injection Prevention</a></li>
+<li><a href="/owasp/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html">LDAP Injection Prevention</a></li>
+<li><a href="/owasp/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html">OS Command Injection Prevention</a></li>
+<li><a href="/owasp/cheatsheets/XML_Security_Cheat_Sheet.html">XML Security</a> и <a href="/owasp/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html">XXE Injection Prevention</a></li>
+</ul>
+<h4 id="process-validation">Валидация процессов</h4>
+<p>Даже санитизированный ввод не должен управлять потоком данных без необходимости: например, не выполняйте HTTP-запросы на хост, который задал пользователь (если нет жёсткой бизнес-потребности).</p>
+<h3 id="dos-prevention">Защита от DoS</h3>
+<p>DoS бьёт по доступности и стабильности API. Ниже — меры на уровне приложения и стека; отдельная шпаргалка — <a href="/owasp/cheatsheets/Denial_of_Service_Cheat_Sheet.html">DoS</a>.</p>
+<p>Специфично для GraphQL:</p>
+<ul>
+<li>ограничение глубины запросов;</li>
+<li>ограничение «количества» (amount) объектов в запросе;</li>
+<li><a href="https://graphql.org/learn/pagination/">пагинация</a>;</li>
+<li>разумные таймауты на уровне приложения и/или инфраструктуры;</li>
+<li>анализ стоимости запроса и верхний предел;</li>
+<li>rate limiting по IP и/или пользователю;</li>
+<li><a href="https://graphql.org/learn/best-practices/#server-side-batching-caching">батчинг и кэш на сервере</a> (<a href="https://github.com/facebook/dataloader">DataLoader</a>).</li>
+</ul>
+<h4 id="query-limiting-depth-amount">Ограничение глубины и количества</h4>
+<p>У запроса есть глубина вложенности и число запрашиваемых элементов (например <code>first: 99999999</code>). По умолчанию ограничений может не быть — риск DoS. Задайте лимиты (часто небольшая своя реализация). См. <a href="https://www.apollographql.com/blog/securing-your-graphql-api-from-malicious-queries-16130a324a6b">Apollo</a> и <a href="https://www.howtographql.com/advanced/4-security/">How to GraphQL</a>. Пагинация также помогает производительности.</p>
+<p>graphql-java: <a href="https://github.com/graphql-java/graphql-java/blob/master/src/main/java/graphql/analysis/MaxQueryDepthInstrumentation.java">MaxQueryDepthInstrumentation</a>. JavaScript: <a href="https://www.npmjs.com/package/graphql-depth-limit">graphql-depth-limit</a>, <a href="https://github.com/joonhocho/graphql-input-number">graphql-input-number</a>.</p>
+<p>Пример запроса большой глубины:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-graphql">query evil {            # Depth: 0
+  album(id: 42) {       # Depth: 1
+    songs {             # Depth: 2
+      album {           # Depth: 3
+        ...             # Depth: ...
+        album {id: N}   # Depth: N
+      }
+    }
+  }
+}
+</code></pre></div>
+<p>Пример запроса с огромным <code>first</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-graphql">query {
+  author(id: "abc") {
+    posts(first: 99999999) {
+      title
+    }
+  }
+}
+</code></pre></div>
+<h4 id="timeouts">Таймауты</h4>
+<p>Таймауты ограничивают ресурсы на один запрос, но срабатывают не всегда вовремя. Значение зависит от API и способа получения данных.</p>
+<p>На уровне приложения — таймауты для запросов и резолверов (в GraphQL из коробки нет — нужен свой код). См. <a href="https://medium.com/workflowgen/graphql-query-timeout-and-complexity-management-fab4d7315d8d">статью в Medium</a> и примеры ниже.</p>
+<p><em><strong>Пример таймаута (JavaScript)</strong></em> — фрагмент из <a href="https://stackoverflow.com/a/53277955/1200388">ответа на Stack Overflow</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">request.incrementResolverCount = function () {
+    var runTime = Date.now() - startTime;
+    if (runTime &gt; 10000) {  // таймаут 10 с
+      if (request.logTimeoutError) {
+        logger('ERROR', `Request ${request.uuid} query execution timeout`);
+      }
+      request.logTimeoutError = false;
+      throw 'Query execution has timeout. Field resolution aborted';
+    }
+    this.resolverCount++;
+  };
+</code></pre></div>
+<p><em><strong>Пример таймаута (Java) через <a href="https://www.graphql-java.com/documentation/instrumentation">Instrumentation</a></strong></em></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">public class TimeoutInstrumentation extends SimpleInstrumentation {
+    @Override
+    public DataFetcher&lt;?&gt; instrumentDataFetcher(
+            DataFetcher&lt;?&gt; dataFetcher, InstrumentationFieldFetchParameters parameters
+    ) {
+        return environment -&gt;
+            Observable.fromCallable(() -&gt; dataFetcher.get(environment))
+                .subscribeOn(Schedulers.computation())
+                .timeout(10, TimeUnit.SECONDS)  // таймаут 10 с
+                .blockingFirst();
+    }
+}
+</code></pre></div>
+<p><em><strong>Инфраструктурный таймаут</strong></em></p>
+<p>Проще задать таймаут на HTTP-сервере (<a href="https://httpd.apache.org/docs/2.4/mod/core.html#timeout">Apache</a>, <a href="http://nginx.org/en/docs/http/ngx_http_core_module.html#send_timeout">nginx</a>), reverse proxy или балансировщике; такие таймауты грубее и их чаще обходят, чем логику в приложении.</p>
+<h4 id="query-cost-analysis">Анализ стоимости запроса</h4>
+<p>Полям/типам назначают «стоимость»; слишком дорогие запросы отклоняются. Реализация сложная и не всегда нужна — сначала проверьте API «тяжёлым» запросом на стенде. Цитата Apollo:</p>
+<blockquote>
+<p><strong>Прежде чем тратить много времени на анализ стоимости, убедитесь, что он вам нужен.</strong> Попробуйте «положить» staging API тяжёлым запросом — возможно, у вас нет глубокой вложенности или тысячи записей за раз обрабатываются нормально.</p>
+</blockquote>
+<p>Подробнее — в разделе «Query Cost Analysis» <a href="https://www.apollographql.com/blog/securing-your-graphql-api-from-malicious-queries-16130a324a6b">той же статьи Apollo</a>.</p>
+<p>graphql-java: встроенный <a href="https://github.com/graphql-java/graphql-java/blob/master/src/main/java/graphql/analysis/MaxQueryComplexityInstrumentation.java">MaxQueryComplexityInstrumentation</a>. JavaScript: <a href="https://github.com/pa-bru/graphql-cost-analysis">graphql-cost-analysis</a> или <a href="https://github.com/4Catalyzer/graphql-validation-complexity">graphql-validation-complexity</a>.</p>
+<h4 id="rate-limiting">Ограничение частоты запросов</h4>
+<p>Лимиты по IP или пользователю (в т.ч. для анонимов) снижают спам. Удобно делать на WAF, API-шлюзе или веб-сервере (<a href="https://www.nginx.com/blog/rate-limiting-nginx/">Nginx</a>, <a href="https://httpd.apache.org/docs/2.4/mod/mod_ratelimit.html">Apache</a> / <a href="https://github.com/jzdziarski/mod_evasive">mod_evasive</a>). Реализация в коде сложнее. Про throttling в GraphQL — <a href="https://www.howtographql.com/advanced/4-security/">How to GraphQL</a>.</p>
+<h4 id="server-side-batching-and-caching">Батчинг и кэш на сервере</h4>
+<p>Чтобы не дублировать запросы за одними и теми же данными в коротком окне, используйте <a href="https://graphql.org/learn/best-practices/#server-side-batching-caching">батчинг и кэширование</a>; например <a href="https://github.com/facebook/dataloader">DataLoader</a>.</p>
+<h4 id="system-resource-management">Ресурсы системы</h4>
+<p>Без лимитов CPU/памяти API уязвим к DoS. На Linux — <a href="https://en.wikipedia.org/wiki/Cgroups">cgroups</a>, <a href="https://linuxhint.com/linux_ulimit_command/">ulimits</a>, <a href="https://linuxcontainers.org/lxc/security/">LXC</a>; в контейнерах проще — см. раздел про лимиты ресурсов в <a href="/owasp/cheatsheets/Docker_Security_Cheat_Sheet.html#rule-7-limit-resources-memory-cpu-file-descriptors-processes-restarts">Docker Security Cheat Sheet</a>.</p>
+<h3 id="access-control">Контроль доступа</h3>
+<ul>
+<li>Всегда проверяйте, что субъект имеет право читать или менять запрашиваемые данные (<a href="/owasp/cheatsheets/Access_Control_Cheat_Sheet.html#role-based-access-control-rbac">RBAC</a> и др.). Это снижает риск <a href="/owasp/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">IDOR</a>, включая <a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa1-broken-object-level-authorization.md">BOLA</a> и <a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa5-broken-function-level-authorization.md">BFLA</a>.</li>
+<li>Проверки авторизации на рёбрах и на узлах графа (см. <a href="https://hackerone.com/reports/489146">пример</a>: на рёбрах было, на узлах — нет).</li>
+<li><a href="https://graphql.org/learn/schema/#interfaces">Интерфейсы</a> и <a href="https://graphql.org/learn/schema/#union-types">union</a> помогают возвращать разный набор полей в зависимости от прав.</li>
+<li>В <a href="https://graphql.org/learn/execution/#root-fields-resolvers">резолверах</a> query/mutation можно встраивать проверки, в т.ч. через middleware RBAC.</li>
+<li><a href="https://lab.wallarm.com/why-and-how-to-disable-introspection-query-for-graphql-apis/">Отключите интроспекцию</a> в продакшене и на публичных контурах.</li>
+<li>Отключите <a href="https://github.com/graphql/graphiql">GraphiQL</a> и аналоги в продакшене / на публичных URL.</li>
+</ul>
+<h4 id="general-data-access">Доступ к объектам по ID</h4>
+<p>Часто в запросе передаётся прямой ID сущности (как первичный ключ в БД). Наличие ID не означает права доступа; иначе это <a href="https://github.com/OWASP/API-Security/blob/master/2019/en/src/0xa1-broken-object-level-authorization.md">BOLA</a> / <a href="/owasp/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html">IDOR</a>.</p>
+<p>В схеме могут быть поля <code>node</code> / <code>nodes</code> для прямого доступа по ID. Проверка: <code>cat schema.json | jq ".data.__schema.types[] | select(.name==\"Query\") | .fields[] | .name" | grep node</code>. Удаление полей из схемы отключает путь, но авторизацию всё равно нужно проверять явно.</p>
+<h4 id="query-access-data-fetching">Доступ к полям (чтение)</h4>
+<p>Решите, могут ли разные клиенты читать разные наборы полей; при необходимости проверяйте в коде право на каждое поле.</p>
+<h4 id="mutation-access-data-manipulation">Доступ к мутациям (изменение)</h4>
+<p>Если разрешены мутации, ограничьте, кто и какие поля может менять (только чтение для части клиентов, разные роли и т.д.).</p>
+<h3 id="batching-attacks">Атаки через batching</h3>
+<p>GraphQL позволяет <a href="https://www.apollographql.com/blog/query-batching-in-apollo-63acfd859862/">батчить запросы</a> — несколько операций или несколько объектов за один HTTP-вызов, что даёт <a href="https://lab.wallarm.com/graphql-batching-attack/">batching-атаку</a>: быстрее и менее заметно, чем классический брутфорс. Типичный формат:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">[
+  { query: QUERY_0, variables: VARS_0 },
+  { query: QUERY_1, variables: VARS_1 },
+  { query: QUERY_N, variables: VARS_N }
+]
+</code></pre></div>
+<p>Пример одного запроса с несколькими экземплярами <code>droid</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-graphql">query {
+  droid(id: "2000") {
+    name
+  }
+  second:droid(id: "2001") {
+    name
+  }
+  third:droid(id: "2002") {
+    name
+  }
+}
+</code></pre></div>
+<p>Риски: DoS на уровне приложения, перечисление сущностей, брутфорс паролей/OTP/сессий; WAF/SIEM могут не увидеть множество операций в одном запросе; лимиты nginx по числу запросов не сработают.</p>
+<h4 id="mitigating-batching-attacks">Смягчение batching-атак</h4>
+<p>Лимиты на уровне кода «на один запрос»:</p>
+<ul>
+<li>ограничить число запрашиваемых объектов;</li>
+<li>запретить батчинг для чувствительных сущностей;</li>
+<li>ограничить число операций в одном батче.</li>
+</ul>
+<p>Можно считать число разных объектов в одном вызове и блокировать после порога; для чувствительных данных отключить батчинг, чтобы атакующий вынужден был слать отдельные запросы как к REST. Комбинируйте меры.</p>
+<h3 id="secure-configurations">Безопасная конфигурация</h3>
+<p>Часто по умолчанию включено нежелательное поведение:</p>
+<ul>
+<li>не возвращайте избыточные ошибки (без стека и debug в проде);</li>
+<li>ограничьте или отключите интроспекцию и GraphiQL по политике;</li>
+<li>учитывайте подсказки при опечатках полей, если интроспекция выключена.</li>
+</ul>
+<h4 id="introspection-graphiql">Интроспекция и GraphiQL</h4>
+<p>Часто интроспекция и GraphiQL доступны без аутентификации — раскрывается схема, мутации, устаревшие и «внутренние» поля. Для внешнего API это может быть нормально; для внутреннего — нет. Безопасность через сокрытие не заменяет контролей, но отключение интроспекции снижает утечки. См. <a href="https://lab.wallarm.com/why-and-how-to-disable-introspection-query-for-graphql-apis/">Wallarm</a> и документацию вашей реализации; при необходимости фильтруйте доступ по ролям.</p>
+<p>Без интроспекции поля всё равно можно угадывать; GraphQL может подсказывать похожие имена (<code>Did you mean "user?"</code>) — при возможности отключите; не все движки это умеют. См. <a href="https://github.com/szski/shapeshifter">Shapeshifter</a> и <a href="https://www.youtube.com/watch?v=NPDp7GHmMa0&amp;t=2580">доклад</a>.</p>
+<p><em><strong>Отключение интроспекции (Java)</strong></em></p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">GraphQLSchema schema = GraphQLSchema.newSchema()
+    .query(StarWarsSchema.queryType)
+    .fieldVisibility( NoIntrospectionGraphqlFieldVisibility.NO_INTROSPECTION_FIELD_VISIBILITY )
+    .build();
+</code></pre></div>
+<p><em><strong>Отключение интроспекции и GraphiQL (JavaScript)</strong></em></p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use('/graphql', graphqlHTTP({
+  schema: MySessionAwareGraphQLSchema,
+  validationRules: [NoIntrospection],
+  graphiql: process.env.NODE_ENV === 'development',
+}));
+</code></pre></div>
+<h4 id="dont-return-excessive-errors">Не раскрывайте лишнее в ошибках</h4>
+<p>В продакшене не отдавайте stack trace и не держите отладочный режим. В Apollo Server: <code>debug: false</code> или <code>NODE_ENV</code> в <code>production</code>/<code>test</code>. Внутренний лог стека без отдачи клиенту — <a href="https://www.apollographql.com/docs/apollo-server/data/errors/#masking-and-logging-errors">masking and logging errors</a>, <a href="https://www.apollographql.com/docs/apollo-server/data/errors/">общая документация по ошибкам</a>.</p>
+<h2 id="other-resources">Другие материалы</h2>
+<h3 id="tools">Инструменты</h3>
+<ul>
+<li><a href="https://github.com/doyensec/inql">InQL Scanner</a> — сканер безопасности GraphQL; генерация запросов/мутаций по схеме.</li>
+<li><a href="https://github.com/graphql/graphiql">GraphiQL</a> — обзор схемы и объектов.</li>
+<li><a href="https://github.com/APIs-guru/graphql-voyager">GraphQL Voyager</a> — визуализация схемы.</li>
+</ul>
+<h3 id="graphql-security-best-practices-documentation">Практики и документация</h3>
+<ul>
+<li><a href="https://medium.com/swlh/protecting-your-graphql-api-from-security-vulnerabilities-e8afdfa6fbe4">Protecting GraphQL APIs from security threats</a></li>
+<li><a href="https://nordicapis.com/security-points-to-consider-before-implementing-graphql/">Security points before implementing GraphQL</a></li>
+<li><a href="https://developer.github.com/v4/guides/resource-limitations/">Ограничение ресурсов (таймауты, throttling, сложность, глубина)</a></li>
+<li><a href="https://www.abhaybhargav.com/from-the-trenches-diy-security-perspectives-of-graphql/">Security perspectives of GraphQL</a></li>
+<li><a href="https://planes.studio/blog/how-to-survive-a-penetration-test-as-a-graph-ql-developer">Security perspective for developers</a></li>
+</ul>
+<h3 id="more-on-graphql-attacks">Дополнительно об атаках</h3>
+<ul>
+<li><a href="https://blog.doyensec.com/2018/05/17/graphql-security-overview.html">Обзор атак и мышление атакующего</a></li>
+<li><a href="https://labs.detectify.com/2018/03/14/graphql-abuse/">Обход прав через подмену параметров</a></li>
+<li><a href="https://medium.com/bugbountywriteup/graphql-voyager-as-a-tool-for-security-testing-86d3c634bcd9">Bug bounty и GraphQL</a></li>
+<li><a href="https://www.youtube.com/watch?v=NPDp7GHmMa0">Доклад об злоупотреблении GraphQL</a></li>
+<li><a href="https://vulners.com/myhack58/MYHACK58:62201994269">Примеры</a> <a href="https://www.pentestpartners.com/security-blog/pwning-wordpress-graphql/">реальных</a> <a href="https://hackerone.com/reports/419883">инцидентов</a> <a href="https://vulners.com/hackerone/H1:435066">с</a> <a href="https://www.jonbottarini.com/2018/01/02/abusing-internal-api-to-achieve-idor-in-new-relic/">GraphQL</a></li>
+<li><a href="https://raz0r.name/articles/looting-graphql-endpoints-for-fun-and-profit/">Ещё примеры атак</a></li>
+</ul>

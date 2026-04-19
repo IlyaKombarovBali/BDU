@@ -1,0 +1,908 @@
+<h1 id="dotnet-security-cheat-sheet"> Статья по безопасности DotNet</h1>
+<h2 id="introduction"> Введение</h2>
+<p> На этой странице представлены краткие базовые советы по безопасности .NET для разработчиков.</p>
+<h3 id="the-net-framework"> Платформа .NET</h3>
+<p>.NET Framework — это основная платформа Microsoft для разработки корпоративных приложений. Это поддерживающий API для ASP.NET, классических приложений Windows, служб Windows Communication Foundation, SharePoint, инструментов Visual Studio для Office и других технологий.</p>
+<p>.NET Framework представляет собой набор API-интерфейсов, которые упрощают использование расширенной системы типов, управление данными, графикой, сетями, файловыми операциями и многим другим, что по существу охватывает подавляющее большинство требований для разработки корпоративных приложений в экосистеме Microsoft. Это почти повсеместная библиотека со строгим названием и версиями на уровне сборки.</p>
+<h3 id="updating-the-framework"> Обновление платформы</h3>
+<p>Microsoft поддерживает актуальность .NET Framework с помощью службы Windows Update. Разработчикам обычно не требуется запускать отдельные обновления платформы. Доступ к Центру обновления Windows можно получить по адресу <a href="http://windowsupdate.microsoft.com/"> Центр обновления Windows</a> или из программы Центра обновления Windows на компьютере под управлением Windows.</p>
+<p> Отдельные платформы можно поддерживать в актуальном состоянии с помощью <a href="https://docs.microsoft.com/en-us/nuget/">NuGet</a>. Когда Visual Studio запрашивает обновления, встройте их в свой жизненный цикл.</p>
+<p> Помните, что сторонние библиотеки необходимо обновлять отдельно, и не все из них используют NuGet. Например, ELMAH требует отдельного обновления.</p>
+<h3 id="security-announcements"> Объявления о безопасности</h3>
+<p> Получайте уведомления о безопасности, нажав кнопку «Смотреть» в следующих репозиториях:</p>
+<ul>
+<li> <a href="https://github.com/dotnet/announcements/issues?q=is%3Aopen+is%3Aissue+label%3ASecurity"> Сообщения о безопасности .NET Core</a></li>
+<li> <a href="https://github.com/aspnet/Announcements/issues?q=is%3Aopen+is%3Aissue+label%3ASecurity"> Объявления о безопасности ядра ASP.NET Core и Entity Framework</a></li>
+</ul>
+<h2 id="net-general-guidance"> Общее руководство по .NET</h2>
+<p> В этом разделе содержатся общие рекомендации для приложений .NET.
+Это относится ко всем приложениям .NET, включая ASP.NET, WPF, WinForms и другим.</p>
+<p> В рейтинге OWASP Top 10 перечислены наиболее распространенные и опасные угрозы веб-безопасности в современном мире, и он пересматривается каждые несколько лет.
+и обновляется с учетом последних данных об угрозах. Этот раздел шпаргалки основан на этом списке.
+Ваш подход к обеспечению безопасности вашего веб-приложения должен заключаться в том, чтобы начать с верхней угрозы A1 ниже и двигаться вниз;
+это гарантирует, что время, потраченное на обеспечение безопасности, будет потрачено наиболее эффективно и
+сначала охватить основные угрозы, а затем меньшие угрозы. После рассмотрения Топ-10 обычно рекомендуется
+для оценки других угроз или прохождения профессионально пройденного теста на проникновение.</p>
+<h3 id="a01-broken-access-control">A01 Нарушение контроля доступа</h3>
+<h4 id="weak-account-management"> Слабое управление аккаунтом</h4>
+<p> Убедитесь, что файлы cookie отправляются с установленным флагом HttpOnly, чтобы предотвратить доступ сценариев на стороне клиента к файлам cookie:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">CookieHttpOnly = true,</code></pre></div>
+<p> Сократите период времени, в течение которого сеанс может быть украден, уменьшив время ожидания сеанса и удалив скользящий срок действия:</p>
+<p> Решение об использовании скользящего срока действия зависит от модели угроз вашего приложения. Параметр <code>SlidingExpiration</code> к <code>false</code> обеспечивает абсолютное время жизни сеанса, что ограничивает продолжительность повторного использования украденного сеанса за счет снижения удобства использования долгоживущих интерактивных сеансов. Для некоторых приложений включение скользящего срока действия (<code>true</code>) может быть предпочтительнее для взаимодействия с пользователем, поскольку он сохраняет сеанс активным, пока пользователь активен. Это удобство сопряжено с повышенным риском, если сеанс будет скомпрометирован.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">ExpireTimeSpan = TimeSpan.FromMinutes(60),
+SlidingExpiration = false</code></pre></div>
+<p> Видеть <a href="https://github.com/johnstaveley/SecurityEssentials/blob/master/SecurityEssentials/App_Start/Startup.Auth.cs"> здесь</a> для примера полного фрагмента кода запуска.</p>
+<p> Убедитесь, что файлы cookie отправляются через HTTPS в рабочей среде. Это должно быть реализовано в преобразованиях конфигурации:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;httpCookies requireSSL="true" /&gt;
+&lt;authentication&gt;
+    &lt;forms requireSSL="true" /&gt;
+&lt;/authentication&gt;</code></pre></div>
+<p> Защитите методы входа в систему, регистрации и сброса пароля от атак методом грубой силы с помощью запросов регулирования (см. код ниже). Рассмотрите также возможность использования ReCaptcha.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[HttpPost]
+[AllowAnonymous]
+[ValidateAntiForgeryToken]
+[AllowXRequestsEveryXSecondsAttribute(Name = "LogOn",
+Message = "You have performed this action more than {x} times in the last {n} seconds.",
+Requests = 3, Seconds = 60)]
+public async Task&lt;ActionResult&gt; LogOn(LogOnViewModel model, string returnUrl)</code></pre></div>
+<p> НЕ НУЖНО: внедрять собственную аутентификацию или управление сеансами. Используйте тот, который предоставлен .NET.</p>
+<p> НЕ: Сообщайте кому-либо, существует ли учетная запись при входе в систему, регистрации или сбросе пароля. Скажите что-то вроде: «Имя пользователя или пароль были неверными» или «Если эта учетная запись существует, токен сброса будет отправлен на зарегистрированный адрес электронной почты». Это защищает от перечисления учетных записей.</p>
+<p> Обратная связь пользователю должна быть идентична независимо от того, существует ли учетная запись, как с точки зрения содержания, так и с точки зрения поведения. Например, если ответ занимает на 50% больше времени, когда учетная запись реальна, то информацию о членстве можно угадать и проверить.</p>
+<h4 id="missing-function-level-access-control"> Отсутствует контроль доступа на функциональном уровне</h4>
+<p> НУЖНО: авторизовать пользователей на всех внешних конечных точках. В .NET Framework есть множество способов авторизации пользователя, используйте их на уровне метода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[Authorize(Roles = "Admin")]
+[HttpGet]
+public ActionResult Index(int page = 1)</code></pre></div>
+<p> или еще лучше, на уровне контроллера:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[Authorize]
+public class UserController</code></pre></div>
+<p> Вы также можете проверить роли в коде, используя функции идентификации в .net:<code>System.Web.Security.Roles.IsUserInRole(userName, roleName)</code></p>
+<p> Более подробную информацию вы можете найти в <a href="/owasp/cheatsheets/Authorization_Cheat_Sheet.html"> Шпаргалка по авторизации</a> и <a href="/owasp/cheatsheets/Authorization_Testing_Automation_Cheat_Sheet.html"> Памятка по автоматизации авторизационного тестирования</a>.</p>
+<h4 id="insecure-direct-object-references"> Небезопасные прямые ссылки на объекты</h4>
+<p> Если у вас есть ресурс (объект), к которому можно получить доступ по ссылке (в примере ниже это <code>id</code>), вам необходимо убедиться, что пользователь должен иметь доступ к этому ресурсу.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">// Insecure
+public ActionResult Edit(int id)
+{
+  var user = _context.Users.FirstOrDefault(e =&gt; e.Id == id);
+  return View("Details", new UserViewModel(user);
+}
+
+// Secure
+public ActionResult Edit(int id)
+{
+  var user = _context.Users.FirstOrDefault(e =&gt; e.Id == id);
+  // Establish user has right to edit the details
+  if (user.Id != _userIdentity.GetUserId())
+  {
+        HandleErrorInfo error = new HandleErrorInfo(
+            new Exception("INFO: You do not have permission to edit these details"));
+        return View("Error", error);
+  }
+  return View("Edit", new UserViewModel(user);
+}</code></pre></div>
+<p> Более подробную информацию можно найти в <a href="/owasp/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html"> Памятка по предотвращению небезопасных прямых ссылок на объекты</a>.</p>
+<h3 id="a02-cryptographic-failures">A02 Криптографические сбои</h3>
+<h4 id="general-cryptography-guidance"> Общее руководство по криптографии</h4>
+<ul>
+<li><strong> Никогда, никогда не пишите свои собственные криптографические функции.</strong></li>
+<li> По возможности старайтесь вообще не писать какой-либо криптографический код. Вместо этого попробуйте либо использовать уже существующие решения по управлению секретами, либо решение по управлению секретами, предоставленное вашим облачным провайдером. Для получения дополнительной информации см.<a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html"> Памятка по управлению секретами OWASP</a>.</li>
+<li> Если вы не можете использовать уже существующее решение для управления секретами, попробуйте использовать надежную и хорошо известную библиотеку реализации, а не использовать библиотеки, встроенные в .NET, поскольку с их помощью слишком легко допустить криптографические ошибки.</li>
+<li> Убедитесь, что ваше приложение или протокол могут легко поддерживать будущие изменения криптографических алгоритмов.</li>
+</ul>
+<h4 id="hashing"> Хеширование</h4>
+<p> НУЖНО: используйте сильный алгоритм хеширования.</p>
+<ul>
+<li> В .NET (как Framework, так и Core) самым сильным алгоритмом хеширования для общих требований хеширования является <a href="https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.sha512">System.Security.Cryptography.SHA512</a>.</li>
+<li> В .NET Framework 4.6 и более ранних версиях самым надежным алгоритмом хеширования паролей является PBKDF2, реализованный как <a href="https://docs.microsoft.com/en-us/dotnet/api/system.security.cryptography.rfc2898derivebytes">System.Security.Cryptography.Rfc2898DeriveBytes</a>.</li>
+<li> В .NET Framework 4.6.1 и более поздних версиях, а также в .NET Core самым надежным алгоритмом хеширования паролей является PBKDF2, реализованный как <a href="https://docs.microsoft.com/en-us/aspnet/core/security/data-protection/consumer-apis/password-hashing">Microsoft.AspNetCore.Cryptography.KeyDerivation.Pbkdf2</a> который имеет ряд существенных преимуществ перед <code>Rfc2898DeriveBytes</code>.</li>
+<li> При использовании функции хеширования для хеширования неуникальных входных данных, таких как пароли, используйте значение соли, добавляемое к исходному значению перед хешированием.</li>
+<li> Обратитесь к <a href="/owasp/cheatsheets/Password_Storage_Cheat_Sheet.html"> Памятка по хранению паролей</a> для получения дополнительной информации.</li>
+</ul>
+<h4 id="passwords"> Пароли</h4>
+<p> НУЖНО: применять пароли минимальной сложности, которые выдержат атаку по словарю; то есть более длинные пароли, в которых используется полный набор символов (цифры, символы и буквы) для увеличения энтропии.</p>
+<h4 id="encryption"> Шифрование</h4>
+<p> НУЖНО: используйте надежный алгоритм шифрования, например AES-512, если личные данные необходимо восстановить в исходном формате.</p>
+<p> НУЖНО: Защищайте ключи шифрования больше, чем любой другой актив. Дополнительную информацию о хранении неактивных ключей шифрования см.<a href="/owasp/cheatsheets/Key_Management_Cheat_Sheet.html#storage"> Шпаргалка по управлению ключами</a>.</p>
+<p> НУЖНО: используйте TLS 1.2+ для всего сайта. Получите бесплатный сертификат <a href="https://letsencrypt.org/">LetsEncrypt.org</a> и автоматизировать продление.</p>
+<p> НЕ:<a href="https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices"> Разрешить SSL, это устарело.</a>.</p>
+<p> НУЖНО: иметь строгую политику TLS (см.<a href="https://www.ssllabs.com/projects/best-practices/index.html"> Лучшие практики SSL</a>), используйте TLS 1.2+ везде, где это возможно. Затем проверьте конфигурацию, используя <a href="https://www.ssllabs.com/ssltest/">SSL-тест</a> или <a href="https://testssl.sh/"> ТестSSL</a>.</p>
+<p> Более подробную информацию о защите транспортного уровня можно найти в <a href="/owasp/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"> Памятка по безопасности транспортного уровня</a>.</p>
+<p> НУЖНО: Убедитесь, что заголовки не раскрывают информацию о вашем приложении. Видеть <a href="https://github.com/johnstaveley/SecurityEssentials/blob/master/SecurityEssentials/Core/HttpHeaders.cs">HttpHeaders.cs</a>, <a href="https://github.com/Dionach/StripHeaders/"> Дионах Стрипхедерс</a>, отключить через <code>web.config</code> или <a href="https://medium.com/bugbountywriteup/security-headers-1c770105940b"> Стартап.cs</a>.</p>
+<p> например Web.config</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;system.web&gt;
+    &lt;httpRuntime enableVersionHeader="false"/&gt;
+&lt;/system.web&gt;
+&lt;system.webServer&gt;
+    &lt;security&gt;
+        &lt;requestFiltering removeServerHeader="true" /&gt;
+    &lt;/security&gt;
+    &lt;httpProtocol&gt;
+        &lt;customHeaders&gt;
+            &lt;add name="X-Content-Type-Options" value="nosniff" /&gt;
+            &lt;add name="X-Frame-Options" value="DENY" /&gt;
+            &lt;add name="X-Permitted-Cross-Domain-Policies" value="master-only"/&gt;
+            &lt;add name="X-XSS-Protection" value="0"/&gt;
+            &lt;remove name="X-Powered-By"/&gt;
+        &lt;/customHeaders&gt;
+    &lt;/httpProtocol&gt;
+&lt;/system.webServer&gt;</code></pre></div>
+<p> например Startup.cs</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">app.UseHsts(hsts =&gt; hsts.MaxAge(365).IncludeSubdomains());
+app.UseXContentTypeOptions();
+app.UseReferrerPolicy(opts =&gt; opts.NoReferrer());
+app.UseXXssProtection(options =&gt; options.FilterDisabled());
+app.UseXfo(options =&gt; options.Deny());
+
+app.UseCsp(opts =&gt; opts
+ .BlockAllMixedContent()
+ .StyleSources(s =&gt; s.Self())
+ .StyleSources(s =&gt; s.UnsafeInline())
+ .FontSources(s =&gt; s.Self())
+ .FormActions(s =&gt; s.Self())
+ .FrameAncestors(s =&gt; s.Self())
+ .ImageSources(s =&gt; s.Self())
+ .ScriptSources(s =&gt; s.Self())
+ );</code></pre></div>
+<p> Более подробную информацию о заголовках можно найти на странице <a href="https://owasp.org/www-project-secure-headers/"> Проект безопасных заголовков OWASP</a>.</p>
+<h4 id="encryption-for-storage"> Шифрование для хранения</h4>
+<ul>
+<li> Используйте <a href="https://docs.microsoft.com/en-us/dotnet/standard/security/how-to-use-data-protection">API защиты данных Windows (DPAPI)</a> для безопасного локального хранения конфиденциальных данных.</li>
+<li> Если DPAPI невозможно использовать, следуйте инструкциям по алгоритму, приведенным в <a href="/owasp/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#algorithms"> Памятка по криптографическому хранилищу OWASP</a>.</li>
+</ul>
+<p> В следующем фрагменте кода показан пример использования AES-GCM для шифрования и дешифрования данных. Настоятельно рекомендуется, чтобы эксперт по криптографии проверил ваш окончательный проект и код, поскольку даже самая тривиальная ошибка может серьезно ослабить ваше шифрование.</p>
+<p> Код основан на примере отсюда:<a href="https://www.scottbrady91.com/c-sharp/aes-gcm-dotnet">https://www.scottbrady91.com/c-sharp/aes-gcm-dotnet</a></p>
+<p> Несколько ограничений/подводных камней с этим кодом:</p>
+<ul>
+<li> Он не учитывает ротацию ключей или управление, что само по себе является целой темой.</li>
+<li> Важно использовать разные значения nonce для каждой операции шифрования, даже если используется один и тот же ключ.</li>
+<li> Ключ необходимо будет надежно хранить.</li>
+</ul>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «Симметричное шифрование AES-GCM».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">// Code based on example from here:
+// https://www.scottbrady91.com/c-sharp/aes-gcm-dotnet
+
+public class AesGcmSimpleTest
+{
+    public static void Main()
+    {
+
+        // Key of 32 bytes / 256 bits for AES
+        var key = new byte[32];
+        RandomNumberGenerator.Fill(key);
+
+        // MaxSize = 12 bytes / 96 bits and this size should always be used.
+        var nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
+        RandomNumberGenerator.Fill(nonce);
+
+        // Tag for authenticated encryption
+        var tag = new byte[AesGcm.TagByteSizes.MaxSize];
+
+        var message = "This message to be encrypted";
+        Console.WriteLine(message);
+
+        // Encrypt the message
+        var cipherText = AesGcmSimple.Encrypt(message, nonce, out tag, key);
+        Console.WriteLine(Convert.ToBase64String(cipherText));
+
+        // Decrypt the message
+        var message2 = AesGcmSimple.Decrypt(cipherText, nonce, tag, key);
+        Console.WriteLine(message2);
+
+
+    }
+}
+
+
+public static class AesGcmSimple
+{
+
+    public static byte[] Encrypt(string plaintext, byte[] nonce, out byte[] tag, byte[] key)
+    {
+        using(var aes = new AesGcm(key))
+        {
+            // Tag for authenticated encryption
+            tag = new byte[AesGcm.TagByteSizes.MaxSize];
+
+            // Create a byte array from the message to encrypt
+            var plaintextBytes = Encoding.UTF8.GetBytes(plaintext);
+
+            // Ciphertext will be same length in bytes as plaintext
+            var ciphertext = new byte[plaintextBytes.Length];
+
+            // perform the actual encryption
+            aes.Encrypt(nonce, plaintextBytes, ciphertext, tag);
+            return ciphertext;
+        }
+    }
+
+    public static string Decrypt(byte[] ciphertext, byte[] nonce, byte[] tag, byte[] key)
+    {
+        using(var aes = new AesGcm(key))
+        {
+            // Plaintext will be same length in bytes as Ciphertext
+            var plaintextBytes = new byte[ciphertext.Length];
+
+            // perform the actual decryption
+            aes.Decrypt(nonce, ciphertext, tag, plaintextBytes);
+
+            return Encoding.UTF8.GetString(plaintextBytes);
+        }
+    }
+}</code></pre></div>
+</details>
+<h4 id="encryption-for-transmission"> Шифрование для передачи</h4>
+<ul>
+<li> Опять же, следуйте инструкциям по алгоритму в <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#algorithms"> Памятка по криптографическому хранилищу OWASP</a>.</li>
+</ul>
+<p> В следующем фрагменте кода показан пример использования эллиптической кривой/Диффи-Хельмана (ECDH) вместе с AES-GCM для шифрования/дешифрования данных между двумя разными сторонами без необходимости передачи симметричного ключа между двумя сторонами. Вместо этого стороны обмениваются открытыми ключами и затем могут использовать ECDH для создания общего секрета, который можно использовать для симметричного шифрования.</p>
+<p> Опять же, настоятельно рекомендуется, чтобы эксперт по криптографии проверил ваш окончательный проект и код, поскольку даже самая тривиальная ошибка может серьезно ослабить ваше шифрование.</p>
+<p> Обратите внимание, что этот пример кода основан на <code>AesGcmSimple</code> класс из <a href="#encryption-for-storage"> предыдущий раздел</a>.</p>
+<p> Несколько ограничений/подводных камней с этим кодом:</p>
+<ul>
+<li> Он не учитывает ротацию ключей или управление, что само по себе является целой темой.</li>
+<li> Код намеренно применяет новый одноразовый номер для каждой операции шифрования, но его необходимо рассматривать как отдельный элемент данных рядом с зашифрованным текстом.</li>
+<li> Приватные ключи необходимо будет надежно хранить.</li>
+<li> Код не учитывает проверку открытых ключей перед использованием.</li>
+<li> В целом, между двумя сторонами нет никакой проверки подлинности.</li>
+</ul>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «Асимметричное шифрование ECDH».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">public class ECDHSimpleTest
+{
+    public static void Main()
+    {
+        // Generate ECC key pair for Alice
+        var alice = new ECDHSimple();
+        byte[] alicePublicKey = alice.PublicKey;
+
+        // Generate ECC key pair for Bob
+        var bob = new ECDHSimple();
+        byte[] bobPublicKey = bob.PublicKey;
+
+        string plaintext = "Hello, Bob! How are you?";
+        Console.WriteLine("Secret being sent from Alice to Bob: " + plaintext);
+
+        // Note that a new nonce is generated with every encryption operation in line with
+        // in line with the AES GCM security
+        byte[] tag;
+        byte[] nonce;
+        var cipherText = alice.Encrypt(bobPublicKey, plaintext, out nonce, out tag);
+        Console.WriteLine("Ciphertext, nonce, and tag being sent from Alice to Bob: " + Convert.ToBase64String(cipherText) + " " + Convert.ToBase64String(nonce) + " " + Convert.ToBase64String(tag));
+
+        var decrypted = bob.Decrypt(alicePublicKey, cipherText, nonce, tag);
+        Console.WriteLine("Secret received by Bob from Alice: " + decrypted);
+
+        Console.WriteLine();
+
+        string plaintext2 = "Hello, Alice! I'm good, how are you?";
+        Console.WriteLine("Secret being sent from Bob to Alice: " + plaintext2);
+
+        byte[] tag2;
+        byte[] nonce2;
+        var cipherText2 = bob.Encrypt(alicePublicKey, plaintext2, out nonce2, out tag2);
+        Console.WriteLine("Ciphertext, nonce, and tag being sent from Bob to Alice: " + Convert.ToBase64String(cipherText2) + " " + Convert.ToBase64String(nonce2) + " " + Convert.ToBase64String(tag2));
+
+        var decrypted2 = alice.Decrypt(bobPublicKey, cipherText2, nonce2, tag2);
+        Console.WriteLine("Secret received by Alice from Bob: " + decrypted2);
+    }
+}
+
+
+public class ECDHSimple
+{
+
+    private ECDiffieHellmanCng ecdh = new ECDiffieHellmanCng();
+
+    public byte[] PublicKey
+    {
+        get
+        {
+            return ecdh.PublicKey.ToByteArray();
+        }
+    }
+
+    public byte[] Encrypt(byte[] partnerPublicKey, string message, out byte[] nonce, out byte[] tag)
+    {
+        // Generate the AES Key and Nonce
+        var aesKey = GenerateAESKey(partnerPublicKey);
+
+        // Tag for authenticated encryption
+        tag = new byte[AesGcm.TagByteSizes.MaxSize];
+
+        // MaxSize = 12 bytes / 96 bits and this size should always be used.
+        // A new nonce is generated with every encryption operation in line with
+        // the AES GCM security model
+        nonce = new byte[AesGcm.NonceByteSizes.MaxSize];
+        RandomNumberGenerator.Fill(nonce);
+
+        // return the encrypted value
+        return AesGcmSimple.Encrypt(message, nonce, out tag, aesKey);
+    }
+
+
+    public string Decrypt(byte[] partnerPublicKey, byte[] ciphertext, byte[] nonce, byte[] tag)
+    {
+        // Generate the AES Key and Nonce
+        var aesKey = GenerateAESKey(partnerPublicKey);
+
+        // return the decrypted value
+        return AesGcmSimple.Decrypt(ciphertext, nonce, tag, aesKey);
+    }
+
+    private byte[] GenerateAESKey(byte[] partnerPublicKey)
+    {
+        // Derive the secret based on this side's private key and the other side's public key
+        byte[] secret = ecdh.DeriveKeyMaterial(CngKey.Import(partnerPublicKey, CngKeyBlobFormat.EccPublicBlob));
+
+        byte[] aesKey = new byte[32]; // 256-bit AES key
+        Array.Copy(secret, 0, aesKey, 0, 32); // Copy first 32 bytes as the key
+
+        return aesKey;
+    }
+}</code></pre></div>
+</details>
+<h3 id="a03-injection">A03 Инъекция</h3>
+<h4 id="sql-injection">SQL-инъекция</h4>
+<p> НУЖНО: Использование реляционного преобразователя объектов (ORM) или хранимых процедур — наиболее эффективный способ противодействия уязвимости SQL-инъекции.</p>
+<p> НУЖНО: используйте параметризованные запросы там, где необходимо использовать прямой запрос SQL. Более подробную информацию можно найти в <a href="/owasp/cheatsheets/Query_Parameterization_Cheat_Sheet.html"> Памятка по параметризации запроса</a>.</p>
+<p> Например, используя Entity Framework:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">var sql = @"Update [User] SET FirstName = @FirstName WHERE Id = @Id";
+context.Database.ExecuteSqlCommand(
+    sql,
+    new SqlParameter("@FirstName", firstname),
+    new SqlParameter("@Id", id));</code></pre></div>
+<p> НЕ НУЖНО: объединять строки в любом месте вашего кода и выполнять их в базе данных (так называемое<em> динамический SQL</em>).</p>
+<p> Примечание. Вы все равно можете случайно сделать это с помощью ORM или хранимых процедур, поэтому проверяйте везде. Например:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">string sql = "SELECT * FROM Users WHERE UserName='" + txtUser.Text + "' AND Password='"
+                + txtPassword.Text + "'";
+context.Database.ExecuteSqlCommand(sql); // SQL Injection vulnerability!</code></pre></div>
+<p> НУЖНО: практиковать минимальные привилегии — подключайтесь к базе данных, используя учетную запись с минимальным набором необходимых разрешений.
+выполнять свою работу, а не учетную запись администратора базы данных.</p>
+<h4 id="os-injection"> Внедрение ОС</h4>
+<p> Общие рекомендации по внедрению ОС можно найти в <a href="/owasp/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"> Памятка по защите от внедрения команд ОС</a>.</p>
+<p> ДЕЛАТЬ: использовать <a href="https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.start?view=netframework-4.7.2">System.Diagnostics.Process.Start</a> для вызова базовых функций ОС.</p>
+<p> например</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">var process = new System.Diagnostics.Process();
+var startInfo = new System.Diagnostics.ProcessStartInfo();
+startInfo.FileName = "validatedCommand";
+startInfo.Arguments = "validatedArg1 validatedArg2 validatedArg3";
+process.StartInfo = startInfo;
+process.Start();</code></pre></div>
+<p> НЕЛЬЗЯ: Предполагайте, что этот механизм защитит от вредоносного ввода, предназначенного для взлома одного аргумента и последующего вмешательства в другой аргумент процесса. Это все равно будет возможно.</p>
+<p> НУЖНО: По возможности используйте проверку белого списка для всех вводимых пользователем данных. Проверка ввода предотвращает попадание неправильно сформированных данных в информационную систему. Для получения дополнительной информации см.<a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html"> Шпаргалка по проверке ввода</a>.</p>
+<p> например Проверка ввода пользователя с помощью <a href="https://docs.microsoft.com/en-us/dotnet/api/system.net.ipaddress.tryparse?view=netframework-4.8"> Метод IPAddress.TryParse</a></p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">//User input
+string ipAddress = "127.0.0.1";
+
+//check to make sure an ip address was provided
+if (!string.IsNullOrEmpty(ipAddress))
+{
+ // Create an instance of IPAddress for the specified address string (in
+ // dotted-quad, or colon-hexadecimal notation).
+ if (IPAddress.TryParse(ipAddress, out var address))
+ {
+  // Display the address in standard notation.
+  return address.ToString();
+ }
+ else
+ {
+  //ipAddress is not of type IPAddress
+  ...
+ }
+    ...
+}</code></pre></div>
+<p> НУЖНО: Старайтесь принимать только простые буквенно-цифровые символы.</p>
+<p> НЕТ: Предположим, что вы можете очистить специальные символы, не удаляя их. Различные комбинации <code>\</code>, <code>'</code> и <code>@</code> может оказать неожиданное влияние на попытки санитарной обработки.</p>
+<p> НЕ: Полагайтесь на методы без гарантии безопасности.</p>
+<p> например Поддержка .NET Core 2.2 и более поздних версий, а также .NET 5 и более поздних версий.<a href="https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist">ProcessStartInfo.ArgumentList</a> который выполняет экранирование некоторых символов, но объект включает в себя <a href="https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist#remarks"> отказ от ответственности о том, что небезопасно использовать ненадежный ввод</a>.</p>
+<p> НУЖНО: Посмотрите на альтернативы передаче необработанных ненадежных аргументов через параметры командной строки, такие как кодирование с использованием Base64 (которое также безопасно кодирует любые специальные символы), а затем декодируйте параметры в принимающем приложении.</p>
+<h4 id="ldap-injection">LDAP-инъекция</h4>
+<p> В отличительных именах можно использовать практически любые символы. Однако некоторые из них необходимо экранировать обратной косой чертой.<code>\</code> escape-символ.
+Таблицу, показывающую, какие символы следует экранировать в Active Directory, можно найти в разделе <a href="/owasp/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html"> Памятка по предотвращению LDAP-инъекций</a>.</p>
+<p> Примечание. Символ пробела необходимо экранировать только в том случае, если он является начальным или конечным символом в имени компонента, например в общем имени.
+Встроенные пространства не следует экранировать.</p>
+<p> Более подробную информацию можно найти в <a href="/owasp/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html"> Памятка по предотвращению LDAP-инъекций</a>.</p>
+<h3 id="a04-insecure-design">A04 Небезопасный дизайн</h3>
+<p> Небезопасный дизайн относится к сбоям в безопасности в дизайне приложения или системы. Это отличается от других предметов
+в списке OWASP Top 10, которые относятся к неудачам реализации. Таким образом, тема безопасного проектирования не связана с конкретным
+технологии или языка и поэтому выходит за рамки данной шпаргалки. См.<a href="/owasp/cheatsheets/Secure_Product_Design_Cheat_Sheet.html"> Шпаргалка по безопасному проектированию продукта</a> для получения дополнительной информации.</p>
+<h3 id="a05-security-misconfiguration">A05 Неправильная конфигурация безопасности</h3>
+<h4 id="debug-and-stack-trace"> Отладка и трассировка стека</h4>
+<p> Убедитесь, что отладка и трассировка отключены в рабочей среде. Это можно обеспечить с помощью преобразований web.config:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;compilation xdt:Transform="RemoveAttributes(debug)" /&gt;
+&lt;trace enabled="false" xdt:Transform="Replace"/&gt;</code></pre></div>
+<p> НЕЛЬЗЯ: использовать пароли по умолчанию.</p>
+<p> НУЖНО: Перенаправить запрос, сделанный через HTTP, на HTTPS:</p>
+<p> Например, Global.asax.cs:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">protected void Application_BeginRequest()
+{
+    #if !DEBUG
+    // SECURE: Ensure any request is returned over SSL/TLS in production
+    if (!Request.IsLocal &amp;&amp; !Context.Request.IsSecureConnection) {
+        var redirect = Context.Request.Url.ToString()
+                        .ToLower(CultureInfo.CurrentCulture)
+                        .Replace("http:", "https:");
+        Response.Redirect(redirect);
+    }
+    #endif
+}</code></pre></div>
+<p> Например, Startup.cs в <code>Configure()</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">app.UseHttpsRedirection();</code></pre></div>
+<h4 id="cross-site-request-forgery"> Подделка межсайтового запроса</h4>
+<p> НЕ: Отправляйте конфиденциальные данные без проверки токенов Anti-Forgery (<a href="https://docs.microsoft.com/en-us/aspnet/web-api/overview/security/preventing-cross-site-request-forgery-csrf-attacks">.СЕТЬ</a> / <a href="https://learn.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-7.0#aspnet-core-antiforgery-configuration">.NET ядро</a>).</p>
+<p> СДЕЛАЙТЕ: Отправляйте токен защиты от подделки с каждым запросом POST/PUT:</p>
+<h5 id="using-net-framework"> Использование .NET Framework</h5>
+<div class="cheatsheet-code-window">{% raw %}<pre><code class="language-markup">using (Html.BeginForm("LogOff", "Account", FormMethod.Post, new { id = "logoutForm",
+                        @class = "pull-right" }))
+{
+    @Html.AntiForgeryToken()
+    &lt;ul class="nav nav-pills"&gt;
+        &lt;li role="presentation"&gt;
+        Logged on as @User.Identity.Name
+        &lt;/li&gt;
+        &lt;li role="presentation"&gt;
+        &lt;a href="javascript:document.getElementById('logoutForm').submit()"&gt;Log off&lt;/a&gt;
+        &lt;/li&gt;
+    &lt;/ul&gt;
+}</code></pre>{% endraw %}</div>
+<p> Затем проверьте его на уровне метода или, желательно, на уровне контроллера:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[HttpPost]
+[ValidateAntiForgeryToken]
+public ActionResult LogOff()</code></pre></div>
+<p> Убедитесь, что токены полностью удалены для аннулирования при выходе из системы.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">/// &lt;summary&gt;
+/// SECURE: Remove any remaining cookies including Anti-CSRF cookie
+/// &lt;/summary&gt;
+public void RemoveAntiForgeryCookie(Controller controller)
+{
+    string[] allCookies = controller.Request.Cookies.AllKeys;
+    foreach (string cookie in allCookies)
+    {
+        if (controller.Response.Cookies[cookie] != null &amp;&amp;
+            cookie == "__RequestVerificationToken")
+        {
+            controller.Response.Cookies[cookie].Expires = DateTime.Now.AddDays(-1);
+        }
+    }
+}</code></pre></div>
+<h5 id="using-net-core-20-or-later"> Использование .NET Core 2.0 или более поздней версии</h5>
+<p> Начиная с .NET Core 2.0 можно <a href="https://docs.microsoft.com/en-us/aspnet/core/security/anti-request-forgery?view=aspnetcore-7.0#aspnet-core-antiforgery-configuration"> автоматически генерировать и проверять токен защиты от подделки</a>.</p>
+<p> Если вы используете <a href="https://docs.microsoft.com/en-us/aspnet/core/mvc/views/tag-helpers/intro"> помощники тегов</a>, который используется по умолчанию для большинства шаблонов веб-проектов, то все формы автоматически отправят токен защиты от подделки. Вы можете проверить, включены ли помощники тегов, проверив, включен ли ваш основной <code>_ViewImports.cshtml</code> файл содержит:</p>
+<div class="cheatsheet-code-window">{% raw %}<pre><code class="language-markup">@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers</code></pre>{% endraw %}</div>
+<p><code>IHtmlHelper.BeginForm</code> также автоматически отправляет токены защиты от подделки.</p>
+<p> Если вы не используете вспомогательные теги или <code>IHtmlHelper.BeginForm</code>, вы должны использовать необходимый помощник в формах, как показано здесь:</p>
+<div class="cheatsheet-code-window">{% raw %}<pre><code class="language-markup">&lt;form action="RelevantAction" &gt;
+@Html.AntiForgeryToken()
+&lt;/form&gt;</code></pre>{% endraw %}</div>
+<p> Чтобы автоматически проверять все запросы, кроме GET, HEAD, OPTIONS и TRACE, вам необходимо добавить глобальный фильтр действий с помощью <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.autovalidateantiforgerytokenattribute?view=aspnetcore-7.0">AutoValidateAntiforgeryToken</a> атрибут внутри вашего <code>Startup.cs</code> как указано ниже <a href="https://andrewlock.net/automatically-validating-anti-forgery-tokens-in-asp-net-core-with-the-autovalidateantiforgerytokenattribute/"> статья</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">services.AddMvc(options =&gt;
+{
+    options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
+});</code></pre></div>
+<p> Если вам нужно отключить проверку атрибутов для определенного метода на контроллере, вы можете добавить <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.ignoreantiforgerytokenattribute?view=aspnetcore-7.0"> ИгнорироватьAntiforgeryToken</a> атрибут метода контроллера (для контроллеров MVC) или родительского класса (для страниц Razor):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[IgnoreAntiforgeryToken]
+[HttpDelete]
+public IActionResult Delete()</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[IgnoreAntiforgeryToken]
+public class UnsafeModel : PageModel</code></pre></div>
+<p> Если вам также необходимо проверить токен в запросах GET, HEAD, OPTIONS и TRACE, вы можете добавить <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.validateantiforgerytokenattribute?view=aspnetcore-7.0"> ВалидироватьАнтифоргериТокен</a> атрибут метода контроллера (для контроллеров MVC) или родительского класса (для страниц Razor):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[HttpGet]
+[ValidateAntiforgeryToken]
+public IActionResult DoSomethingDangerous()</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[HttpGet]
+[ValidateAntiforgeryToken]
+public class SafeModel : PageModel</code></pre></div>
+<p> Если вы не можете использовать фильтр глобальных действий, добавьте <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.mvc.autovalidateantiforgerytokenattribute?view=aspnetcore-7.0">AutoValidateAntiforgeryToken</a> атрибут вашим классам контроллера или моделям страниц бритвы:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[AutoValidateAntiforgeryToken]
+public class UserController</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">[AutoValidateAntiforgeryToken]
+public class SafeModel : PageModel</code></pre></div>
+<h5 id="using-net-core-or-net-framework-with-ajax"> Использование .Net Core или .NET Framework с AJAX</h5>
+<p> Вам нужно будет прикрепить токен защиты от подделки к запросам AJAX.</p>
+<p> Если вы используете jQuery в представлении ASP.NET Core MVC, этого можно добиться с помощью этого фрагмента:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">@inject  Microsoft.AspNetCore.Antiforgery.IAntiforgery antiforgeryProvider
+$.ajax(
+{
+    type: "POST",
+    url: '@Url.Action("Action", "Controller")',
+    contentType: "application/x-www-form-urlencoded; charset=utf-8",
+    data: {
+        id: id,
+        '__RequestVerificationToken': '@antiforgeryProvider.GetAndStoreTokens(this.Context).RequestToken'
+    }
+})</code></pre></div>
+<p> Если вы используете .NET Framework, вы можете найти некоторые фрагменты кода.<a href="https://docs.microsoft.com/en-us/aspnet/web-api/overview/security/preventing-cross-site-request-forgery-csrf-attacks#anti-csrf-and-ajax"> здесь</a>.</p>
+<p> Более подробную информацию можно найти в <a href="/owasp/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"> Памятка по предотвращению подделки межсайтовых запросов</a>.</p>
+<h3 id="a06-vulnerable-and-outdated-components">A06 Уязвимые и устаревшие компоненты</h3>
+<p> НУЖНО: обновлять .NET Framework последними исправлениями.</p>
+<p> НУЖНО: Держите свой <a href="https://docs.microsoft.com/en-us/nuget/">NuGet</a> пакеты актуальные</p>
+<p> НУЖНО: запустить <a href="/owasp/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html#tools"> Средство проверки зависимостей OWASP</a> против вашего приложения в рамках процесса сборки и устраняйте любые уязвимости высокого или критического уровня.</p>
+<p> НУЖНО: Включите инструменты SCA (анализ состава программного обеспечения) в свой конвейер CI/CD, чтобы гарантировать, что любые новые уязвимости
+в ваших зависимостях обнаруживаются и принимаются меры.</p>
+<h3 id="a07-identification-and-authentication-failures">A07 Сбои идентификации и аутентификации</h3>
+<p> ДЕЛАТЬ: использовать <a href="https://docs.microsoft.com/en-us/aspnet/core/security/authentication/identity?view=aspnetcore-2.2&amp;"> Базовая идентификация ASP.NET</a>.
+Платформа ASP.NET Core Identity по умолчанию хорошо настроена и использует безопасные хэши паролей и индивидуальную соль. Identity использует функцию хеширования PBKDF2 для паролей и генерирует случайную соль для каждого пользователя.</p>
+<p> НУЖНО: установить политику безопасных паролей</p>
+<p> например, основная идентификация ASP.NET</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">//Startup.cs
+services.Configure&lt;IdentityOptions&gt;(options =&gt;
+{
+ // Password settings
+ options.Password.RequireDigit = true;
+ options.Password.RequiredLength = 8;
+ options.Password.RequireNonAlphanumeric = true;
+ options.Password.RequireUppercase = true;
+ options.Password.RequireLowercase = true;
+ options.Password.RequiredUniqueChars = 6;
+
+ options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
+ options.Lockout.MaxFailedAccessAttempts = 3;
+
+ options.SignIn.RequireConfirmedEmail = true;
+
+ options.User.RequireUniqueEmail = true;
+});</code></pre></div>
+<p> НУЖНО: установить политику использования файлов cookie</p>
+<p> например</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">//Startup.cs
+services.ConfigureApplicationCookie(options =&gt;
+{
+ options.Cookie.HttpOnly = true;
+ options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+ // See the discussion in A01 for trade-offs on using sliding expiration.
+ options.SlidingExpiration = false;
+});</code></pre></div>
+<h3 id="a08-software-and-data-integrity-failures">A08 Сбои в целостности программного обеспечения и данных</h3>
+<p> НУЖНО: снабжать сборки и исполняемые файлы цифровой подписью.</p>
+<p> НУЖНО: использовать подпись пакета Nuget.</p>
+<p> НУЖНО: просмотреть изменения кода и конфигурации, чтобы избежать вредоносного кода.
+или зависимости вводятся</p>
+<p> НЕЛЬЗЯ: отправлять по сети неподписанные или незашифрованные сериализованные объекты.</p>
+<p> НУЖНО: выполнить проверку целостности или проверить цифровые подписи на сериализованных
+объекты, полученные из сети</p>
+<p> НЕЛЬЗЯ: используйте тип BinaryFormatter, который опасен и <a href="https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-security-guide"> не рекомендуется</a> для обработки данных.
+.NET предлагает несколько встроенных сериализаторов, которые могут безопасно обрабатывать ненадежные данные:</p>
+<ul>
+<li>XmlSerializer и DataContractSerializer для сериализации графов объектов в XML и из него. Не путайте DataContractSerializer с NetDataContractSerializer.</li>
+<li>BinaryReader и BinaryWriter для XML и JSON.</li>
+<li>API System.Text.Json для сериализации графов объектов в JSON.</li>
+</ul>
+<h3 id="a09-security-logging-and-monitoring-failures">A09 Сбои ведения журнала безопасности и мониторинга</h3>
+<p> НУЖНО: Убедитесь, что все ошибки входа в систему, контроля доступа и проверки входных данных на стороне сервера регистрируются с достаточным пользовательским контекстом для выявления подозрительных или вредоносных учетных записей.</p>
+<p> НУЖНО: Обеспечьте эффективный мониторинг и оповещение, чтобы подозрительные действия обнаруживались и своевременно реагировали.</p>
+<p> НЕ: Регистрируйте общие сообщения об ошибках, такие как:<code>csharp Log.Error("Error was thrown");</code>. Вместо этого запишите трассировку стека, сообщение об ошибке и идентификатор пользователя, вызвавшего ошибку.</p>
+<p> НЕ: Записывайте конфиденциальные данные, такие как пароли пользователей.</p>
+<h4 id="logging"> Ведение журнала</h4>
+<p> Какие журналы собирать, а также дополнительную информацию о журналировании можно найти в разделе <a href="/owasp/cheatsheets/Logging_Cheat_Sheet.html"> Шпаргалка по ведению журналов</a>.</p>
+<p>.NET Core поставляется с LoggerFactory, который находится в Microsoft.Extensions.Logging. Более подробную информацию о ILogger можно найти <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.extensions.logging.ilogger"> здесь</a>.</p>
+<p> Вот как регистрировать все ошибки из <code>Startup.cs</code>, поэтому каждый раз, когда возникает ошибка, она регистрируется:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">public void Configure(IApplicationBuilder app, IHostingEnvironment env)
+{
+    if (env.IsDevelopment())
+    {
+        _isDevelopment = true;
+        app.UseDeveloperExceptionPage();
+    }
+
+    //Log all errors in the application
+    app.UseExceptionHandler(errorApp =&gt;
+    {
+        errorApp.Run(async context =&gt;
+        {
+            var errorFeature = context.Features.Get&lt;IExceptionHandlerFeature&gt;();
+            var exception = errorFeature.Error;
+
+            Log.Error(String.Format("Stacktrace of error: {0}",exception.StackTrace.ToString()));
+        });
+    });
+
+    app.UseAuthentication();
+    app.UseMvc();
+ }
+}</code></pre></div>
+<p> Например. внедрение в конструктор класса, что упрощает написание модульного теста. Это рекомендуется, если экземпляры класса будут создаваться с использованием внедрения зависимостей (например, контроллеры MVC). В приведенном ниже примере показана регистрация всех неудачных попыток входа в систему.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">public class AccountsController : Controller
+{
+        private ILogger _Logger;
+
+        public AccountsController(ILogger logger)
+        {
+            _Logger = logger;
+        }
+
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task&lt;IActionResult&gt; Login(LoginViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                var result = await _signInManager.PasswordSignInAsync(model.Email, model.Password, model.RememberMe, lockoutOnFailure: false);
+                if (result.Succeeded)
+                {
+                    //Log all successful log in attempts
+                    Log.Information(String.Format("User: {0}, Successfully Logged in", model.Email));
+                    //Code for successful login
+                    //...
+                }
+                else
+                {
+                    //Log all incorrect log in attempts
+                    Log.Information(String.Format("User: {0}, Incorrect Password", model.Email));
+                }
+             }
+            ...
+        }</code></pre></div>
+<h4 id="monitoring"> Мониторинг</h4>
+<p> Мониторинг позволяет нам проверять производительность и работоспособность работающей системы с помощью ключевых показателей производительности.</p>
+<p> В .NET отличным вариантом добавления возможностей мониторинга является <a href="https://docs.microsoft.com/en-us/azure/azure-monitor/app/asp-net-core"> Аналитика приложений</a>.</p>
+<p> Более подробную информацию о ведении журнала и мониторинге можно найти <a href="https://github.com/microsoft/code-with-engineering-playbook/blob/main/docs/observability/README.md"> здесь</a>.</p>
+<h3 id="a10-server-side-request-forgery-ssrf">A10 Подделка запросов на стороне сервера (SSRF)</h3>
+<p> НУЖНО: проверять и очищать все вводимые пользователем данные, прежде чем использовать их для отправки запроса.</p>
+<p> НУЖНО: использовать список разрешенных протоколов и доменов.</p>
+<p> ДЕЛАТЬ: использовать <code>IPAddress.TryParse()</code> и <code>Uri.CheckHostName()</code> чтобы убедиться, что IP-адреса и доменные имена действительны</p>
+<p> НЕ НУЖНО: следовать HTTP-перенаправлениям.</p>
+<p> НЕЛЬЗЯ: пересылать пользователю необработанные HTTP-ответы.</p>
+<p> Для получения дополнительной информации см.<a href="/owasp/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html"> Памятка по предотвращению подделки запросов на стороне сервера</a>.</p>
+<h3 id="owasp-2013-2017"> ОВАСП 2013 и 2017 гг.</h3>
+<p> Ниже приведены уязвимости, вошедшие в список 10 лучших по версии OWASP 2013 или 2017 гг.
+которые не вошли в список 2021 года. Эти уязвимости все еще актуальны
+но не были включены в список 2021 года, поскольку стали менее распространенными.</p>
+<h4 id="a042017-xml-external-entities-xxe">A04:2017 Внешние объекты XML (XXE)</h4>
+<p> Атаки XXE происходят, когда синтаксический анализ XML неправильно обрабатывает вводимые пользователем данные, содержащие объявления внешних сущностей в типе документа полезных данных XML.</p>
+<p> <a href="https://docs.microsoft.com/en-us/dotnet/standard/data/xml/xml-processing-options"> Эта статья</a> обсуждаются наиболее распространенные параметры обработки XML для .NET.</p>
+<p> Пожалуйста, обратитесь к <a href="/owasp/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html#net">XXE шпаргалка</a> для получения более подробной информации о предотвращении XXE и других XML-атак типа «отказ в обслуживании».</p>
+<h4 id="a072017-cross-site-scripting-xss">A07:2017 Межсайтовый скриптинг (XSS)</h4>
+<p> НЕТ: доверяйте любым данным, которые вам отправляет пользователь. Предпочитайте списки разрешенных (всегда безопасные) спискам запрещенных.</p>
+<p> Вы получаете кодирование всего HTML-контента с помощью MVC3. Чтобы правильно закодировать весь контент, будь то HTML,
+JavaScript, CSS, LDAP и т. д. используют библиотеку Microsoft AntiXSS:</p>
+<p><code>Install-Package AntiXSS</code></p>
+<p> Затем установите в конфиге:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;system.web&gt;
+&lt;httpRuntime targetFramework="4.5"
+enableVersionHeader="false"
+encoderType="Microsoft.Security.Application.AntiXssEncoder, AntiXssLibrary"
+maxRequestLength="4096" /&gt;</code></pre></div>
+<p> НЕЛЬЗЯ: используйте <code>[AllowHTML]</code> атрибут или вспомогательный класс <code>@Html.Raw</code> если только ты не совсем
+убедитесь, что содержимое, которое вы записываете в браузер, безопасно и правильно экранировано.</p>
+<p> НУЖНО: включить <a href="/owasp/cheatsheets/Content_Security_Policy_Cheat_Sheet.html#context"> Политика безопасности контента</a>. Это предотвратит доступ ваших страниц к ресурсам, к которым у них не должно быть доступа (например, вредоносным скриптам):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;system.webServer&gt;
+    &lt;httpProtocol&gt;
+        &lt;customHeaders&gt;
+            &lt;add name="Content-Security-Policy"
+                value="default-src 'none'; style-src 'self'; img-src 'self';
+                font-src 'self'; script-src 'self'" /&gt;</code></pre></div>
+<p> Более подробную информацию можно найти в <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"> Памятка по предотвращению межсайтового скриптинга</a>.</p>
+<h4 id="a082017-insecure-deserialization">A08:2017 Небезопасная десериализация</h4>
+<p> НЕ: Принимайте сериализованные объекты из ненадежных источников.</p>
+<p> НУЖНО: проверить ввод пользователя</p>
+<p> Злоумышленники могут использовать такие объекты, как файлы cookie, для вставки вредоносной информации и изменения ролей пользователей. В некоторых случаях хакеры могут повысить свои привилегии до прав администратора, используя уже существующий или кэшированный хэш пароля от предыдущего сеанса.</p>
+<p> НУЖНО: предотвратить десериализацию объектов домена</p>
+<p> НУЖНО: запустить код десериализации с ограниченными правами доступа.
+Если десериализованный враждебный объект попытается инициировать системный процесс или получить доступ к ресурсу на сервере или в ОС хоста, ему будет отказано в доступе и будет поднят флаг разрешения, чтобы системный администратор был уведомлен о любой аномальной активности на сервере.</p>
+<p> Более подробную информацию о небезопасной десериализации можно найти в <a href="/owasp/cheatsheets/Deserialization_Cheat_Sheet.html#net-csharp"> Памятка по десериализации</a>.</p>
+<h4 id="a102013-unvalidated-redirects-and-forwards">A10:2013 Непроверенные перенаправления и пересылки</h4>
+<p> Защита от этого была введена в шаблоне MVC 3. Вот код:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">public async Task&lt;ActionResult&gt; LogOn(LogOnViewModel model, string returnUrl)
+{
+    if (ModelState.IsValid)
+    {
+        var logonResult = await _userManager.TryLogOnAsync(model.UserName, model.Password);
+        if (logonResult.Success)
+        {
+            await _userManager.LogOnAsync(logonResult.UserName, model.RememberMe);  
+            return RedirectToLocal(returnUrl);
+...</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">private ActionResult RedirectToLocal(string returnUrl)
+{
+    if (Url.IsLocalUrl(returnUrl))
+    {
+        return Redirect(returnUrl);
+    }
+    else
+    {
+        return RedirectToAction("Landing", "Account");
+    }
+}</code></pre></div>
+<h3 id="other-advice"> Другие советы</h3>
+<ul>
+<li> Защита от кликджекинга и атаки «человек посередине» путем перехвата исходного запроса, отличного от TLS: установите <code>X-Frame-Options</code> и <code>Strict-Transport-Security</code> (HSTS) заголовки. Полная информация <a href="https://github.com/johnstaveley/SecurityEssentials/blob/master/SecurityEssentials/Core/HttpHeaders.cs"> здесь</a></li>
+<li> Защитите от атаки «посредник» пользователя, который никогда раньше не был на вашем сайте. Зарегистрируйтесь для <a href="https://hstspreload.org/"> Предварительная загрузка HSTS</a></li>
+<li> Поддерживайте тестирование и анализ безопасности служб веб-API. Они скрыты внутри сайтов MVC и являются общедоступными частями сайта, которые
+будет обнаружен злоумышленником. Все рекомендации MVC и большая часть рекомендаций WCF также применимы и к веб-API.</li>
+<li> Также см.<a href="/owasp/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html"> Шпаргалка по непроверенным перенаправлениям и переадресациям</a>.</li>
+</ul>
+<h4 id="sample-project"> Пример проекта</h4>
+<p> Дополнительные сведения обо всем вышеперечисленном и примеры кода, включенные в пример приложения MVC5 с расширенным базовым уровнем безопасности.
+пойти в <a href="http://github.com/johnstaveley/SecurityEssentials/"> Базовый проект Security Essentials</a>.</p>
+<h2 id="guidance-for-specific-topics"> Руководство по конкретным темам</h2>
+<p> В этом разделе содержатся рекомендации по конкретным темам, связанным с .NET.</p>
+<h3 id="configuration-and-deployment"> Конфигурация и развертывание</h3>
+<ul>
+<li> Заблокируйте файлы конфигурации.<ul>
+<li> Удалите все аспекты конфигурации, которые не используются.</li>
+<li> Зашифруйте конфиденциальные части <code>web.config</code> с использованием <code>aspnet_regiis -pe</code> (<a href="https://docs.microsoft.com/en-us/previous-versions/dotnet/netframework-2.0/k6h9cz8h(v=vs.80)"> справка по командной строке</a>).</li>
+</ul>
+</li>
+<li> Для приложений ClickOnce необходимо обновить .NET Framework до последней версии, чтобы обеспечить поддержку TLS 1.2 или более поздней версии.</li>
+</ul>
+<h3 id="data-access"> Доступ к данным</h3>
+<ul>
+<li> Использовать <a href="https://docs.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand.prepare?view=netframework-4.7.2"> Параметризованный SQL</a> команды для доступа ко всем данным без исключения.</li>
+<li> Не используйте <a href="https://docs.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlcommand">Sqlкоманда</a> со строковым параметром, состоящим из <a href="https://docs.microsoft.com/en-gb/visualstudio/code-quality/ca2100-review-sql-queries-for-security-vulnerabilities?view=vs-2017"> объединенная строка SQL</a>.</li>
+<li> Список допустимых значений, поступающих от пользователя. Используйте перечисления,<a href="https://docs.microsoft.com/en-us/dotnet/api/system.int32.tryparse#System_Int32_TryParse_System_String_System_Int32__">TryParse</a> или значения поиска, чтобы убедиться, что данные, поступающие от пользователя, соответствуют ожиданиям.<ul>
+<li> Перечисления по-прежнему уязвимы к неожиданным значениям, поскольку .NET проверяет только успешное приведение к базовому типу данных, целочисленному по умолчанию.<a href="https://docs.microsoft.com/en-us/dotnet/api/system.enum.isdefined">Enum.IsDefined</a> может проверить, допустимо ли входное значение в списке определенных констант.</li>
+</ul>
+</li>
+<li> Применяйте принцип наименьших привилегий при настройке пользователя базы данных в выбранной вами базе данных. Пользователь базы данных должен иметь доступ только к тем элементам, которые имеют смысл для данного варианта использования.</li>
+<li> Использование <a href="https://docs.microsoft.com/en-us/ef/">Entity Framework</a> является очень эффективным <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL-инъекция</a> механизм предотвращения.<strong> Помните, что создание собственных специальных запросов в Entity Framework так же восприимчиво к SQLi, как и простой запрос SQL.</strong>.</li>
+<li> При использовании SQL Server предпочитайте <a href="https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/using-integrated-authentication?view=sql-server-ver16"> встроенная аутентификация</a> над <a href="https://learn.microsoft.com/en-us/sql/relational-databases/security/choose-an-authentication-mode?view=sql-server-ver16#connecting-through-sql-server-authentication">SQL-аутентификация</a>.</li>
+<li> Использовать <a href="https://docs.microsoft.com/en-us/sql/relational-databases/security/encryption/always-encrypted-database-engine"> Всегда зашифровано</a> где это возможно, для конфиденциальных данных (SQL Server 2016+ и Azure SQL)</li>
+</ul>
+<h2 id="asp-net-web-forms-guidance"> Руководство по веб-формам ASP NET</h2>
+<p>ASP.NET Web Forms — это исходный API разработки приложений на основе браузера для .NET Framework, который до сих пор остается наиболее распространенной корпоративной платформой для разработки веб-приложений.</p>
+<ul>
+<li> Всегда используйте <a href="http://support.microsoft.com/kb/324069">HTTPS</a>.</li>
+<li> Давать возможность <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.configuration.httpcookiessection.requiressl"> требуетсяSSL</a> на файлах cookie и элементах форм и <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.configuration.httpcookiessection.httponlycookies">HttpOnly</a> о файлах cookie в файле web.config.</li>
+<li> Осуществлять <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.configuration.customerror"> пользовательские ошибки</a>.</li>
+<li> Убеждаться <a href="http://www.iis.net/configreference/system.webserver/tracing"> отслеживание</a> выключен.</li>
+<li> Хотя ViewState не всегда подходит для веб-разработки, его использование может обеспечить смягчение последствий CSRF. Чтобы обеспечить защиту ViewState от атак CSRF, вам необходимо установить параметр <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.ui.page.viewstateuserkey">ViewStateUserKey</a>:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">protected override OnInit(EventArgs e) {
+    base.OnInit(e);
+    ViewStateUserKey = Session.SessionID;
+}</code></pre></div>
+<p> Если вы не используете Viewstate, перейдите на главную страницу по умолчанию шаблона веб-форм ASP.NET по умолчанию для ручного токена защиты от CSRF с использованием файла cookie двойной отправки.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">private const string AntiXsrfTokenKey = "__AntiXsrfToken";
+private const string AntiXsrfUserNameKey = "__AntiXsrfUserName";
+private string _antiXsrfTokenValue;
+protected void Page_Init(object sender, EventArgs e)
+{
+    // The code below helps to protect against XSRF attacks
+    var requestCookie = Request.Cookies[AntiXsrfTokenKey];
+    Guid requestCookieGuidValue;
+    if (requestCookie != null &amp;&amp; Guid.TryParse(requestCookie.Value, out requestCookieGuidValue))
+    {
+       // Use the Anti-XSRF token from the cookie
+       _antiXsrfTokenValue = requestCookie.Value;
+       Page.ViewStateUserKey = _antiXsrfTokenValue;
+    }
+    else
+    {
+       // Generate a new Anti-XSRF token and save to the cookie
+       _antiXsrfTokenValue = Guid.NewGuid().ToString("N");
+       Page.ViewStateUserKey = _antiXsrfTokenValue;
+       var responseCookie = new HttpCookie(AntiXsrfTokenKey)
+       {
+          HttpOnly = true,
+          Value = _antiXsrfTokenValue
+       };
+       if (FormsAuthentication.RequireSSL &amp;&amp; Request.IsSecureConnection)
+       {
+          responseCookie.Secure = true;
+       }
+       Response.Cookies.Set(responseCookie);
+    }
+    Page.PreLoad += master_Page_PreLoad;
+}
+protected void master_Page_PreLoad(object sender, EventArgs e)
+{
+    if (!IsPostBack)
+    {
+       // Set Anti-XSRF token
+       ViewState[AntiXsrfTokenKey] = Page.ViewStateUserKey;
+       ViewState[AntiXsrfUserNameKey] = Context.User.Identity.Name ?? String.Empty;
+    }
+    else
+    {
+       // Validate the Anti-XSRF token
+       if ((string)ViewState[AntiXsrfTokenKey] != _antiXsrfTokenValue ||
+          (string)ViewState[AntiXsrfUserNameKey] != (Context.User.Identity.Name ?? String.Empty))
+       {
+          throw new InvalidOperationException("Validation of Anti-XSRF token failed.");
+       }
+    }
+}</code></pre></div>
+<ul>
+<li> Учитывать <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security">HSTS</a> в IIS. Видеть <a href="https://support.microsoft.com/en-us/help/954002/how-to-add-a-custom-http-response-header-to-a-web-site-that-is-hosted"> здесь</a> для процедуры.</li>
+<li> Это рекомендуемый <code>web.config</code> установка, которая, помимо прочего, обрабатывает HSTS.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+ &lt;configuration&gt;
+   &lt;system.web&gt;
+     &lt;httpRuntime enableVersionHeader="false"/&gt;
+   &lt;/system.web&gt;
+   &lt;system.webServer&gt;
+     &lt;security&gt;
+       &lt;requestFiltering removeServerHeader="true" /&gt;
+     &lt;/security&gt;
+     &lt;staticContent&gt;
+       &lt;clientCache cacheControlCustom="public"
+            cacheControlMode="UseMaxAge"
+            cacheControlMaxAge="1.00:00:00"
+            setEtag="true" /&gt;
+     &lt;/staticContent&gt;
+     &lt;httpProtocol&gt;
+       &lt;customHeaders&gt;
+         &lt;add name="Content-Security-Policy"
+            value="default-src 'none'; style-src 'self'; img-src 'self'; font-src 'self'" /&gt;
+         &lt;add name="X-Content-Type-Options" value="NOSNIFF" /&gt;
+         &lt;add name="X-Frame-Options" value="DENY" /&gt;
+         &lt;add name="X-Permitted-Cross-Domain-Policies" value="master-only"/&gt;
+         &lt;add name="X-XSS-Protection" value="0"/&gt;
+         &lt;remove name="X-Powered-By"/&gt;
+       &lt;/customHeaders&gt;
+     &lt;/httpProtocol&gt;
+     &lt;rewrite&gt;
+       &lt;rules&gt;
+         &lt;rule name="Redirect to https"&gt;
+           &lt;match url="(.*)"/&gt;
+           &lt;conditions&gt;
+             &lt;add input="{HTTPS}" pattern="Off"/&gt;
+             &lt;add input="{REQUEST_METHOD}" pattern="^get$|^head$" /&gt;
+           &lt;/conditions&gt;
+           &lt;action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent"/&gt;
+         &lt;/rule&gt;
+       &lt;/rules&gt;
+       &lt;outboundRules&gt;
+         &lt;rule name="Add HSTS Header" enabled="true"&gt;
+           &lt;match serverVariable="RESPONSE_Strict_Transport_Security" pattern=".*" /&gt;
+           &lt;conditions&gt;
+             &lt;add input="{HTTPS}" pattern="on" ignoreCase="true" /&gt;
+           &lt;/conditions&gt;
+           &lt;action type="Rewrite" value="max-age=15768000" /&gt;
+         &lt;/rule&gt;
+       &lt;/outboundRules&gt;
+     &lt;/rewrite&gt;
+   &lt;/system.webServer&gt;
+ &lt;/configuration&gt;</code></pre></div>
+<ul>
+<li> Удалите заголовок версии, добавив следующую строку в <code>Machine.config</code> файл:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">&lt;httpRuntime enableVersionHeader="false" /&gt;</code></pre></div>
+<ul>
+<li> Также удалите заголовок сервера, используя класс HttpContext в своем коде.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-csharp">HttpContext.Current.Response.Headers.Remove("Server");</code></pre></div>
+<h3 id="http-validation-and-encoding">HTTP-проверка и кодирование</h3>
+<ul>
+<li> Не отключать <a href="http://www.asp.net/whitepapers/request-validation"> валидироватьзапрос</a> в <code>web.config</code> или настройки страницы. Это значение включает ограниченную защиту XSS в ASP.NET, и его следует оставить без изменений, поскольку оно обеспечивает частичное предотвращение межсайтового сценария. В дополнение к встроенным средствам защиты рекомендуется полная проверка запроса.</li>
+<li> Версия .NET Framework 4.5 включает в себя <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.security.antixss.antixssencoder?view=netframework-4.7.2"> АнтиXssEncoder</a> библиотека, которая имеет комплексную библиотеку кодирования ввода для предотвращения XSS. Используйте это.</li>
+<li> Перечисляйте допустимые значения каждый раз, когда принимается пользовательский ввод.</li>
+<li> Проверьте формат URI, используя <a href="https://docs.microsoft.com/en-us/dotnet/api/system.uri.iswellformeduristring">Uri.IsWellFormedUriString</a>.</li>
+</ul>
+<h3 id="forms-authentication"> Аутентификация с помощью форм</h3>
+<ul>
+<li> По возможности используйте файлы cookie для устойчивости.<code>Cookieless</code> аутентификация по умолчанию будет <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.httpcookiemode?view=netframework-4.7.2"> Уседевицепрофиле</a>.</li>
+<li> Не доверяйте URI запроса на сохранение сеанса или авторизации. Его можно легко подделать.</li>
+<li> Уменьшите время ожидания проверки подлинности с помощью форм по умолчанию.<em>20 минут</em> в кратчайшие сроки, соответствующие вашему заявлению. Если <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.security.formsauthentication.slidingexpiration?view=netframework-4.7.2"> скользящий срок действия</a> используется, этот тайм-аут сбрасывается после каждого запроса, поэтому активные пользователи не будут затронуты.</li>
+<li> Если HTTPS не используется,<a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.security.formsauthentication.slidingexpiration?view=netframework-4.7.2"> скользящий срок действия</a> должен быть отключен. Рассмотрите возможность отключения <a href="https://docs.microsoft.com/en-us/dotnet/api/system.web.security.formsauthentication.slidingexpiration?view=netframework-4.7.2"> скользящий срок действия</a> даже с HTTPS.</li>
+<li> Всегда обеспечивайте надлежащий контроль доступа.<ul>
+<li> Сравните имя пользователя, предоставленное пользователем, с <code>User.Identity.Name</code>.</li>
+<li> Проверьте роли по <code>User.Identity.IsInRole</code>.</li>
+</ul>
+</li>
+<li> Используйте <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/samples/membership-and-role-provider"> Поставщик членства ASP.NET и поставщик ролей</a>, но проверьте хранилище паролей. Хранилище по умолчанию хеширует пароль с помощью одной итерации SHA-1, что довольно слабо. Шаблон ASP.NET MVC4 использует <a href="http://www.asp.net/identity/overview/getting-started/introduction-to-aspnet-identity"> Идентификация ASP.NET</a> вместо членства в ASP.NET, а ASP.NET Identity по умолчанию использует PBKDF2, что лучше. Ознакомьтесь с OWASP <a href="/owasp/cheatsheets/Password_Storage_Cheat_Sheet.html"> Памятка по хранению паролей</a> для получения дополнительной информации.</li>
+<li> Явно разрешайте запросы ресурсов.</li>
+<li> Используйте авторизацию на основе ролей, используя <code>User.Identity.IsInRole</code>.</li>
+</ul>
+<h2 id="xaml-guidance"> Руководство по XAML</h2>
+<ul>
+<li> Работайте в рамках ограничений безопасности зоны Интернета для вашего приложения.</li>
+<li> Используйте развертывание ClickOnce. Для расширенных разрешений используйте повышение разрешений во время выполнения или развертывание доверенного приложения во время установки.</li>
+</ul>
+<h2 id="windows-forms-guidance"> Руководство по Windows Forms</h2>
+<ul>
+<li> Используйте частичное доверие, когда это возможно. Частично доверенные приложения Windows уменьшают поверхность атаки приложения. Управляйте списком разрешений, которые ваше приложение должно использовать и что оно может использовать, а затем декларативно запрашивайте эти разрешения во время выполнения.</li>
+<li> Используйте развертывание ClickOnce. Для расширенных разрешений используйте повышение разрешений во время выполнения или развертывание доверенного приложения во время установки.</li>
+</ul>
+<h2 id="wcf-guidance"> Руководство WCF</h2>
+<ul>
+<li> Имейте в виду, что единственный безопасный способ передать запрос в службах RESTful — через <code>HTTP POST</code>, с включенным TLS.
+С использованием <code>HTTP GET</code> требует помещения данных в URL-адрес (например, строку запроса), который будет виден пользователю и будет
+регистрироваться и храниться в истории браузера.</li>
+<li> Избегать <a href="https://docs.microsoft.com/en-us/dotnet/api/system.servicemodel.basichttpbinding?view=netframework-4.7.2"> БазоваяHttpBinding</a>. У него нет конфигурации безопасности по умолчанию. Использовать <a href="https://docs.microsoft.com/en-us/dotnet/api/system.servicemodel.wshttpbinding?view=netframework-4.7.2">WSHttpBinding</a> вместо.</li>
+<li> Используйте как минимум два режима безопасности для привязки. Безопасность сообщений включает в себя меры безопасности в заголовках. Транспортная безопасность означает использование SSL.<a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/samples/ws-transport-with-message-credential"> Транспортсмессажекредентиал</a> сочетает в себе два.</li>
+<li> Проверьте свою реализацию WCF с помощью фаззера, например <a href="https://www.zaproxy.org/"> ЗАП</a>.</li>
+</ul>

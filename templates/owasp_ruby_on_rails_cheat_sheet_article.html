@@ -1,0 +1,233 @@
+{% raw %}
+<h1 id="ruby-on-rails-cheat-sheet">Сатья по безопасности Ruby on Rails (Ruby on Rails Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Статья даёт краткие базовые советы по безопасности Ruby on Rails. Она дополняет и усиливает материал <a href="https://guides.rubyonrails.org/security.html" target="_blank" rel="noopener">официального руководства по безопасности Rails</a>.</p>
+<p>Rails снимает с разработчика рутину и ускоряет сложные задачи. Новичкам, не знакомым с внутренностями фреймворка, нужен минимальный набор правил — для этого и предназначен документ.</p>
+<h2 id="items">Разделы</h2>
+<h3 id="command-injection">Инъекция команд</h3>
+<p>В Ruby есть <code>eval</code> для динамического кода из строк и множество способов вызвать системные команды.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">eval("ruby code here")
+system("os command here")
+`ls -al /` # (обратные кавычки — команда ОС)
+exec("os command here")
+spawn("os command here")
+open("| os command here")
+Process.exec("os command here")
+Process.spawn("os command here")
+IO.binread("| os command here")
+IO.binwrite("| os command here", "foo")
+IO.foreach("| os command here") {}
+IO.popen("os command here")
+IO.read("| os command here")
+IO.readlines("| os command here")
+IO.write("| os command here", "foo")</code></pre></div>
+<p>Мощность этих вызовов высока — в веб-приложении ими лучше не пользоваться. Если без выхода, нужен строгий allow-list возможных значений и максимальная валидация ввода.</p>
+<p>Подробнее: <a href="https://guides.rubyonrails.org/security.html#command-line-injection" target="_blank" rel="noopener">Rails</a> и <a href="https://owasp.org/www-community/attacks/Command_Injection" target="_blank" rel="noopener">OWASP</a>.</p>
+<h3 id="sql-injection">SQL-инъекции</h3>
+<p>Часто используется ActiveRecord; простые запросы часто защищены по умолчанию, но небезопасный код возможен.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">name = params[:name]
+@projects = Project.where("name like '" + name + "'");</code></pre></div>
+<p>Уязвимость из‑за неэкранированного <code>name</code>.</p>
+<p>Идиоматичный вариант:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">@projects = Project.where("name like ?", "%#{ActiveRecord::Base.sanitize_sql_like(params[:name])}%")</code></pre></div>
+<p>Не стройте SQL из недоверенного ввода. Примеры: <a href="https://rails-sqli.org" target="_blank" rel="noopener">rails-sqli.org</a>. Общий контекст: <a href="https://owasp.org/www-community/attacks/SQL_Injection" target="_blank" rel="noopener">SQL Injection</a>.</p>
+<h3 id="cross-site-scripting-xss">Межсайтовый скриптинг (XSS)</h3>
+<p>По умолчанию строки в представлениях экранируются. Обход защиты часто делают ради rich text. Небезопасно в <code>.erb</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-erb"># Неправильно! Так не делайте!
+&lt;%= raw @product.name %&gt;
+
+# Неправильно! (вывод без экранирования)
+&lt;%== @product.name %&gt;
+
+# Неправильно!
+&lt;%= @product.name.html_safe %&gt;</code></pre></div>
+<p>Любое поле с <code>raw</code>, <code>html_safe</code> и похожим — потенциальная цель XSS. Имя <code>html_safe</code> вводит в заблуждение: метод означает «мы уверены, что строка безопасна для вставки в HTML без экранирования». <strong>Сам по себе вызов небезопасен.</strong></p>
+<p><a href="https://stackoverflow.com/questions/4251284/raw-vs-html-safe-vs-h-to-unescape-html" target="_blank" rel="noopener">Разбор SafeBuffer</a>. Другие хелперы, меняющие подготовку строк к выводу, могут давать похожие проблемы.</p>
+<p>Если нужен HTML от пользователей — лучше лёгкий язык разметки (Markdown, Textile) без произвольных HTML-тегов.</p>
+<p>Если HTML неизбежен — CSP без выполнения JS и метод <code>#sanitize</code> с белым списком тегов (sanitize исторически находили уязвимости; это не панацея).</p>
+<p>В старых версиях Rails вектором XSS может быть <code>href</code> ссылки:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-erb">&lt;%= link_to "Personal Website", @user.website %&gt;</code></pre></div>
+<p>Если <code>@user.website</code> начинается с <code>javascript:</code>, при клике выполнится скрипт:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-html">&lt;a href="javascript:alert('Haxored')"&gt;Personal Website&lt;/a&gt;</code></pre></div>
+<p>В новых Rails такие ссылки экранируются лучше.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">link_to "Personal Website", 'javascript:alert(1);'.html_safe()
+# Сгенерирует ссылку с javascript: в href — небезопасно</code></pre></div>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP" target="_blank" rel="noopener">Content Security Policy</a> дополнительно ограничивает <code>javascript:</code> в ссылках.</p>
+<p><a href="https://github.com/presidentbeef/brakeman" target="_blank" rel="noopener">Brakeman</a> помогает находить XSS в Rails-приложениях.</p>
+<p>Общий материал OWASP: <a href="https://owasp.org/www-community/attacks/xss/" target="_blank" rel="noopener">Cross-site Scripting (XSS)</a>.</p>
+<h3 id="sessions">Сессии</h3>
+<p>По умолчанию Rails хранит сессию в cookie: без дополнительных настроек она не «истекает» на сервере — возможны replay; в сессию нельзя класть чувствительные данные.</p>
+<p>Лучше хранилище сессий в БД — в Rails настраивается просто:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">Project::Application.config.session_store :active_record_store</code></pre></div>
+<p>См. <a href="/owasp/cheatsheets/Session_Management_Cheat_Sheet.html">статью по управлению сессиями</a>.</p>
+<h3 id="authentication">Аутентификация</h3>
+<p>Включите TLS в продакшене:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby"># config/environments/production.rb
+# Принудительный SSL, HSTS, secure cookies
+config.force_ssl = true</code></pre></div>
+<p>Раскомментируйте/включите эту строку.</p>
+<p>Сам Rails аутентификацию «из коробки» не задаёт; обычно используют Devise, AuthLogic и т.п.</p>
+<p>Devise — установка:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">gem 'devise'</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">rails generate devise:install</code></pre></div>
+<p>Ограничьте маршруты, требующие входа:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">Rails.application.routes.draw do
+  authenticate :user do
+    resources :something do  # только для аутентифицированных
+      ...
+    end
+  end
+
+  devise_for :users # регистрация/вход/выход
+
+  root to: 'static#home' # без аутентификации
+end</code></pre></div>
+<p>Сложность пароля — <a href="https://github.com/bitzesty/devise_zxcvbn" target="_blank" rel="noopener">devise_zxcvbn</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">class User < ApplicationRecord
+  devise :database_authenticatable,
+    # другие модули devise, затем
+    :zxcvbnable
+end</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby"># config/initializers/devise.rb
+Devise.setup do |config|
+  config.min_password_score = 4 # порог zxcvbn
+  ...
+end</code></pre></div>
+<p>Демо: <a href="https://github.com/qutorial/revise" target="_blank" rel="noopener">PoC</a>.</p>
+<p><a href="https://github.com/omniauth/omniauth" target="_blank" rel="noopener">omniauth</a> — несколько стратегий (Facebook, LDAP и др.). <a href="https://github.com/omniauth/omniauth#integrating-omniauth-into-your-application" target="_blank" rel="noopener">Интеграция</a>.</p>
+<h4 id="token-authentication">Аутентификация по токену</h4>
+<p>Devise по умолчанию использует cookie.</p>
+<p>Для токенов можно взять <a href="https://github.com/lynndylanhurley/devise_token_auth" target="_blank" rel="noopener">devise_token_auth</a> (в т.ч. для SPA).</p>
+<p>Конфигурация похожа на Devise; нужен omniauth.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby"># аутентификация по токену
+gem 'devise_token_auth'
+gem 'omniauth'</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">mount_devise_token_auth_for 'User', at: 'auth'</code></pre></div>
+<p>Генерация:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">rails g devise_token_auth:install [USER_CLASS] [MOUNT_PATH]</code></pre></div>
+<p>При необходимости отредактируйте миграцию под свою схему.</p>
+<p>Если используется <strong>только</strong> токен, CSRF для этих путей не нужен. Если одновременно cookie и токен — пути с cookie по-прежнему нужно защищать от CSRF.</p>
+<p>См. <a href="/owasp/cheatsheets/Authentication_Cheat_Sheet.html">Authentication Cheat Sheet</a>.</p>
+<h3 id="insecure-direct-object-reference-or-forceful-browsing">Небезопасные прямые ссылки на объекты (IDOR) и принудительный обход</h3>
+<p>RESTful-маршруты Rails интуитивны и угадываемы. Чтобы пользователь не читал/не менял чужие данные, проверяйте авторизацию в контроллере или через библиотеки вроде <a href="https://github.com/CanCanCommunity/cancancan" target="_blank" rel="noopener">cancancan</a> или <a href="https://github.com/elabs/pundit" target="_blank" rel="noopener">pundit</a> — каждая операция над объектом должна соответствовать бизнес-правилам.</p>
+<p>Общий контекст: <a href="https://wiki.owasp.org/index.php/Top_10_2010-A4-Insecure_Direct_Object_References" target="_blank" rel="noopener">OWASP Top 10 (A4)</a>.</p>
+<h3 id="csrf-cross-site-request-forgery">CSRF (межсайтовая подделка запроса)</h3>
+<p>В <code>ApplicationController</code> должно быть:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">class ApplicationController < ActionController::Base
+  protect_from_forgery
+end</code></pre></div>
+<p>Исключения (<code>except:</code>) допустимы для API и т.п., но должны быть осознанными. Пример: для <code>show</code> CSRF отключён — проверьте, что это оправдано.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">class ProjectController < ApplicationController
+  protect_from_forgery except: :show
+end</code></pre></div>
+<p>По умолчанию Rails не защищает HTTP <code>GET</code> от CSRF.</p>
+<p><strong>Примечание:</strong> при одной только токен-аутентификации <code>protect_from_forgery</code> на этих действиях не нужен; при cookie-аутентификации защита обязательна.</p>
+<p><a href="https://owasp.org/www-community/attacks/csrf" target="_blank" rel="noopener">OWASP: CSRF</a>.</p>
+<h3 id="redirects-and-forwards">Редиректы и форварды</h3>
+<p>Динамический редирект по URL из параметра опасен фишингом: доверенный домен ведёт на <code>badhacker.com</code>.</p>
+<p>Пример: <code>http://www.example.com/redirect?url=http://badhacker.com</code></p>
+<p>Базовая мера — <code>:only_path</code> (только путь, без хоста), но опция должна входить в первый аргумент, если он хеш:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">begin
+  if path = URI.parse(params[:url]).path
+    redirect_to path
+  end
+rescue URI::InvalidURIError
+  redirect_to '/'
+end</code></pre></div>
+<p>При проверке хоста по regexp используйте <code>URI.parse</code>, проверяйте <code>.scheme</code> и <code>.port</code>, якоря <code>\A</code>/<code>\z</code>, не <code>^</code>/<code>$</code>, или жёсткий allow-list.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">require 'uri'
+host = URI.parse("#{params[:url]}").host
+# javascript://trusted.com/%0Aalert(0) — проверяйте scheme и port
+validation_routine(host) if host
+def validation_routine(host)
+  # Якоря \A и \z, не ^ и $
+  # или сравнение с allow-list
+end</code></pre></div>
+<p>Слепой <code>redirect_to params[:to]</code> может привести к XSS через подстановку в параметры ответа.</p>
+<p>Пример URL: <code>http://example.com/redirect?to[status]=200&amp;to[protocol]=javascript:alert(0)//</code></p>
+<p>Надёжнее — карта ключ → URL:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">ACCEPTABLE_URLS = {
+  'our_app_1' => "https://www.example_commerce_site.com/checkout",
+  'our_app_2' => "https://www.example_user_site.com/change_settings"
+}</code></pre></div>
+<p>Запрос: <code>http://www.example.com/redirect?url=our_app_1</code></p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">def redirect
+  url = ACCEPTABLE_URLS["#{params[:url]}"]
+  redirect_to url if url
+end</code></pre></div>
+<p>См. <a href="/owasp/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html">Unvalidated Redirects and Forwards Cheat Sheet</a>.</p>
+<h3 id="dynamic-render-paths">Динамические пути render</h3>
+<p>Если имя шаблона или partial строится из ввода пользователя, возможен выбор произвольного представления (в т.ч. админского). По возможности не используйте пользовательский ввод в имени/пути к view.</p>
+<h3 id="cross-origin-resource-sharing">CORS (Cross-Origin Resource Sharing)</h3>
+<p>Для запросов с другого origin браузер требует явного разрешения. Нестандартные заголовки: ответ на <code>OPTIONS</code> и на основной запрос должен содержать корректный <code>Access-Control-Allow-Origin</code> (сначала preflight <code>OPTIONS</code>, затем например <code>POST</code>).</p>
+<p>При обычных HTTP-запросах браузер после ответа проверяет заголовки, чтобы решить, обрабатывать ли ответ.</p>
+<p>Allow-list в Rails с <code>rack-cors</code>:</p>
+<p><strong>Gemfile:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">gem 'rack-cors', :require => 'rack/cors'</code></pre></div>
+<p><strong>config/application.rb:</strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">module Sample
+  class Application < Rails::Application
+    config.middleware.use Rack::Cors do
+      allow do
+        origins 'someserver.example.com'
+        resource %r{/users/\d+.json},
+        :headers => ['Origin', 'Accept', 'Content-Type'],
+        :methods => [:post, :get]
+      end
+    end
+  end
+end</code></pre></div>
+<h3 id="security-related-headers">Заголовки безопасности</h3>
+<p>В контроллере (часто в before/after_action):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">response.headers['X-header-name'] = 'value'</code></pre></div>
+<p><code>default_headers</code> задаёт значения по умолчанию:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">ActionDispatch::Response.default_headers = {
+  'X-Frame-Options' => 'SAMEORIGIN',
+  'X-Content-Type-Options' => 'nosniff',
+  'X-XSS-Protection' => '0'
+}</code></pre></div>
+<p><a href="https://owasp.org/www-project-secure-headers/#headers-link" target="_blank" rel="noopener">HSTS</a> задаётся в окружении, например <code>production.rb</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">config.force_ssl = true</code></pre></div>
+<p>Гем <a href="https://github.com/twitter/secureheaders" target="_blank" rel="noopener">secureheaders</a> упрощает CSP и другие заголовки с учётом user-agent.</p>
+<h3 id="business-logic-bugs">Ошибки бизнес-логики</h3>
+<p>Логические баги дают уязвимости, которые сложно ловить сканерами. Снижение риска: ревью кода, парное программирование, модульные тесты.</p>
+<h3 id="attack-surface">Поверхность атаки</h3>
+<p>Файл <code>config/routes.rb</code> задаёт, какие URL обрабатываются и какими контроллерами — хорошая точка для обзора поверхности.</p>
+<p>Плохой пример (не делайте так):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby"># пример того, чего НЕ надо делать
+match ':controller(/:action(/:id(.:format)))'</code></pre></div>
+<p>Так можно вызвать любой публичный метод любого контроллера как action. Ограничивайте доступные действия явно.</p>
+<h3 id="sensitive-files">Чувствительные файлы</h3>
+<p>Многие Rails-приложения в публичных репозиториях. Не коммитьте или тщательно контролируйте:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">/config/database.yml                — продакшен-учётные данные
+/config/initializers/secret_token.rb — секрет для подписи cookie сессии
+/db/seeds.rb                        — сиды, в т.ч. bootstrap-админ
+/db/development.sqlite3             — может содержать реальные данные</code></pre></div>
+<h3 id="encryption">Шифрование</h3>
+<p>Rails опирается на криптографию ОС. Свою криптографию писать не стоит.</p>
+<p>Devise по умолчанию хеширует пароли bcrypt — разумный выбор.</p>
+<p>Число растяжек bcrypt в продакшене часто задаётся в <code>/config/initializers/devise.rb</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-ruby">config.stretches = Rails.env.test? ? 1 : 10</code></pre></div>
+<h2 id="updating-rails-and-having-a-process-for-updating-dependencies">Обновление Rails и зависимостей</h2>
+<p>После серии критичных CVE в 2013 году отставание от актуальных версий усложняло обновления. Большинство gems не подписаны авторами — нельзя собрать проект только из «доверенных» подписанных библиотек; имеет смысл аудит зависимостей.</p>
+<p>Выработайте процесс обновлений, например:</p>
+<ul>
+<li>раз в месяц/квартал — плановое обновление зависимостей;</li>
+<li>раз в неделю — разбор важных security-адvisory;</li>
+<li>в исключительных случаях — срочные патчи.</li>
+</ul>
+<h2 id="tools">Инструменты</h2>
+<p><a href="https://brakemanscanner.org/" target="_blank" rel="noopener">Brakeman</a> — статический анализ Rails; изучите типы предупреждений в документации.</p>
+<p><a href="https://github.com/Bearer/bearer" target="_blank" rel="noopener">Bearer</a> — анализ Ruby и JS/TS на широкий спектр проблем из OWASP Top 10, интеграция в CI/CD.</p>
+<p>Сканирование зависимостей: <a href="https://github.blog/2017-11-16-introducing-security-alerts-on-github/" target="_blank" rel="noopener">GitHub</a>, <a href="https://docs.gitlab.com/ee/user/application_security/dependency_scanning/" target="_blank" rel="noopener">GitLab</a>.</p>
+<p><a href="http://gauntlt.org" target="_blank" rel="noopener">Gauntlt</a> — security-тесты на cucumber/gherkin.</p>
+<p><a href="https://github.com/thesp0nge/dawnscanner" target="_blank" rel="noopener">dawnscanner</a> (с 2013, по духу близок Brakeman) — статический анализ для Rails, Sinatra, Padrino; в версии 1.6.6 — сотни проверок по CVE для Ruby.</p>
+<h2 id="related-articles-and-references">Статьи и ссылки</h2>
+<ul>
+<li><a href="https://guides.rubyonrails.org/security.html" target="_blank" rel="noopener">Официальное руководство по безопасности Rails</a></li>
+<li><a href="https://owasp.org/www-pdf-archive/Rails_Security_2.pdf" target="_blank" rel="noopener">OWASP Ruby on Rails Security Guide (PDF)</a></li>
+<li><a href="http://code.google.com/p/ruby-security/wiki/Guide" target="_blank" rel="noopener">The Ruby Security Reviewers Guide</a></li>
+<li><a href="https://groups.google.com/forum/?fromgroups#!forum/rubyonrails-security" target="_blank" rel="noopener">Список рассылки Ruby on Rails Security</a></li>
+<li><a href="https://codeclimate.com/blog/rails-insecure-defaults/" target="_blank" rel="noopener">Rails Insecure Defaults</a></li>
+</ul>
+{% endraw %}

@@ -1,0 +1,852 @@
+<h1 id="java-security-cheat-sheet">Статья по безопасности Java</h1>
+<h2 id="injection-prevention-in-java"> Предотвращение инъекций на Java</h2>
+<p>В этом разделе — практические советы по предотвращению <em>инъекций</em> в коде Java-приложений.</p>
+<p> Пример кода, используемого в подсказках, находится <a href="https://github.com/righettod/injection-cheat-sheets"> здесь</a>.</p>
+<h3 id="what-is-injection"> Что такое инъекция</h3>
+<p> <a href="https://owasp.org/www-project-top-ten/OWASP_Top_Ten_2017/Top_10-2017_A1-Injection"> Инъекция</a> в OWASP Top 10 определяется следующим образом:</p>
+<p><em> Рассмотрим всех, кто может отправлять в систему ненадежные данные, включая внешних пользователей, внутренних пользователей и администраторов.</em></p>
+<h3 id="general-advice-to-prevent-injection"> Общие советы по предотвращению инъекций</h3>
+<p> Следующий пункт можно применить, в общем, для предотвращения<em> Инъекция</em> проблема:</p>
+<ol>
+<li> Применять<strong> Проверка ввода</strong>(с использованием списка разрешенных) в сочетании с<strong> Дезинфекция вывода + экранирование</strong> при пользовательском вводе/выводе.</li>
+<li> Если вам нужно взаимодействовать с системой, попробуйте использовать функции API, предоставляемые вашим стеком технологий (Java/.Net/PHP...), вместо команды сборки.</li>
+</ol>
+<p> По этому поводу даются дополнительные консультации <a href="/owasp/cheatsheets/Input_Validation_Cheat_Sheet.html"> статья</a>.</p>
+<h2 id="specific-injection-types"> Конкретные типы инъекций</h2>
+<p><em> Примеры в этом разделе будут представлены в технологии Java (см. связанный проект Maven), но советы применимы и к другим технологиям, таким как .Net/PHP/Ruby/Python...</em></p>
+<h3 id="sql">SQL</h3>
+<h4 id="symptom"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для построения SQL-запроса с использованием строки и его выполнения.</p>
+<h4 id="how-to-prevent"> Как предотвратить</h4>
+<p> Использовать<em> Параметризация запроса</em> во избежание инъекций.</p>
+<h4 id="example"> Пример</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/*No DB framework used here in order to show the real use of
+  Prepared Statement from Java API*/
+/*Open connection with H2 database and use it*/
+Class.forName("org.h2.Driver");
+String jdbcUrl = "jdbc:h2:file:" + new File(".").getAbsolutePath() + "/target/db";
+try (Connection con = DriverManager.getConnection(jdbcUrl)) {
+
+    /* Sample A: Select data using Prepared Statement*/
+    String query = "select * from color where friendly_name = ?";
+    List&lt;String&gt; colors = new ArrayList&lt;&gt;();
+    try (PreparedStatement pStatement = con.prepareStatement(query)) {
+        pStatement.setString(1, "yellow");
+        try (ResultSet rSet = pStatement.executeQuery()) {
+            while (rSet.next()) {
+                colors.add(rSet.getString(1));
+            }
+        }
+    }
+
+    /* Sample B: Insert data using Prepared Statement*/
+    query = "insert into color(friendly_name, red, green, blue) values(?, ?, ?, ?)";
+    int insertedRecordCount;
+    try (PreparedStatement pStatement = con.prepareStatement(query)) {
+        pStatement.setString(1, "orange");
+        pStatement.setInt(2, 239);
+        pStatement.setInt(3, 125);
+        pStatement.setInt(4, 11);
+        insertedRecordCount = pStatement.executeUpdate();
+    }
+
+   /* Sample C: Update data using Prepared Statement*/
+    query = "update color set blue = ? where friendly_name = ?";
+    int updatedRecordCount;
+    try (PreparedStatement pStatement = con.prepareStatement(query)) {
+        pStatement.setInt(1, 10);
+        pStatement.setString(2, "orange");
+        updatedRecordCount = pStatement.executeUpdate();
+    }
+
+   /* Sample D: Delete data using Prepared Statement*/
+    query = "delete from color where friendly_name = ?";
+    int deletedRecordCount;
+    try (PreparedStatement pStatement = con.prepareStatement(query)) {
+        pStatement.setString(1, "orange");
+        deletedRecordCount = pStatement.executeUpdate();
+    }
+
+}</code></pre></div>
+<h4 id="references"> Ссылки</h4>
+<ul>
+<li> <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html"> Статья по предотвращению SQL-инъекций</a></li>
+</ul>
+<h3 id="jpa">JPA</h3>
+<h4 id="symptom_1"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для построения запроса JPA с использованием строки и его выполнения. Это очень похоже на SQL-инъекцию, но здесь измененным языком является не SQL, а JPA QL.</p>
+<h4 id="how-to-prevent_1"> Как предотвратить</h4>
+<p> Используйте язык запросов сохраняемости Java<strong> Параметризация запроса</strong> во избежание инъекций.</p>
+<h4 id="example_1"> Пример</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">EntityManager entityManager = null;
+try {
+    /* Get a ref on EntityManager to access DB */
+    entityManager = Persistence.createEntityManagerFactory("testJPA").createEntityManager();
+
+    /* Define parameterized query prototype using named parameter to enhance readability */
+    String queryPrototype = "select c from Color c where c.friendlyName = :colorName";
+
+    /* Create the query, set the named parameter and execute the query */
+    Query queryObject = entityManager.createQuery(queryPrototype);
+    Color c = (Color) queryObject.setParameter("colorName", "yellow").getSingleResult();
+
+} finally {
+    if (entityManager != null &amp;&amp; entityManager.isOpen()) {
+        entityManager.close();
+    }
+}</code></pre></div>
+<h4 id="references_1"> Ссылки</h4>
+<ul>
+<li> <a href="https://software-security.sans.org/developer-how-to/fix-sql-injection-in-java-persistence-api-jpa">SQLi и JPA</a></li>
+</ul>
+<h3 id="operating-system"> Операционная система</h3>
+<h4 id="symptom_2"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для создания команды операционной системы с использованием строки и ее выполнения.</p>
+<h4 id="how-to-prevent_2"> Как предотвратить</h4>
+<p> Используйте стек технологий<strong>API</strong> во избежание инъекций.</p>
+<h4 id="example_2"> Пример</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/* The context taken is, for example, to perform a PING against a computer.
+* The prevention is to use the feature provided by the Java API instead of building
+* a system command as String and execute it */
+InetAddress host = InetAddress.getByName("localhost");
+var reachable = host.isReachable(5000);</code></pre></div>
+<h4 id="references_2"> Ссылки</h4>
+<ul>
+<li> <a href="https://owasp.org/www-community/attacks/Command_Injection"> Внедрение команд</a></li>
+</ul>
+<h3 id="xml-xpath-injection">XML: XPath-инъекция</h3>
+<h4 id="symptom_3"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для построения запроса XPath с использованием строки и его выполнения.</p>
+<h4 id="how-to-prevent_3"> Как предотвратить</h4>
+<p> Использовать<strong> Преобразователь переменных XPath</strong> во избежание инъекций.</p>
+<h4 id="example_3"> Пример</h4>
+<p><strong> Переменный резольвер</strong> выполнение.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/**
+ * Resolver in order to define parameter for XPATH expression.
+ *
+ */
+public class SimpleVariableResolver implements XPathVariableResolver {
+
+    private final Map&lt;QName, Object&gt; vars = new HashMap&lt;QName, Object&gt;();
+
+    /**
+     * External methods to add parameter
+     *
+     * @param name Parameter name
+     * @param value Parameter value
+     */
+    public void addVariable(QName name, Object value) {
+        vars.put(name, value);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see javax.xml.xpath.XPathVariableResolver#resolveVariable(javax.xml.namespace.QName)
+     */
+    public Object resolveVariable(QName variableName) {
+        return vars.get(variableName);
+    }
+}</code></pre></div>
+<p> Код, использующий его для выполнения запроса XPath.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/*Create a XML document builder factory*/
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+
+/*Disable External Entity resolution for different cases*/
+//Do not performed here in order to focus on variable resolver code
+//but do it for production code !
+
+/*Load XML file*/
+DocumentBuilder builder = dbf.newDocumentBuilder();
+Document doc = builder.parse(new File("src/test/resources/SampleXPath.xml"));
+
+/* Create and configure parameter resolver */
+String bid = "bk102";
+SimpleVariableResolver variableResolver = new SimpleVariableResolver();
+variableResolver.addVariable(new QName("bookId"), bid);
+
+/*Create and configure XPATH expression*/
+XPath xpath = XPathFactory.newInstance().newXPath();
+xpath.setXPathVariableResolver(variableResolver);
+XPathExpression xPathExpression = xpath.compile("//book[@id=$bookId]");
+
+/* Apply expression on XML document */
+Object nodes = xPathExpression.evaluate(doc, XPathConstants.NODESET);
+NodeList nodesList = (NodeList) nodes;
+Element book = (Element)nodesList.item(0);
+var containsRalls = book.getTextContent().contains("Ralls, Kim");</code></pre></div>
+<h4 id="references_3"> Ссылки</h4>
+<ul>
+<li> <a href="https://owasp.org/www-community/attacks/XPATH_Injection">XPATH-инъекция</a></li>
+</ul>
+<h3 id="htmljavascriptcss">HTML/JavaScript/CSS</h3>
+<h4 id="symptom_4"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для создания HTTP-ответа и отправляет его в браузер.</p>
+<h4 id="how-to-prevent_4"> Как предотвратить</h4>
+<p> Либо примените строгую проверку ввода (подход со списком разрешенных), либо используйте очистку вывода + экранирование, если проверка ввода невозможна (объединяйте оба варианта каждый раз, когда это возможно).</p>
+<h4 id="example_4"> Пример</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/*
+INPUT WAY: Receive data from user
+Here it's recommended to use strict input validation using allowlist approach.
+In fact, you ensure that only allowed characters are part of the input received.
+*/
+
+String userInput = "You user login is owasp-user01";
+
+/* First we check that the value contains only expected character*/
+if (!Pattern.matches("[a-zA-Z0-9\\s\\-]{1,50}", userInput))
+{
+    return false;
+}
+
+/* If the first check pass then ensure that potential dangerous character
+that we have allowed for business requirement are not used in a dangerous way.
+For example here we have allowed the character '-', and, this can
+be used in SQL injection so, we
+ensure that this character is not used is a continuous form.
+Use the API COMMONS LANG v3 to help in String analysis...
+*/
+If (0 != StringUtils.countMatches(userInput.replace(" ", ""), "--"))
+{
+    return false;
+}
+
+/*
+OUTPUT WAY: Send data to user
+Here we escape + sanitize any data sent to user
+Use the OWASP Java HTML Sanitizer API to handle sanitizing
+Use the OWASP Java Encoder API to handle HTML tag encoding (escaping)
+*/
+
+String outputToUser = "You &lt;p&gt;user login&lt;/p&gt; is &lt;strong&gt;owasp-user01&lt;/strong&gt;";
+outputToUser += "&lt;script&gt;alert(22);&lt;/script&gt;&lt;img src='#' onload='javascript:alert(23);'&gt;";
+
+/* Create a sanitizing policy that only allow tag '&lt;p&gt;' and '&lt;strong&gt;'*/
+PolicyFactory policy = new HtmlPolicyBuilder().allowElements("p", "strong").toFactory();
+
+/* Sanitize the output that will be sent to user*/
+String safeOutput = policy.sanitize(outputToUser);
+
+/* Encode HTML Tag*/
+safeOutput = Encode.forHtml(safeOutput);
+String finalSafeOutputExpected = "You &lt;p&gt;user login&lt;/p&gt; is &lt;strong&gt;owasp-user01&lt;/strong&gt;";
+if (!finalSafeOutputExpected.equals(safeOutput))
+{
+    return false;
+}</code></pre></div>
+<h4 id="references_4"> Ссылки</h4>
+<ul>
+<li> <a href="https://owasp.org/www-community/attacks/xss/">XSS</a></li>
+<li> <a href="https://github.com/owasp/java-html-sanitizer">OWASP Java HTML-дезинфицирующее средство</a></li>
+<li> <a href="https://github.com/owasp/owasp-java-encoder">Java-кодер OWASP</a></li>
+<li> <a href="https://docs.oracle.com/javase/8/docs/api/java/util/regex/Pattern.html">Java RegEx</a></li>
+</ul>
+<h3 id="ldap"> ЛДАП</h3>
+<p> посвященный <a href="/owasp/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html"> статья</a> был создан.</p>
+<h3 id="nosql">NoSQL</h3>
+<h4 id="symptom_5"> Симптом</h4>
+<p> Внедрение этого типа происходит, когда приложение использует ненадежный пользовательский ввод для построения выражения вызова API NoSQL.</p>
+<h4 id="how-to-prevent_5"> Как предотвратить</h4>
+<p> Поскольку существует множество систем баз данных NoSQL, и каждая из них использует API для вызова, важно гарантировать, что пользовательский ввод, полученный и используемый для построения выражения вызова API, не содержит каких-либо символов, имеющих особое значение в синтаксисе целевого API. Это делается для того, чтобы избежать использования его для экранирования исходного выражения вызова для создания другого на основе созданного пользовательского ввода. Также важно не использовать конкатенацию строк для создания выражения вызова API, а использовать API для создания выражения.</p>
+<h4 id="example-mongodb"> Пример — МонгоБД</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-java">/* Here use MongoDB as target NoSQL DB */
+String userInput = "Brooklyn";
+
+/* First ensure that the input do no contains any special characters
+for the current NoSQL DB call API,
+here they are: ' " \ ; { } $
+*/
+//Avoid regexp this time in order to made validation code
+//more easy to read and understand...
+ArrayList &lt; String &gt; specialCharsList = new ArrayList &lt; String &gt; () {
+    {
+        add("'");
+        add("\"");
+        add("\\");
+        add(";");
+        add("{");
+        add("}");
+        add("$");
+    }
+};
+
+for (String specChar: specialCharsList) {
+    if (userInput.contains(specChar)) {
+        return false;
+    }
+}
+
+//Add also a check on input max size
+if (!userInput.length() &lt;= 50)
+{
+    return false;
+}
+
+/* Then perform query on database using API to build expression */
+//Connect to the local MongoDB instance
+try(MongoClient mongoClient = new MongoClient()){
+    MongoDatabase db = mongoClient.getDatabase("test");
+    //Use API query builder to create call expression
+    //Create expression
+    Bson expression = eq("borough", userInput);
+    //Perform call
+    FindIterable&lt;org.bson.Document&gt; restaurants = db.getCollection("restaurants").find(expression);
+    //Verify result consistency
+    restaurants.forEach(new Block&lt;org.bson.Document&gt;() {
+        @Override
+        public void apply(final org.bson.Document doc) {
+            String restBorough = (String)doc.get("borough");
+            if (!"Brooklyn".equals(restBorough))
+            {
+                return false;
+            }
+        }
+    });
+}</code></pre></div>
+<h4 id="references_5"> Ссылки</h4>
+<ul>
+<li> <a href="https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection.html"> Тестирование на внедрение NoSQL</a></li>
+<li> <a href="https://ckarande.gitbooks.io/owasp-nodegoat-tutorial/content/tutorial/a1_-_sql_and_nosql_injection.html">SQL и NoSQL-инъекция</a></li>
+<li> <a href="https://arxiv.org/ftp/arxiv/papers/1506/1506.04082.pdf"> Нет SQL, нет инъекции?</a></li>
+</ul>
+<h3 id="log-injection"> Внедрение журналов</h3>
+<h4 id="symptom_6"> Симптом</h4>
+<p> <a href="https://owasp.org/www-community/attacks/Log_Injection"> Внедрение журналов</a> происходит, когда приложение включает ненадежные данные в сообщение журнала приложения (например, злоумышленник может создать дополнительную запись журнала, которая будет выглядеть так, как будто она поступила от совершенно другого пользователя, если он сможет ввести символы CRLF в ненадежные данные). Дополнительную информацию об этой атаке можно найти на сайте OWASP.<a href="https://owasp.org/www-community/attacks/Log_Injection"> Внедрение журналов</a> страница.</p>
+<h4 id="how-to-prevent_6"> Как предотвратить</h4>
+<p> Чтобы злоумышленник не смог записать вредоносный контент в журнал приложений, примените такие средства защиты, как:</p>
+<ul>
+<li> Используйте структурированные форматы журналов, такие как JSON, вместо неструктурированных текстовых форматов.
+  Неструктурированные форматы подвержены<strong> С</strong> свадьба<strong> Р</strong> возврат (CR) и<strong> л</strong> внутри<strong> Ф</strong> э.д. (LF) инъекция (см.<a href="https://cwe.mitre.org/data/definitions/93.html">CWE-93</a>).</li>
+<li> Ограничьте размер входного значения пользователя, используемого для создания сообщения журнала.</li>
+<li> Убеждаться <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html"> вся защита от XSS</a> применяются при просмотре файлов журналов в веб-браузере.</li>
+</ul>
+<h4 id="example-using-log4j-core-2"> Пример использования Log4j Core 2</h4>
+<p> Рекомендуемая политика ведения журналов для производственной среды — отправка журналов в сетевой сокет с использованием структурированного протокола.<a href="https://logging.apache.org/log4j/2.x/manual/json-template-layout.html"> Макет шаблона JSON</a> введено в <a href="https://logging.apache.org/log4j/2.x/release-notes.html#release-notes-2-14-0"> Лог4j 2.14.0</a> и ограничьте размер строк до 500 байт, используя <a href="https://logging.apache.org/log4j/2.x/manual/json-template-layout.html#plugin-attr-maxStringLength"><code>maxStringLength</code> атрибут конфигурации</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;Configuration xmlns="https://logging.apache.org/xml/ns"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="
+                   https://logging.apache.org/xml/ns
+                   https://logging.apache.org/xml/ns/log4j-config-2.xsd"&gt;
+  &lt;Appenders&gt;
+    &lt;Socket name="SOCKET"
+            host="localhost"
+            port="12345"&gt;
+      &lt;!-- Limit the size of any string field in the produced JSON document to 500 bytes --&gt;
+      &lt;JsonTemplateLayout maxStringLength="500"
+                          nullEventDelimiterEnabled="true"/&gt;
+    &lt;/Socket&gt;
+  &lt;/Appenders&gt;
+  &lt;Loggers&gt;
+    &lt;Root level="DEBUG"&gt;
+      &lt;AppenderRef ref="SOCKET"/&gt;
+    &lt;/Root&gt;
+  &lt;/Loggers&gt;
+&lt;/Configuration&gt;</code></pre></div>
+<p> Видеть <a href="https://logging.apache.org/log4j/2.x/soa.html"> Интеграция с сервис-ориентированными архитектурами</a> на <a href="https://logging.apache.org/log4j/2.x/index.html"> Веб-сайт Log4j</a> дополнительные советы.</p>
+<p> Использование регистратора на уровне кода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+...
+// Most common way to declare a logger
+private static final LOGGER = LogManager.getLogger();
+// GOOD!
+//
+// Use parameterized logging to add user data to a message
+// The pattern should be a compile-time constant
+logger.warn("Login failed for user {}.", username);
+// BAD!
+//
+// Don't mix string concatenation and parameters
+// If `username` contains `{}`, the exception will leak into the message
+logger.warn("Failure for user " + username + " and role {}.", role, ex);
+...</code></pre></div>
+<p> Видеть <a href="https://logging.apache.org/log4j/2.x/manual/api.html#best-practice"> Лучшие практики API Log4j</a> для получения дополнительной информации.</p>
+<h4 id="example-using-logback"> Пример использования журнала</h4>
+<p> Рекомендуемая политика ведения журнала для производственной среды — использование структурированного <a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder">JsonEncoder</a> введено в <a href="https://logback.qos.ch/news.html#1.3.8"> Вход в систему 1.3.8</a>.
+В приведенном ниже примере Logback настроен на чередование 10 файлов журналов по 5 МБ каждый:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-xml">&lt;?xml version="1.0" encoding="UTF-8" ?&gt;
+&lt;!DOCTYPE configuration&gt;
+&lt;configuration&gt;
+  &lt;import class="ch.qos.logback.classic.encoder.JsonEncoder"/&gt;
+  &lt;import class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy"/&gt;
+  &lt;import class="ch.qos.logback.core.rolling.RollingFileAppender"/&gt;
+  &lt;import class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy"/&gt;
+
+  &lt;appender name="RollingFile" class="RollingFileAppender"&gt;
+    &lt;file&gt;app.log&lt;/file&gt;
+    &lt;rollingPolicy class="FixedWindowRollingPolicy"&gt;
+      &lt;fileNamePattern&gt;app-%i.log&lt;/fileNamePattern&gt;
+      &lt;minIndex&gt;1&lt;/minIndex&gt;
+      &lt;maxIndex&gt;10&lt;/maxIndex&gt;
+    &lt;/rollingPolicy&gt;
+    &lt;triggeringPolicy class="SizeBasedTriggeringPolicy"&gt;
+      &lt;maxFileSize&gt;5MB&lt;/maxFileSize&gt;
+    &lt;/triggeringPolicy&gt;
+    &lt;encoder class="JsonEncoder"/&gt;
+  &lt;/appender&gt;
+
+  &lt;root level="DEBUG"&gt;
+    &lt;appender-ref ref="SOCKET"/&gt;
+  &lt;/root&gt;
+&lt;/configuration&gt;</code></pre></div>
+<p> Использование регистратора на уровне кода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+...
+// Most common way to declare a logger
+Logger logger = LoggerFactory.getLogger(MyClass.class);
+// GOOD!
+//
+// Use parameterized logging to add user data to a message
+// The pattern should be a compile-time constant
+logger.warn("Login failed for user {}.", username);
+// BAD!
+//
+// Don't mix string concatenation and parameters
+// If `username` contains `{}`, the exception will leak into the message
+logger.warn("Failure for user " + username + " and role {}.", role, ex);
+...</code></pre></div>
+<h4 id="references_6"> Ссылки</h4>
+<ul>
+<li> <a href="https://logging.apache.org/log4j/2.x/manual/configuration.html"> Файл конфигурации ядра Log4j</a></li>
+<li> <a href="https://logging.apache.org/log4j/2.x/manual/json-template-layout.html"> Макет шаблона JSON Log4j</a></li>
+<li> <a href="https://logging.apache.org/log4j/2.x/manual/appenders.html"> Приложения Log4j</a></li>
+<li> <a href="https://logback.qos.ch/manual/configuration.html"> Файл конфигурации журнала регистрации</a></li>
+<li> <a href="https://logback.qos.ch/manual/encoders.html#JsonEncoder"> Вход в систему JsonEncoder</a></li>
+<li> <a href="https://logback.qos.ch/manual/appenders.html"> Приложения журнала журнала</a></li>
+</ul>
+<h2 id="cryptography"> Криптография</h2>
+<h3 id="general-cryptography-guidance"> Общее руководство по криптографии</h3>
+<ul>
+<li><strong> Никогда, никогда не пишите свои собственные криптографические функции.</strong></li>
+<li> По возможности старайтесь вообще не писать какой-либо криптографический код. Вместо этого попробуйте использовать уже существующие решения по управлению секретами или решение по управлению секретами, предоставленное вашим облачным провайдером. Для получения дополнительной информации см.<a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html"> Статья по управлению секретами OWASP</a>.</li>
+<li> Если вы не можете использовать уже существующее решение для управления секретами, попробуйте использовать надежную и хорошо известную библиотеку реализации, а не использовать библиотеки, встроенные в JCA/JCE, поскольку с их помощью слишком легко допустить криптографические ошибки.</li>
+<li> Убедитесь, что ваше приложение или протокол могут легко поддерживать будущие изменения криптографических алгоритмов.</li>
+<li> По возможности используйте менеджер пакетов, чтобы поддерживать все ваши пакеты в актуальном состоянии. Следите за обновлениями в настройках разработки и соответствующим образом планируйте обновления своих приложений.</li>
+<li> Ниже мы покажем примеры на основе Google Tink — библиотеки, созданной экспертами по криптографии для безопасного использования криптографии (в смысле минимизации распространенных ошибок, допускаемых при использовании стандартных библиотек криптографии).</li>
+</ul>
+<h3 id="encryption-for-storage"> Шифрование для хранения</h3>
+<p> Следуйте инструкциям по алгоритму в <a href="/owasp/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#algorithms"> Статья по криптографическому хранилищу OWASP</a>.</p>
+<h4 id="symmetric-example-using-google-tink"> Симметричный пример с использованием Google Tink</h4>
+<p> В Google Tink есть документация по выполнению распространенных задач.</p>
+<p> Например, на этой странице (с сайта Google) показано <a href="https://developers.google.com/tink/encrypt-data"> как выполнить простое симметричное шифрование</a>.</p>
+<p> В следующем фрагменте кода показано инкапсулированное использование этой функции:</p>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «Симметричное шифрование Tink».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.crypto.tink.Aead;
+import com.google.crypto.tink.InsecureSecretKeyAccess;
+import com.google.crypto.tink.KeysetHandle;
+import com.google.crypto.tink.TinkJsonProtoKeysetFormat;
+import com.google.crypto.tink.aead.AeadConfig;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
+
+// AesGcmSimpleTest
+public class App {
+
+    // Based on example from:
+    // https://github.com/tink-crypto/tink-java/tree/main/examples/aead
+
+    public static void main(String[] args) throws Exception {
+
+        // Key securely generated using:
+        // tinkey create-keyset --key-template AES128_GCM --out-format JSON --out aead_test_keyset.json
+
+
+
+        // Register all AEAD key types with the Tink runtime.
+        AeadConfig.register();
+
+        // Read the keyset into a KeysetHandle.
+        KeysetHandle handle =
+        TinkJsonProtoKeysetFormat.parseKeyset(
+            new String(Files.readAllBytes( Paths.get("/home/fredbloggs/aead_test_keyset.json")), UTF_8), InsecureSecretKeyAccess.get());
+
+        String message = "This message to be encrypted";
+        System.out.println(message);
+
+        // Add some relevant context about the encrypted data that should be verified
+        // on decryption
+        String metadata = "Sender: fredbloggs@example.com";
+
+        // Encrypt the message
+        byte[] cipherText = AesGcmSimple.encrypt(message, metadata, handle);
+        System.out.println(Base64.getEncoder().encodeToString(cipherText));
+
+        // Decrypt the message
+        String message2 = AesGcmSimple.decrypt(cipherText, metadata, handle);
+        System.out.println(message2);
+    }
+}
+
+class AesGcmSimple {
+
+    public static byte[] encrypt(String plaintext, String metadata, KeysetHandle handle) throws Exception {
+        // Get the primitive.
+        Aead aead = handle.getPrimitive(Aead.class);
+        return aead.encrypt(plaintext.getBytes(UTF_8), metadata.getBytes(UTF_8));
+    }
+
+    public static String decrypt(byte[] ciphertext, String metadata, KeysetHandle handle) throws Exception {
+        // Get the primitive.
+        Aead aead = handle.getPrimitive(Aead.class);
+        return new String(aead.decrypt(ciphertext, metadata.getBytes(UTF_8)),UTF_8);
+    }
+
+}</code></pre></div>
+</details>
+<h4 id="symmetric-example-using-built-in-jcajce-classes"> Симметричный пример с использованием встроенных классов JCA/JCE</h4>
+<p> Если вы абсолютно не можете использовать отдельную библиотеку, все равно можно использовать встроенные классы JCA/JCE, но настоятельно рекомендуется, чтобы специалист по криптографии проверил весь проект и код, поскольку даже самая тривиальная ошибка может серьезно ослабить ваше шифрование.</p>
+<p> В следующем фрагменте кода показан пример использования AES-GCM для шифрования и дешифрования данных.</p>
+<p> Несколько ограничений/подводных камней с этим кодом:</p>
+<ul>
+<li> Он не учитывает ротацию ключей или управление, что само по себе является целой темой.</li>
+<li> Важно использовать разные одноразовые номера для каждой операции шифрования, особенно если используется один и тот же ключ. Для получения дополнительной информации см.<a href="https://crypto.stackexchange.com/a/66500"> этот ответ на Cryptography Stack Exchange</a>.</li>
+<li> Ключ необходимо будет надежно хранить.</li>
+</ul>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «Симметричное шифрование JCA/JCE».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import javax.crypto.spec.*;
+import javax.crypto.*;
+import java.util.Base64;
+
+
+// AesGcmSimpleTest
+class Main {
+
+    public static void main(String[] args) throws Exception {
+        // Key of 32 bytes / 256 bits for AES
+        KeyGenerator keyGen = KeyGenerator.getInstance(AesGcmSimple.ALGORITHM);
+        keyGen.init(AesGcmSimple.KEY_SIZE, new SecureRandom());
+        SecretKey secretKey = keyGen.generateKey();
+
+        // Nonce of 12 bytes / 96 bits and this size should always be used.
+        // It is critical for AES-GCM that a unique nonce is used for every cryptographic operation.
+        byte[] nonce = new byte[AesGcmSimple.IV_LENGTH];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(nonce);
+
+        var message = "This message to be encrypted";
+        System.out.println(message);
+
+        // Encrypt the message
+        byte[] cipherText = AesGcmSimple.encrypt(message, nonce, secretKey);
+        System.out.println(Base64.getEncoder().encodeToString(cipherText));
+
+        // Decrypt the message
+        var message2 = AesGcmSimple.decrypt(cipherText, nonce, secretKey);
+        System.out.println(message2);
+    }
+}
+
+class AesGcmSimple {
+
+    public static final String ALGORITHM = "AES";
+    public static final String CIPHER_ALGORITHM = "AES/GCM/NoPadding";
+    public static final int KEY_SIZE = 256;
+    public static final int TAG_LENGTH = 128;
+    public static final int IV_LENGTH = 12;
+
+    public static byte[] encrypt(String plaintext, byte[] nonce, SecretKey secretKey) throws Exception {
+        return cryptoOperation(plaintext.getBytes(StandardCharsets.UTF_8), nonce, secretKey, Cipher.ENCRYPT_MODE);
+    }
+
+    public static String decrypt(byte[] ciphertext, byte[] nonce, SecretKey secretKey) throws Exception {
+        return new String(cryptoOperation(ciphertext, nonce, secretKey, Cipher.DECRYPT_MODE), StandardCharsets.UTF_8);
+    }
+
+    private static byte[] cryptoOperation(byte[] text, byte[] nonce, SecretKey secretKey, int mode) throws Exception {
+        Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(TAG_LENGTH, nonce);
+        cipher.init(mode, secretKey, gcmParameterSpec);
+        return cipher.doFinal(text);
+    }
+
+}</code></pre></div>
+</details>
+<h3 id="encryption-for-transmission"> Шифрование для передачи</h3>
+<p> Опять же, следуйте инструкциям по алгоритму в <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#algorithms"> Статья по криптографическому хранилищу OWASP</a>.</p>
+<h4 id="asymmetric-example-using-google-tink"> Асимметричный пример с использованием Google Tink</h4>
+<p> В Google Tink есть документация по выполнению распространенных задач.</p>
+<p> Например, на этой странице (с сайта Google) показано <a href="https://developers.google.com/tink/exchange-data"> как выполнить процесс гибридного шифрования</a> где две стороны хотят обмениваться данными на основе своей пары асимметричных ключей.</p>
+<p> Следующий фрагмент кода показывает, как эту функцию можно использовать для обмена секретами между Алисой и Бобом:</p>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «Гибридное шифрование Tink».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.crypto.tink.HybridDecrypt;
+import com.google.crypto.tink.HybridEncrypt;
+import com.google.crypto.tink.InsecureSecretKeyAccess;
+import com.google.crypto.tink.KeysetHandle;
+import com.google.crypto.tink.TinkJsonProtoKeysetFormat;
+import com.google.crypto.tink.hybrid.HybridConfig;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Base64;
+
+// HybridReplaceTest
+class App {
+    public static void main(String[] args) throws Exception {
+        /*
+
+        Generated public/private keypairs for Bob and Alice using the
+        following tinkey commands:
+
+        ./tinkey create-keyset \
+        --key-template DHKEM_X25519_HKDF_SHA256_HKDF_SHA256_AES_256_GCM \
+        --out-format JSON --out alice_private_keyset.json
+
+        ./tinkey create-keyset \
+        --key-template DHKEM_X25519_HKDF_SHA256_HKDF_SHA256_AES_256_GCM \
+        --out-format JSON --out bob_private_keyset.json
+
+        ./tinkey create-public-keyset --in alice_private_keyset.json \
+        --in-format JSON --out-format JSON --out alice_public_keyset.json
+
+        ./tinkey create-public-keyset --in bob_private_keyset.json \
+        --in-format JSON --out-format JSON --out bob_public_keyset.json
+        */
+
+        HybridConfig.register();
+
+        // Generate ECC key pair for Alice
+        var alice = new HybridSimple(
+                getKeysetHandle("/home/alicesmith/private_keyset.json"),
+                getKeysetHandle("/home/alicesmith/public_keyset.json")
+
+        );
+
+        KeysetHandle alicePublicKey = alice.getPublicKey();
+
+        // Generate ECC key pair for Bob
+        var bob = new HybridSimple(
+                getKeysetHandle("/home/bobjones/private_keyset.json"),
+                getKeysetHandle("/home/bobjones/public_keyset.json")
+
+        );
+
+        KeysetHandle bobPublicKey = bob.getPublicKey();
+
+        // This keypair generation should be reperformed every so often in order to
+        // obtain a new shared secret to avoid a long lived shared secret.
+
+        // Alice encrypts a message to send to Bob
+        String plaintext = "Hello, Bob!";
+
+        // Add some relevant context about the encrypted data that should be verified
+        // on decryption
+        String metadata = "Sender: alicesmith@example.com";
+
+        System.out.println("Secret being sent from Alice to Bob: " + plaintext);
+        var cipherText = alice.encrypt(bobPublicKey, plaintext, metadata);
+        System.out.println("Ciphertext being sent from Alice to Bob: " + Base64.getEncoder().encodeToString(cipherText));
+
+
+        // Bob decrypts the message
+        var decrypted = bob.decrypt(cipherText, metadata);
+        System.out.println("Secret received by Bob from Alice: " + decrypted);
+        System.out.println();
+
+        // Bob encrypts a message to send to Alice
+        String plaintext2 = "Hello, Alice!";
+
+        // Add some relevant context about the encrypted data that should be verified
+        // on decryption
+        String metadata2 = "Sender: bobjones@example.com";
+
+        System.out.println("Secret being sent from Bob to Alice: " + plaintext2);
+        var cipherText2 = bob.encrypt(alicePublicKey, plaintext2, metadata2);
+        System.out.println("Ciphertext being sent from Bob to Alice: " + Base64.getEncoder().encodeToString(cipherText2));
+
+        // Bob decrypts the message
+        var decrypted2 = alice.decrypt(cipherText2, metadata2);
+        System.out.println("Secret received by Alice from Bob: " + decrypted2);
+    }
+
+    private static KeysetHandle getKeysetHandle(String filename) throws Exception
+    {
+        return TinkJsonProtoKeysetFormat.parseKeyset(
+                new String(Files.readAllBytes( Paths.get(filename)), UTF_8), InsecureSecretKeyAccess.get());
+    }
+}
+class HybridSimple {
+
+    private KeysetHandle privateKey;
+    private KeysetHandle publicKey;
+
+
+    public HybridSimple(KeysetHandle privateKeyIn, KeysetHandle publicKeyIn) throws Exception {
+        privateKey = privateKeyIn;
+        publicKey = publicKeyIn;
+    }
+
+    public KeysetHandle getPublicKey() {
+        return publicKey;
+    }
+
+    public byte[] encrypt(KeysetHandle partnerPublicKey, String message, String metadata) throws Exception {
+
+        HybridEncrypt encryptor = partnerPublicKey.getPrimitive(HybridEncrypt.class);
+
+        // return the encrypted value
+        return encryptor.encrypt(message.getBytes(UTF_8), metadata.getBytes(UTF_8));
+    }
+    public String decrypt(byte[] ciphertext, String metadata) throws Exception {
+
+        HybridDecrypt decryptor = privateKey.getPrimitive(HybridDecrypt.class);
+
+        // return the encrypted value
+        return new String(decryptor.decrypt(ciphertext, metadata.getBytes(UTF_8)),UTF_8);
+    }
+
+
+}</code></pre></div>
+</details>
+<h4 id="asymmetric-example-using-built-in-jcajce-classes"> Асимметричный пример с использованием встроенных классов JCA/JCE</h4>
+<p> Если вы абсолютно не можете использовать отдельную библиотеку, все равно можно использовать встроенные классы JCA/JCE, но настоятельно рекомендуется, чтобы специалист по криптографии проверил весь проект и код, поскольку даже самая тривиальная ошибка может серьезно ослабить ваше шифрование.</p>
+<p> В следующем фрагменте кода показан пример использования эллиптической кривой/Диффи-Хельмана (ECDH) вместе с AES-GCM для шифрования/дешифрования данных между двумя разными сторонами без необходимости передачи симметричного ключа между двумя сторонами. Вместо этого стороны обмениваются открытыми ключами и затем могут использовать ECDH для создания общего секрета, который можно использовать для симметричного шифрования.</p>
+<p> Обратите внимание, что этот пример кода использует класс AesGcmSimple из пакета <a href="#symmetric-example-using-built-in-jcajce-classes"> предыдущий раздел</a>.</p>
+<p> Несколько ограничений/подводных камней с этим кодом:</p>
+<ul>
+<li> Он не учитывает ротацию ключей или управление, что само по себе является целой темой.</li>
+<li> Код намеренно применяет новый одноразовый номер для каждой операции шифрования, но его необходимо рассматривать как отдельный элемент данных рядом с зашифрованным текстом.</li>
+<li> Приватные ключи необходимо будет надежно хранить.</li>
+<li> Код не учитывает проверку открытых ключей перед использованием.</li>
+<li> В целом, между двумя сторонами нет никакой проверки подлинности.</li>
+</ul>
+<details>
+<summary> Нажмите здесь, чтобы просмотреть фрагмент кода «гибридного шифрования JCA/JCE».</summary>
+<div class="cheatsheet-code-window"><pre><code class="language-java">import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import javax.crypto.spec.*;
+import javax.crypto.*;
+import java.util.*;
+import java.security.*;
+import java.security.spec.*;
+import java.util.Arrays;
+
+// ECDHSimpleTest
+class Main {
+    public static void main(String[] args) throws Exception {
+
+        // Generate ECC key pair for Alice
+        var alice = new ECDHSimple();
+        Key alicePublicKey = alice.getPublicKey();
+
+        // Generate ECC key pair for Bob
+        var bob = new ECDHSimple();
+        Key bobPublicKey = bob.getPublicKey();
+
+        // This keypair generation should be reperformed every so often in order to
+        // obtain a new shared secret to avoid a long lived shared secret.
+
+        // Alice encrypts a message to send to Bob
+        String plaintext = "Hello"; //, Bob!";
+        System.out.println("Secret being sent from Alice to Bob: " + plaintext);
+
+        var retPair = alice.encrypt(bobPublicKey, plaintext);
+        var nonce = retPair.getKey();
+        var cipherText = retPair.getValue();
+
+        System.out.println("Both cipherText and nonce being sent from Alice to Bob: " + Base64.getEncoder().encodeToString(cipherText) + " " + Base64.getEncoder().encodeToString(nonce));
+
+
+        // Bob decrypts the message
+        var decrypted = bob.decrypt(alicePublicKey, cipherText, nonce);
+        System.out.println("Secret received by Bob from Alice: " + decrypted);
+        System.out.println();
+
+        // Bob encrypts a message to send to Alice
+        String plaintext2 = "Hello"; //, Alice!";
+        System.out.println("Secret being sent from Bob to Alice: " + plaintext2);
+
+        var retPair2 = bob.encrypt(alicePublicKey, plaintext2);
+        var nonce2 = retPair2.getKey();
+        var cipherText2 = retPair2.getValue();
+        System.out.println("Both cipherText2 and nonce2 being sent from Bob to Alice: " + Base64.getEncoder().encodeToString(cipherText2) + " " + Base64.getEncoder().encodeToString(nonce2));
+
+        // Bob decrypts the message
+        var decrypted2 = alice.decrypt(bobPublicKey, cipherText2, nonce2);
+        System.out.println("Secret received by Alice from Bob: " + decrypted2);
+    }
+}
+class ECDHSimple {
+    private KeyPair keyPair;
+
+    public class AesKeyNonce {
+        public SecretKey Key;
+        public byte[] Nonce;
+    }
+
+    public ECDHSimple() throws Exception {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+        ECGenParameterSpec ecSpec = new ECGenParameterSpec("secp256r1"); // Using secp256r1 curve
+        keyPairGenerator.initialize(ecSpec);
+        keyPair = keyPairGenerator.generateKeyPair();
+    }
+
+    public Key getPublicKey() {
+        return keyPair.getPublic();
+    }
+
+    public AbstractMap.SimpleEntry&lt;byte[], byte[]&gt; encrypt(Key partnerPublicKey, String message) throws Exception {
+
+        // Generate the AES Key and Nonce
+        AesKeyNonce aesParams = generateAESParams(partnerPublicKey);
+
+        // return the encrypted value
+        return new AbstractMap.SimpleEntry&lt;&gt;(
+            aesParams.Nonce,
+            AesGcmSimple.encrypt(message, aesParams.Nonce, aesParams.Key)
+            );
+    }
+    public String decrypt(Key partnerPublicKey, byte[] ciphertext, byte[] nonce) throws Exception {
+
+        // Generate the AES Key and Nonce
+        AesKeyNonce aesParams = generateAESParams(partnerPublicKey, nonce);
+
+        // return the decrypted value
+        return AesGcmSimple.decrypt(ciphertext, aesParams.Nonce, aesParams.Key);
+    }
+
+    private AesKeyNonce generateAESParams(Key partnerPublicKey, byte[] nonce) throws Exception {
+
+        // Derive the secret based on this side's private key and the other side's public key
+        KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
+        keyAgreement.init(keyPair.getPrivate());
+        keyAgreement.doPhase(partnerPublicKey, true);
+        byte[] secret = keyAgreement.generateSecret();
+
+        AesKeyNonce aesKeyNonce = new AesKeyNonce();
+
+        // Copy first 32 bytes as the key
+        byte[] key = Arrays.copyOfRange(secret, 0, (AesGcmSimple.KEY_SIZE / 8));
+        aesKeyNonce.Key = new SecretKeySpec(key, 0, key.length, "AES");
+
+        // Passed in nonce will be used.
+        aesKeyNonce.Nonce = nonce;
+        return aesKeyNonce;
+
+    }
+
+    private AesKeyNonce generateAESParams(Key partnerPublicKey) throws Exception {
+
+        // Nonce of 12 bytes / 96 bits and this size should always be used.
+        // It is critical for AES-GCM that a unique nonce is used for every cryptographic operation.
+        // Therefore this is not generated from the shared secret
+        byte[] nonce = new byte[AesGcmSimple.IV_LENGTH];
+        SecureRandom random = new SecureRandom();
+        random.nextBytes(nonce);
+        return generateAESParams(partnerPublicKey, nonce);
+
+    }
+}</code></pre></div>
+</details>

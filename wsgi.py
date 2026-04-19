@@ -509,6 +509,116 @@ def owasp_abuse_case_cheat_sheet():
     return render_template("owasp_abuse_case_cheat_sheet.html")
 
 
+@app.route("/owasp/cheatsheets/Secure_Cloud_Architecture_Cheat_Sheet.html")
+def owasp_secure_cloud_architecture_cheat_sheet():
+    return render_template("owasp_secure_cloud_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Docker_Security_Cheat_Sheet.html")
+def owasp_docker_security_cheat_sheet():
+    return render_template("owasp_docker_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Kubernetes_Security_Cheat_Sheet.html")
+def owasp_kubernetes_security_cheat_sheet():
+    return render_template("owasp_kubernetes_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/NoSQL_Security_Cheat_Sheet.html")
+def owasp_nosql_security_cheat_sheet():
+    return render_template("owasp_nosql_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/REST_Security_Cheat_Sheet.html")
+def owasp_rest_security_cheat_sheet():
+    return render_template("owasp_rest_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Serverless_FaaS_Security_Cheat_Sheet.html")
+def owasp_serverless_faas_security_cheat_sheet():
+    return render_template("owasp_serverless_faas_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Database_Security_Cheat_Sheet.html")
+def owasp_database_security_cheat_sheet():
+    return render_template("owasp_database_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Network_Segmentation_Cheat_Sheet.html")
+def owasp_network_segmentation_cheat_sheet():
+    return render_template("owasp_network_segmentation_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Bean_Validation_Cheat_Sheet.html")
+def owasp_bean_validation_cheat_sheet():
+    return render_template("owasp_bean_validation_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Django_REST_Framework_Cheat_Sheet.html")
+def owasp_django_rest_framework_cheat_sheet():
+    return render_template("owasp_django_rest_framework_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/GraphQL_Cheat_Sheet.html")
+def owasp_graphql_cheat_sheet():
+    return render_template("owasp_graphql_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Laravel_Cheat_Sheet.html")
+def owasp_laravel_cheat_sheet():
+    return render_template("owasp_laravel_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/NodeJS_Docker_Cheat_Sheet.html")
+def owasp_nodejs_docker_cheat_sheet():
+    return render_template("owasp_nodejs_docker_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Nodejs_Security_Cheat_Sheet.html")
+def owasp_nodejs_security_cheat_sheet():
+    return render_template("owasp_nodejs_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/OAuth2_Cheat_Sheet.html")
+def owasp_oauth2_cheat_sheet():
+    return render_template("owasp_oauth2_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Ruby_on_Rails_Cheat_Sheet.html")
+def owasp_ruby_on_rails_cheat_sheet():
+    return render_template("owasp_ruby_on_rails_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Symfony_Cheat_Sheet.html")
+def owasp_symfony_cheat_sheet():
+    return render_template("owasp_symfony_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html")
+def owasp_json_web_token_for_java_cheat_sheet():
+    return render_template("owasp_json_web_token_for_java_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/DotNet_Security_Cheat_Sheet.html")
+def owasp_dotnet_security_cheat_sheet():
+    return render_template("owasp_dotnet_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Django_Security_Cheat_Sheet.html")
+def owasp_django_security_cheat_sheet():
+    return render_template("owasp_django_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/gRPC_Security_Cheat_Sheet.html")
+def owasp_grpc_security_cheat_sheet():
+    return render_template("owasp_grpc_security_cheat_sheet.html")
+
+
+@app.route("/owasp/cheatsheets/Java_Security_Cheat_Sheet.html")
+def owasp_java_security_cheat_sheet():
+    return render_template("owasp_java_security_cheat_sheet.html")
+
+
 @app.route("/owasp/cheatsheets/<path:fname>")
 def owasp_cheatsheet_file(fname):
     return send_from_directory(OWASP_DIR / "cheatsheets", fname)

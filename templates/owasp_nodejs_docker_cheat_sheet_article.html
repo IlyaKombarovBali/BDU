@@ -1,0 +1,271 @@
+{% raw %}
+<h1 id="nodejs-docker-cheat-sheet">Статья Node.js в Docker (Node.js Docker Cheat Sheet)</h1>
+<p>Ниже — практические рекомендации для <a href="https://snyk.io/blog/10-best-practices-to-containerize-nodejs-web-applications-with-docker/" target="_blank" rel="noopener">безопасной и оптимизированной контейнеризации Node.js</a> в продакшене. Материал полезен независимо от типа приложения, в том числе если вы:</p>
+<ul>
+<li>делаете SSR на Node.js для React;</li>
+<li>собираете образ для микросервисов на Fastify, NestJS или другом фреймворке.</li>
+</ul>
+<h2 id="1-use-explicit-and-deterministic-docker-base-image-tags">1) Явные и детерминированные теги базового образа Docker</h2>
+<p>Кажется логичным брать образ <code>node</code>, но без тега подтягивается <code>:latest</code> — каждый раз может оказаться другая сборка.</p>
+<p>Так вы всегда получаете последнюю сборку образа от <strong>Node.js Docker working group</strong> — это недетерминированно.</p>
+<h3 id="from-node">FROM node</h3>
+<p>Минусы образа <code>node</code> по умолчанию:</p>
+<ol>
+<li><strong>Недетерминизм сборок.</strong> Как для npm мы фиксируем зависимости <a href="/owasp/cheatsheets/NPM_Security_Cheat_Sheet.html#2-enforce-the-lockfile"><code>npm ci</code></a> через lockfile, так и базовый образ лучше фиксировать. С <code>node</code> (= <code>node:latest</code>) при каждой сборке может подтянуться новый базовый слой.</li>
+<li><strong>Большой образ.</strong> Полноценная ОС с лишними пакетами увеличивает размер, время pull/сборки и поверхность атаки (уязвимости в ненужных библиотеках).</li>
+</ol>
+<p>Образ <code>node</code> без урезания часто содержит сотни известных уязвимостей и сотни мегабайт — плохая стартовая точка.</p>
+<p>Рекомендации:</p>
+<ol>
+<li>Используйте минимальные образы — меньше кода в образе, меньше векторов атаки и быстрее CI.</li>
+<li>Фиксируйте образ по <strong>digest</strong> (SHA256) для детерминированных сборок.</li>
+</ol>
+<p>Разумный компромисс — LTS Node.js и вариант <code>alpine</code>:</p>
+<h3 id="from-nodelts-alpine">FROM node:lts-alpine</h3>
+<p>Тег <code>lts-alpine</code> всё равно обновляется. Digest смотрите на <a href="https://hub.docker.com/_/node" target="_blank" rel="noopener">Docker Hub</a> или после локального pull в поле <code>Digest</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">$ docker pull node:lts-alpine
+lts-alpine: Pulling from library/node
+0a6724ff3fcd: Already exists
+9383f33fa9f3: Already exists
+b6ae88d676fe: Already exists
+565e01e00588: Already exists
+Digest: sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+Status: Downloaded newer image for node:lts-alpine
+docker.io/library/node:lts-alpine</code></pre></div>
+<p>Или:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">$ docker images --digests
+REPOSITORY                     TAG              DIGEST                                                                    IMAGE ID       CREATED             SIZE
+node                           lts-alpine       sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a   51d926a5599d   2 weeks ago         116MB</code></pre></div>
+<p>Dockerfile только с digest читается плохо. Лучше тег + digest:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+RUN npm ci
+CMD "npm" "start"</code></pre></div>
+<h2 id="2-install-only-production-dependencies-in-the-nodejs-docker-image">2) Только production-зависимости в образе</h2>
+<p><code>RUN npm ci</code> без флагов тянет и <code>devDependencies</code> — лишний риск и размер.</p>
+<p><code>npm ci</code> даёт воспроизводимую установку по lockfile и падает при расхождении с ним — это хорошо для CI.</p>
+<p>Для продакшена:</p>
+<p><strong><code>RUN npm ci --omit=dev</code></strong></p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+RUN npm ci --omit=dev
+CMD "npm" "start"</code></pre></div>
+<h2 id="3-optimize-nodejs-tooling-for-production">3) Настройки Node.js для продакшена</h2>
+<p><strong><code>ENV NODE_ENV production</code></strong></p>
+<p>Даже при <code>--omit=dev</code> переменная важна: многие библиотеки включают оптимизации и более строгие настройки только при <code>NODE_ENV=production</code> (см. <a href="https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production" target="_blank" rel="noopener">документацию Express</a>). Влияние на производительность может быть существенным.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+ENV NODE_ENV production
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+RUN npm ci --omit=dev
+CMD "npm" "start"</code></pre></div>
+<h2 id="4-dont-run-containers-as-root">4) Не запускайте контейнер от root</h2>
+<p>Принцип наименьших привилегий: при компрометации приложения (<a href="https://owasp.org/www-community/attacks/Command_Injection" target="_blank" rel="noopener">command injection</a>, <a href="https://owasp.org/www-community/attacks/Path_Traversal" target="_blank" rel="noopener">path traversal</a>) код выполняется от пользователя процесса. Если это root — внутри контейнера доступно почти всё, вплоть до попыток <a href="https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/05-Authorization_Testing/03-Testing_for_Privilege_Escalation" target="_blank" rel="noopener">эскалации привилегий</a> или выхода из контейнера.</p>
+<p>Официальный образ <code>node</code> (включая alpine) содержит пользователя <code>node</code>, но только <code>USER node</code> недостаточно: файлы после <code>COPY</code> по умолчанию принадлежат root.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">USER node
+CMD "npm" "start"</code></pre></div>
+<p>Полный вариант с <code>COPY --chown</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+ENV NODE_ENV production
+WORKDIR /usr/src/app
+COPY --chown=node:node . /usr/src/app
+RUN npm ci --omit=dev
+USER node
+CMD "npm" "start"</code></pre></div>
+<h2 id="5-properly-handle-events-to-safely-terminate-a-nodejs-docker-web-application">5) Сигналы и корректное завершение Node.js в контейнере</h2>
+<p>Слабые паттерны (избегайте):</p>
+<ul>
+<li><code>CMD "npm" "start"</code></li>
+<li><code>CMD ["yarn", "start"]</code></li>
+<li><code>CMD "node" "server.js"</code> (shell form)</li>
+<li><code>CMD "start-app.sh"</code></li>
+</ul>
+<p>Контекст:</p>
+<ol>
+<li>Оркестратор (Kubernetes, Swarm, Docker) шлёт процессу сигналы завершения (<code>SIGTERM</code>, <code>SIGKILL</code>).</li>
+<li>Если процесс запущен «через прослойку», сигнал может не дойти до Node.</li>
+<li>Процесс с PID 1 в Linux обрабатывается ядром особым образом.</li>
+</ol>
+<p><strong><code>CMD "npm" "start"</code></strong> — npm не обязан пробрасывать сигналы дочернему node. Проверка: обработчик <code>SIGHUP</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">function handle(signal) {
+   console.log(`*^!@4=> Received event: ${signal}`)
+}
+process.on('SIGHUP', handle)</code></pre></div>
+<p><code>docker kill --signal=SIGHUP &lt;container&gt;</code> — при запуске через npm реакции не будет.</p>
+<p>Формы <code>CMD</code>: shell-форма оборачивает shell и может мешать сигналам; exec-форма (<code>CMD ["npm", "start"]</code>) шлёт сигналы процессу напрямую, но npm по-прежнему между вами и node.</p>
+<p>Лучше вызывать Node напрямую:</p>
+<p><strong><code>CMD ["node", "server.js"]</code></strong></p>
+<p>Но процесс с PID 1 не ведёт себя как обычный процесс: по умолчанию нет «падения» по <code>SIGTERM</code> без обработчика. Цитата <a href="https://github.com/nodejs/docker-node/blob/master/docs/BestPractices.md#handling-kernel-signals" target="_blank" rel="noopener">рекомендаций docker-node</a>: Node.js не проектировался как PID 1 — возможны сюрпризы (например, нет реакции на SIGINT).</p>
+<p>Решение — маленький init, например <a href="https://engineeringblog.yelp.com/2016/01/dumb-init-an-init-for-docker.html" target="_blank" rel="noopener">dumb-init</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">RUN apk add dumb-init
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+RUN apk add dumb-init
+ENV NODE_ENV production
+WORKDIR /usr/src/app
+COPY --chown=node:node . .
+RUN npm ci --omit=dev
+USER node
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<p><code>docker stop</code> / <code>docker kill</code> шлют сигнал процессу с PID 1. Если PID 1 — оболочка или скрипт без проброса дочерним процессам, приложение не получит <code>SIGTERM</code>.</p>
+<h2 id="6-graceful-tear-down-for-your-nodejs-web-applications">6) Корректное завершение веб-приложений</h2>
+<p>При резком завершении обрываются активные запросы — в оркестрации с частыми перезапусками это плохо для пользователей.</p>
+<p>Пример Fastify с задержкой 60 с:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">fastify.get('/delayed', async (request, reply) => {
+ const SECONDS_DELAY = 60000
+ await new Promise(resolve => {
+     setTimeout(() => resolve(), SECONDS_DELAY)
+ })
+ return { hello: 'delayed world' }
+})
+
+const start = async () => {
+ try {
+   await fastify.listen(PORT, HOST)
+   console.log(`*^!@4=> Process id: ${process.pid}`)
+ } catch (err) {
+   fastify.log.error(err)
+   process.exit(1)
+ }
+}
+
+start()</code></pre></div>
+<p><code>time curl https://localhost:3000/delayed</code> и <code>Ctrl+C</code> на сервере — curl оборвётся. Так же ведёт себя внезапная остановка контейнера без graceful shutdown.</p>
+<p>Сделайте:</p>
+<ol>
+<li>Обработчики <code>SIGINT</code>, <code>SIGTERM</code>.</li>
+<li>Ожидание закрытия БД, завершения запросов и т.д.</li>
+<li>Затем <code>process.exit()</code>.</li>
+</ol>
+<p>У Fastify — <a href="https://www.fastify.io/docs/latest/Server/" target="_blank" rel="noopener">fastify.close()</a> (новые соединения получат 503).</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">async function closeGracefully(signal) {
+   console.log(`*^!@4=> Received signal to terminate: ${signal}`)
+
+   await fastify.close()
+   // await db.close() при необходимости
+   process.exit()
+}
+process.on('SIGINT', closeGracefully)
+process.on('SIGTERM', closeGracefully)</code></pre></div>
+<p>Это скорее про приложение, чем про Dockerfile, но в Kubernetes критично.</p>
+<h2 id="7-find-and-fix-security-vulnerabilities-in-your-nodejs-docker-image">7) Поиск и устранение уязвимостей в образе</h2>
+<p>См. <a href="/owasp/cheatsheets/Docker_Security_Cheat_Sheet.html#rule-9-use-static-analysis-tools">Docker Security Cheat Sheet — статический анализ</a>.</p>
+<h2 id="8-use-multi-stage-builds">8) Многостадийные сборки (multi-stage)</h2>
+<p>Разделение стадий снижает риск утечки секретов и позволяет собирать тяжёлыми средствами, а в финальный образ копировать только артефакты.</p>
+<h3 id="prevent-sensitive-information-leak">Утечка секретов при сборке</h3>
+<p>Частый сценарий — приватный npm и <code>NPM_TOKEN</code> в образе:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+RUN apk add dumb-init
+ENV NODE_ENV production
+ENV NPM_TOKEN 1234
+WORKDIR /usr/src/app
+COPY --chown=node:node . .
+RUN echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc && \
+   npm ci --omit=dev
+USER node
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<p><code>.npmrc</code> с токеном остаётся в слоях. <code>rm .npmrc</code> отдельным <code>RUN</code> не удаляет данные из предыдущих слоёв. Одна команда:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">RUN echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc && \
+   npm ci --omit=dev; \
+   rm -rf .npmrc</code></pre></div>
+<p>Но тогда секрет в истории сборки, если передавать через <code>ARG</code> и не осторожиться — и сам Dockerfile с токеном нельзя коммитить.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">ARG NPM_TOKEN
+RUN echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc && \
+   npm ci --omit=dev; \
+   rm -rf .npmrc</code></pre></div>
+<p>Сборка: <code>docker build . -t nodejs-tutorial --build-arg NPM_TOKEN=1234</code></p>
+<p>Аргументы попадают в <code>docker history</code>:</p>
+<p><code>docker history nodejs-tutorial</code></p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">IMAGE          CREATED              CREATED BY                                      SIZE      COMMENT
+b4c2c78acaba   About a minute ago   CMD ["dumb-init" "node" "server.js"]            0B        buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   USER node                                       0B        buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   RUN |1 NPM_TOKEN=1234 /bin/sh -c echo "//reg…   5.71MB    buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   ARG NPM_TOKEN                                   0B        buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   COPY . . # buildkit                             15.3kB    buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   WORKDIR /usr/src/app                            0B        buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   ENV NODE_ENV=production                         0B        buildkit.dockerfile.v0
+&lt;missing&gt;      About a minute ago   RUN /bin/sh -c apk add dumb-init # buildkit     1.65MB    buildkit.dockerfile.v0</code></pre></div>
+<p>Токен виден в слое <code>RUN</code> — поэтому для секретов лучше multi-stage и/или mount secrets (ниже).</p>
+<h3 id="introducing-multi-stage-builds-for-nodejs-docker-images">Многостадийная сборка для Node.js</h3>
+<p>Первая стадия (<code>build</code>) — установка зависимостей и при необходимости сборка нативных модулей. Вторая — минимальный продакшен-образ, который публикуете в registry. Промежуточный <code>build</code>-образ можно не пушить.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile"># --------------&gt; Сборка
+FROM node:latest AS build
+ARG NPM_TOKEN
+WORKDIR /usr/src/app
+COPY package*.json /usr/src/app/
+RUN echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > .npmrc && \
+   npm ci --omit=dev && \
+   rm -f .npmrc
+
+# --------------&gt; Продакшен
+FROM node:lts-alpine@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+RUN apk add dumb-init
+ENV NODE_ENV production
+USER node
+WORKDIR /usr/src/app
+COPY --chown=node:node --from=build /usr/src/app/node_modules /usr/src/app/node_modules
+COPY --chown=node:node . /usr/src/app
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<p>На стадии <code>build</code> можно взять более толстый образ (gcc и т.д.). <code>NPM_TOKEN</code> в финальном образе и в <code>docker history</code> продакшен-тега уже не фигурирует так, как при одностадийной сборке с тем же ARG в финале.</p>
+<h2 id="9-keeping-unnecessary-files-out-of-your-nodejs-docker-images">9) Не тащить лишнее в образ</h2>
+<p>Как <code>.gitignore</code> для git — для контекста сборки нужен <code>.dockerignore</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">.dockerignore
+node_modules
+npm-debug.log
+Dockerfile
+.git
+.gitignore</code></pre></div>
+<p>Игнор <code>node_modules</code> критичен: иначе локальная папка затрёт то, что ставит <code>npm ci</code> в контейнере.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM node@sha256:b2da3316acdc2bec442190a1fe10dc094e7ba4121d029cb32075ff59bb27390a
+WORKDIR /usr/src/app
+COPY . /usr/src/app
+RUN npm ci
+CMD "npm" "start"</code></pre></div>
+<p>Во второй стадии при <code>COPY . /usr/src/app</code> без ignore снова попадут локальные <code>node_modules</code>, <code>.env</code>, ключи — риск утечки и порча кэша слоёв при любых мелких изменениях на диске.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile"># --------------&gt; Продакшен
+FROM node:lts-alpine
+RUN apk add dumb-init
+ENV NODE_ENV production
+USER node
+WORKDIR /usr/src/app
+COPY --chown=node:node --from=build /usr/src/app/node_modules /usr/src/app/node_modules
+COPY --chown=node:node . /usr/src/app
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<p>Итог по <code>.dockerignore</code>:</p>
+<ul>
+<li>не копировать «сломанные» локальные <code>node_modules</code>;</li>
+<li>не тащить секреты из <code>.env</code>, <code>aws.json</code> и т.п.;</li>
+<li>ускорять сборки, не инвалидируя кэш из‑за логов и локальных конфигов.</li>
+</ul>
+<h2 id="10-mounting-secrets-into-the-docker-build-image">10) Секреты при сборке (mount)</h2>
+<p><code>.dockerignore</code> глобален для всех стадий: для build может понадобиться <code>.npmrc</code>, а в финальный образ он не должен попасть.</p>
+<p>Вариант — <strong>Docker BuildKit secrets</strong>: файл монтируется на время <code>RUN</code> и не остаётся слоем в образе. Добавьте <code>.npmrc</code> в <code>.dockerignore</code>, чтобы не копировать его в контекст как обычный файл.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-text">.dockerignore
+node_modules
+npm-debug.log
+Dockerfile
+.git
+.gitignore
+.npmrc</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile"># --------------&gt; Сборка
+FROM node:latest AS build
+WORKDIR /usr/src/app
+COPY package*.json /usr/src/app/
+RUN --mount=type=secret,mode=0644,id=npmrc,target=/usr/src/app/.npmrc npm ci --omit=dev
+
+# --------------&gt; Продакшен
+FROM node:lts-alpine
+RUN apk add dumb-init
+ENV NODE_ENV production
+USER node
+WORKDIR /usr/src/app
+COPY --chown=node:node --from=build /usr/src/app/node_modules /usr/src/app/node_modules
+COPY --chown=node:node . /usr/src/app
+CMD ["dumb-init", "node", "server.js"]</code></pre></div>
+<p>Сборка:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker build . -t nodejs-tutorial --secret id=npmrc,src=.npmrc</code></pre></div>
+<p><strong>Примечание.</strong> Секреты при сборке — относительно новая возможность; на старых Docker включите BuildKit, при необходимости:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">DOCKER_BUILDKIT=1 docker build . -t nodejs-tutorial --build-arg NPM_TOKEN=1234 --secret id=npmrc,src=.npmrc</code></pre></div>
+{% endraw %}

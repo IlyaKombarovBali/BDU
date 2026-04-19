@@ -1,0 +1,294 @@
+{% raw %}
+<h1 id="laravel-cheat-sheet">Статья по безопасности Laravel (Laravel Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Эта Статья даёт советы по безопасности для разработчиков на Laravel. Охвачены распространённые уязвимости и способы сделать приложение защищённым.</p>
+<p>Laravel по умолчанию включает встроенные механизмы безопасности и рассчитан на безопасную конфигурацию «из коробки». При этом фреймворк даёт гибкость для сложных сценариев — и разработчик, не зная деталей, может использовать возможности небезопасно. Цель гида — помочь избежать типичных ошибок.</p>
+<h2 id="the-basics">Основы</h2>
+<ul>
+<li>В продакшене отключите режим отладки. В переменной окружения <code>APP_DEBUG</code> укажите <code>false</code>:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-ini">APP_DEBUG=false</code></pre></div>
+<ul>
+<li>Сгенерируйте ключ приложения. Он нужен для симметричного шифрования и SHA256: шифрование cookie, подписанные URL, токены сброса пароля, шифрование сессии. Команда:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">php artisan key:generate</code></pre></div>
+<ul>
+<li>
+<p>Настройте PHP безопасно. См. <a href="/owasp/cheatsheets/PHP_Configuration_Cheat_Sheet.html">статью по конфигурации PHP</a>.</p>
+</li>
+<li>
+<p>Выставьте безопасные права на файлы и каталоги: каталоги Laravel — не шире <code>775</code>, неисполняемые файлы — не шире <code>664</code>, исполняемые (Artisan, скрипты деплоя) — не шире <code>775</code>.</p>
+</li>
+<li>
+<p>Следите за уязвимостями в зависимостях (<code>composer audit</code> и обновления).</p>
+</li>
+</ul>
+<h2 id="cookie-security-and-session-management">Безопасность cookie и управление сессией</h2>
+<p>По умолчанию Laravel настроен безопасно. Если меняете cookie или сессию, проверьте:</p>
+<ul>
+<li>Включите middleware шифрования cookie, если используете драйвер сессии <code>cookie</code> или храните в cookie данные, которые клиент не должен читать или подменять. Обычно шифрование нужно включать. Добавьте <code>EncryptCookies</code> в группу <code>web</code> в <code>App\Http\Kernel</code>:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">/**
+ * Группы route-middleware приложения.
+ *
+ * @var array
+ */
+protected $middlewareGroups = [
+    'web' => [
+        \App\Http\Middleware\EncryptCookies::class,
+        ...
+    ],
+    ...
+];</code></pre></div>
+<ul>
+<li>Включите <code>HttpOnly</code> для cookie сессии в <code>config/session.php</code>, чтобы JavaScript не читал cookie сессии:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">'http_only' => true,</code></pre></div>
+<ul>
+<li>Если не используете маршруты по поддоменам, задайте <code>domain</code> для cookie в <code>null</code>, чтобы cookie выставлялась только для того же origin (без поддоменов):</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">'domain' => null,</code></pre></div>
+<ul>
+<li>Атрибут <code>SameSite</code> — <code>lax</code> или <code>strict</code> в <code>config/session.php</code>, чтобы ограничить контекст first-party / same-site:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">'same_site' => 'lax',</code></pre></div>
+<ul>
+<li>Для приложения только по HTTPS установите <code>secure</code> в <code>config/session.php</code> в <code>true</code> (защита от MITM). Если есть и HTTP, и HTTPS, можно <code>null</code> — атрибут <code>Secure</code> выставится автоматически на HTTPS-запросах:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">'secure' => null,</code></pre></div>
+<ul>
+<li>Задайте короткий таймаут простоя сессии. <a href="/owasp/cheatsheets/Session_Management_Cheat_Sheet.html">OWASP</a> рекомендует 2–5 минут для высокоценных приложений и 15–30 минут для низкого риска. В <code>config/session.php</code>:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-php">'lifetime' => 15,</code></pre></div>
+<p>Дополнительно: <a href="https://owasp.org/www-chapter-london/assets/slides/OWASPLondon20171130_Cookie_Security_Myths_Misconceptions_David_Johansson.pdf" target="_blank" rel="noopener">доклад о безопасности cookie</a>.</p>
+<h2 id="authentication">Аутентификация</h2>
+<h3 id="guards-and-providers">Guards и providers</h3>
+<p>В основе аутентификации Laravel — <strong>guards</strong> и <strong>providers</strong>. Guard определяет, как пользователь аутентифицируется на каждый запрос. Provider — как пользователь загружается из хранилища.</p>
+<p>Из коробки: guard <code>session</code> (состояние через сессию и cookie) и guard <code>token</code> для API-токенов.</p>
+<p>Providers: <code>eloquent</code> (Eloquent ORM) и <code>database</code> (query builder).</p>
+<p>Настройка в <code>config/auth.php</code>; можно реализовать свои guards и providers.</p>
+<h3 id="starter-kits">Стартовые наборы</h3>
+<p>Официальные starter kits с готовой аутентификацией:</p>
+<ol>
+<li><a href="https://laravel.com/docs/8.x/starter-kits#laravel-breeze" target="_blank" rel="noopener">Laravel Breeze</a> — минимальный набор: вход, регистрация, сброс пароля, подтверждение email и пароля.</li>
+<li><a href="https://laravel.com/docs/fortify" target="_blank" rel="noopener">Laravel Fortify</a> — headless-бэкенд аутентификации, плюс двухфакторная аутентификация.</li>
+<li><a href="https://jetstream.laravel.com/" target="_blank" rel="noopener">Laravel Jetstream</a> — UI поверх Fortify.</li>
+</ol>
+<p>Рекомендуется использовать один из kits для устойчивой и проверенной схемы входа.</p>
+<h3 id="api-authentication-packages">Пакеты API-аутентификации</h3>
+<ol>
+<li><a href="https://laravel.com/docs/passport" target="_blank" rel="noopener">Passport</a> — OAuth2.</li>
+<li><a href="https://laravel.com/docs/sanctum" target="_blank" rel="noopener">Sanctum</a> — токены для API.</li>
+</ol>
+<p>Fortify и Jetstream поддерживают Sanctum из коробки.</p>
+<h2 id="mass-assignment">Массовое присваивание (mass assignment)</h2>
+<p><a href="/owasp/cheatsheets/Mass_Assignment_Cheat_Sheet.html">Mass assignment</a> — типичная проблема приложений с ORM, в том числе Eloquent.</p>
+<p>Суть: через массовое заполнение модифицируются поля, которые пользователю менять нельзя.</p>
+<p>Пример:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::any('/profile', function (Request $request) {
+    $request->user()->forceFill($request->all())->save();
+
+    $user = $request->user()->fresh();
+
+    return response()->json(compact('user'));
+})->middleware('auth');</code></pre></div>
+<p>Маршрут меняет профиль текущего пользователя. Но если в таблице <code>users</code> есть колонка <code>is_admin</code>, пользователь не должен менять её сам — приведённый код разрешает менять любые колонки строки: это уязвимость mass assignment.</p>
+<p>Laravel по умолчанию защищает от этого. Соблюдайте:</p>
+<ul>
+<li>Разрешайте только нужные поля: <code>$request->only(...)</code> или <code>$request->validated()</code>, а не <code>$request->all()</code>.</li>
+<li>Не вызывайте <code>unguard()</code> и не задавайте <code>$guarded = []</code> — это отключает встроенную защиту.</li>
+<li>Избегайте <code>forceFill</code> / <code>forceCreate</code> без строго проверенного массива данных.</li>
+</ul>
+<h2 id="sql-injection">SQL-инъекции</h2>
+<p>SQL-инъекции остаются частой угрозой. Ниже — специфика Laravel; общие рекомендации — в <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">статье по предотвращению SQL-инъекций</a>.</p>
+<h3 id="eloquent-orm-sql-injection-protection">Eloquent и защита от SQL-инъекций</h3>
+<p>Eloquent по умолчанию параметризует запросы и использует привязки. Пример:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+User::where('email', $email)->get();</code></pre></div>
+<p>Фактически выполняется:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-sql">select * from `users` where `email` = ?</code></pre></div>
+<p>Даже недоверенный <code>$email</code> не встраивается в SQL как текст запроса.</p>
+<h3 id="raw-query-sql-injection">Сырые запросы</h3>
+<p><code>whereRaw</code> и аналоги дают гибкость, но для данных из запроса обязательно используйте привязки. Небезопасно:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Illuminate\Support\Facades\DB;
+use App\Models\User;
+
+User::whereRaw('email = "'.$request->input('email').'"')->get();
+DB::table('users')->whereRaw('email = "'.$request->input('email').'"')->get();</code></pre></div>
+<p>Исправление — плейсхолдеры:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+User::whereRaw('email = ?', [$request->input('email')])->get();</code></pre></div>
+<p>Именованные привязки:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+User::whereRaw('email = :email', ['email' => $request->input('email')])->get();</code></pre></div>
+<h3 id="column-name-sql-injection">Имена колонок</h3>
+<p>Нельзя брать имена колонок из недоверенного ввода.</p>
+<p>Потенциально опасно:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+User::where($request->input('colname'), 'somedata')->get();
+User::query()->orderBy($request->input('sortBy'))->get();</code></pre></div>
+<p>Частичная защита со стороны Laravel не заменяет валидацию: в ряде СУБД привязка имён колонок невозможна. В худшем случае это перерастает в mass assignment, если колонки не белые.</p>
+<p>Валидируйте ввод, например:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+$request->validate(['sortBy' => 'in:price,updated_at']);
+User::query()->orderBy($request->validated()['sortBy'])->get();</code></pre></div>
+<h3 id="validation-rule-sql-injection">Правила валидации и имена колонок</h3>
+<p>Некоторые правила принимают имя колонки — та же угроза, что и при динамических колонках в запросах. Пример:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Illuminate\Validation\Rule;
+
+$request->validate([
+    'id' => Rule::unique('users')->ignore($id, $request->input('colname'))
+]);</code></pre></div>
+<p>Упрощённо под капотом может получиться эквивалент с колонкой из ввода:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use App\Models\User;
+
+$colname = $request->input('colname');
+User::where($colname, $request->input('id'))->where($colname, '&lt;&gt;', $id)->count();</code></pre></div>
+<p>Так как имя колонки задаёт пользователь, это тот же класс риска, что и при динамических именах колонок в запросах.</p>
+<h2 id="cross-site-scripting-xss">Межсайтовый скриптинг (XSS)</h2>
+<p><a href="https://owasp.org/www-community/attacks/xss/" target="_blank" rel="noopener">XSS</a> — внедрение скриптов в доверенные страницы.</p>
+<p>В <a href="https://laravel.com/docs/blade" target="_blank" rel="noopener">Blade</a> конструкция <code>{{ }}</code> экранирует вывод через <code>htmlspecialchars</code>.</p>
+<p>Синтаксис <code>{!! !!}</code> выводит без экранирования — для недоверенных данных <strong>нельзя</strong> использовать.</p>
+<p>Уязвимо:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">{!! request()->input('somedata') !!}</code></pre></div>
+<p>Безопасно:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">{{ request()->input('somedata') }}</code></pre></div>
+<p>Общие меры — в <a href="/owasp/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html">статье по предотвращению XSS</a>.</p>
+<h2 id="unrestricted-file-uploads">Неконтролируемая загрузка файлов</h2>
+<p>Загрузка вредоносных файлов может привести к RCE или DoS. Дополнительно см. <a href="/owasp/cheatsheets/File_Upload_Cheat_Sheet.html">статью по загрузке файлов</a>.</p>
+<h3 id="always-validate-file-type-and-size">Тип и размер файла</h3>
+<p>Всегда проверяйте тип (расширение / MIME) и размер — против DoS по диску и RCE через исполняемые файлы:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">$request->validate([
+    'photo' => 'file|size:100|mimes:jpg,bmp,png'
+]);</code></pre></div>
+<p>DoS: огромные файлы без лимита заполняют диск. RCE: загрузка PHP и вызов по URL (если файл публичен). Валидация снимает оба класса риска.</p>
+<h3 id="do-not-rely-on-user-input-to-dictate-filenames-or-path">Не доверяйте пути и имени файла из ввода</h3>
+<p>Если путь или имя файла строятся из ввода пользователя, возможна перезапись критичных файлов или запись «чужой» директории.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::post('/upload', function (Request $request) {
+    $request->file('file')->storeAs(auth()->id(), $request->input('filename'));
+
+    return back();
+});</code></pre></div>
+<p>Имя вроде <code>../2/filename.pdf</code> может положить файл в каталог другого пользователя. Используйте <code>basename()</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::post('/upload', function (Request $request) {
+    $request->file('file')->storeAs(auth()->id(), basename($request->input('filename')));
+
+    return back();
+});</code></pre></div>
+<h3 id="avoid-processing-zip-or-xml-files-if-possible">ZIP и XML</h3>
+<p>XML открывает XXE, «billion laughs» и др. ZIP — zip bomb. См. <a href="/owasp/cheatsheets/XML_Security_Cheat_Sheet.html">XML Security</a> и <a href="/owasp/cheatsheets/File_Upload_Cheat_Sheet.html">File Upload</a>.</p>
+<h2 id="path-traversal">Обход каталога (path traversal)</h2>
+<p>Цель атаки — чтение файлов через <code>../</code> и вариации или абсолютные пути.</p>
+<p>Небезопасная выдача файла по имени из запроса:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::get('/download', function(Request $request) {
+    return response()->download(storage_path('content/').$request->input('filename'));
+});</code></pre></div>
+<p>Имя <code>../../.env</code> может утечь конфиг. Снова <code>basename()</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::get('/download', function(Request $request) {
+    return response()->download(storage_path('content/').basename($request->input('filename')));
+});</code></pre></div>
+<h2 id="open-redirection">Открытое перенаправление</h2>
+<p>Само по себе часто низкий риск, но усиливает фишинг.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::get('/redirect', function (Request $request) {
+   return redirect($request->input('url'));
+});</code></pre></div>
+<p>Пользователь уходит на произвольный внешний URL. Такой же параметр в письмах сброса пароля может вести на поддельный сайт.</p>
+<h2 id="cross-site-request-forgery-csrf">Межсайтовая подделка запроса (CSRF)</h2>
+<p><a href="https://owasp.org/www-community/attacks/csrf" target="_blank" rel="noopener">CSRF</a> — нежелательное действие на доверенном сайте от имени авторизованного пользователя.</p>
+<p>Laravel включает middleware <code>VerifyCsrfToken</code>. При подключении к группе <code>web</code> в <code>App\Http\Kernel</code> защита активна:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">/**
+ * Группы route-middleware приложения.
+ *
+ * @var array
+ */
+protected $middlewareGroups = [
+    'web' => [
+        ...
+         \App\Http\Middleware\VerifyCsrfToken::class,
+         ...
+    ],
+];</code></pre></div>
+<p>В POST-формах используйте директиву <code>@csrf</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-markup">&lt;form method="POST" action="/profile"&gt;
+    @csrf
+
+    &lt;!-- Эквивалентно: --&gt;
+    &lt;input type="hidden" name="_token" value="{{ csrf_token() }}" /&gt;
+&lt;/form&gt;</code></pre></div>
+<p>Для AJAX настройте заголовок <a href="https://laravel.com/docs/csrf#csrf-x-csrf-token" target="_blank" rel="noopener">X-CSRF-Token</a>.</p>
+<p>Исключения маршрутов из CSRF через <code>$except</code> в middleware — только для безсостоятельных API или вебхуков. Лишние исключения создают дыры в защите.</p>
+<h2 id="command-injection">Инъекция команд</h2>
+<p>Выполнение shell-команд со вставкой неэкранированного ввода.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">public function verifyDomain(Request $request)
+{
+    exec('whois '.$request->input('domain'));
+}</code></pre></div>
+<p>Экранируйте через <code>escapeshellcmd</code> и/или <code>escapeshellarg</code>.</p>
+<h2 id="other-injections">Другие инъекции</h2>
+<p>Инъекция объектов, <code>eval</code>, <code>extract</code> на недоверенных данных — избегайте.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">unserialize($request->input('data'));
+eval($request->input('data'));
+extract($request->all());</code></pre></div>
+<p>Не передавайте недоверенный ввод в опасные функции.</p>
+<h2 id="rate-limiting">Ограничение частоты запросов</h2>
+<p>Laravel ограничивает злоупотребление маршрутами.</p>
+<p>Основные способы:</p>
+<ol>
+<li><strong>Middleware <code>throttle</code></strong> — на маршрут или группу.</li>
+<li><strong><code>RateLimiter::for()</code></strong> — свои правила.</li>
+</ol>
+<h3 id="1-per-route">1. На один маршрут</h3>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::get('/profile', function () {
+    return 'User profile';
+})->middleware('throttle:10,1'); // 10 запросов в минуту</code></pre></div>
+<h3 id="2-per-route-group">2. На группу маршрутов</h3>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::middleware('throttle:20,1')->group(function () {
+    Route::get('/posts', fn () => 'Posts');
+    Route::get('/comments', fn () => 'Comments');
+});</code></pre></div>
+<h3 id="3-custom-rate-limiter">3. Свой лимитер</h3>
+<p>В <code>RouteServiceProvider</code> через <code>RateLimiter::for()</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\RateLimiter;
+
+RateLimiter::for('custom-limit', function ($request) {
+    return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+});</code></pre></div>
+<p>Подключение:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">Route::middleware('throttle:custom-limit')->get('/dashboard', fn () => 'Dashboard');</code></pre></div>
+<h3 id="4-global-api-web-rate-limiting">4. Глобально для API / web</h3>
+<p>Можно добавить <code>throttle</code> в группы <code>api</code> или <code>web</code> в <code>Kernel.php</code> (группа <code>api</code> по умолчанию уже с лимитом).</p>
+<div class="cheatsheet-code-window"><pre><code class="language-php">protected $middlewareGroups = [
+    'api' => [
+        'throttle:60,1', // 60 запросов в минуту для API
+        // ...
+    ],
+
+    'web' => [
+        'throttle:30,1', // 30 запросов в минуту для web
+        // ...
+    ],
+];</code></pre></div>
+<p>Подробнее в <a href="https://laravel.com/docs/12.x/routing#rate-limiting" target="_blank" rel="noopener">документации Laravel по rate limiting</a>.</p>
+<h2 id="security-headers">Заголовки безопасности</h2>
+<p>Имеет смысл добавить (в веб-сервере или middleware):</p>
+<ul>
+<li>X-Frame-Options</li>
+<li>X-Content-Type-Options</li>
+<li>Strict-Transport-Security (для только HTTPS)</li>
+<li>Content-Security-Policy</li>
+</ul>
+<p>См. <a href="https://owasp.org/www-project-secure-headers/" target="_blank" rel="noopener">проект OWASP Secure Headers</a>.</p>
+<h2 id="references">Ссылки</h2>
+<ul>
+<li><a href="https://laravel.com/docs/authentication" target="_blank" rel="noopener">Laravel: Authentication</a></li>
+<li><a href="https://laravel.com/docs/authorization" target="_blank" rel="noopener">Laravel: Authorization</a></li>
+<li><a href="https://laravel.com/docs/csrf" target="_blank" rel="noopener">Laravel: CSRF</a></li>
+<li><a href="https://laravel.com/docs/validation" target="_blank" rel="noopener">Laravel: Validation</a></li>
+</ul>
+{% endraw %}

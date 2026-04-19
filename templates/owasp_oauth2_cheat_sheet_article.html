@@ -1,0 +1,101 @@
+<h1 id="oauth-20-protocol-cheatsheet">Статья по протоколу OAuth 2.0 (OAuth 2.0 Protocol Cheatsheet)</h1>
+<p>Статья описывает актуальные практики безопасности OAuth 2.0 в духе RFC. OAuth стал стандартом защиты API и основой федеративного входа через OpenID Connect. OpenID Connect 1.0 — простой слой идентичности поверх OAuth 2.0: клиент может проверить личность пользователя по результату аутентификации у сервера авторизации и получить базовый профиль в совместимом, REST-подобном виде.</p>
+<p><strong>Примечание.</strong> OAuth 2.0 допускает разные типы токенов под разные требования. <strong>Bearer-токены</strong> (RFC 6750) — простота и широкое распространение. <strong>Токены Proof of Possession (PoP)</strong> — криптографическая привязка токена к клиенту. Выбор типа зависит от модели угроз, требований к безопасности и ограничений внедрения.</p>
+<h2 id="terminology">Термины</h2>
+<ul>
+<li><strong>Клиент (Client)</strong> — приложение, которое по поручению владельца ресурса запрашивает защищённые ресурсы с его разрешения. «Клиент» не задаёт реализацию (сервер, десктоп, мобильное устройство и т.д.).</li>
+<li><strong>Сервер авторизации (Authorization Server, AS)</strong> — сервер, который после успешной аутентификации владельца ресурса и получения согласия выдаёт клиенту токены доступа.</li>
+<li><strong>Владелец ресурса (Resource Owner, RO)</strong> — субъект, способный разрешить доступ к защищённому ресурсу. Часто это конечный пользователь; возможны организация или система.</li>
+<li>
+<p><strong>Сервер ресурсов (Resource Server, RS)</strong> — сервер с защищёнными ресурсами, принимающий запросы с токенами доступа.</p>
+</li>
+<li>
+<p><strong>Токены доступа (Access Tokens)</strong> — абстракция вместо разных схем авторизации (логин/пароль, assertion и т.д.): один формат, понятный RS. Можно выдавать короткоживущие токены и не заставлять RS понимать множество схем аутентификации. Чаще всего — <strong>bearer</strong> (RFC 6750): для доступа к API достаточно значения токена. Раз любой, у кого есть bearer, может его использовать, bearer нужно ограничивать <strong>одной аудиторией (одним RS)</strong>, чтобы сузить последствия утечки.</p>
+</li>
+<li>
+<p><strong>Токены обновления (Refresh Tokens)</strong> — учётные данные для получения новых access-токенов при истечении или отзыве текущего, либо для токенов с тем же или более узким scope. Их нужно защищать механизмами sender-constraint (DPoP или mTLS) или <strong>ротацией refresh-токенов</strong>.</p>
+</li>
+<li>
+<p><strong>Токены Proof of Possession (PoP)</strong> — access или refresh, криптографически привязанные к клиенту (например DPoP, RFC 9449, или mTLS-bound access tokens, RFC 8705). Клиент владеет закрытым ключом и при использовании токена доказывает владение ключом. Сильнее защита при перехвате токена, выше требования к управлению ключами и генерации proof.</p>
+</li>
+</ul>
+<h2 id="oauth-20-essential-basics">Базовые правила OAuth 2.0</h2>
+<ol>
+<li>Клиент и AS не должны отдавать URL, которые перенаправляют браузер пользователя на произвольный URI из query-параметра («открытые редиректоры») — иначе возможна эксфильтрация кодов авторизации и токенов.</li>
+<li>Если клиент убедился, что AS поддерживает PKCE, можно опираться на защиту от CSRF, которую даёт PKCE. В потоках OpenID Connect параметр <code>nonce</code> даёт защиту от CSRF. Иначе — одноразовые пользовательские CSRF-токены в параметре <code>state</code>, надёжно привязанные к пользовательскому агенту.</li>
+<li>Если клиент взаимодействует с несколькими AS, используйте параметр эмитента <code>iss</code> как контрмеру (или значение <code>iss</code> в ответе авторизации, например claim <code>iss</code> в ID Token в OpenID).</li>
+<li>Если других контрмер при нескольких AS нет, клиент может использовать <strong>разные redirect URI</strong> для различения authorization и token endpoint.</li>
+<li>AS не пересылает и не редиректит запрос, в котором могли случайно оказаться учётные данные пользователя.</li>
+</ol>
+<h2 id="pkce-proof-key-for-code-exchange-mechanism">PKCE (Proof Key for Code Exchange)</h2>
+<p>Публичные клиенты OAuth 2.0 с Authorization Code Grant уязвимы к перехвату кода авторизации. PKCE (часто произносят «пикси») снижает этот риск.</p>
+<p>Изначально PKCE ориентировали на нативные приложения, затем механизм стал обычной практикой. Он мешает не только подстановке кода, но и выкупу украденного кода у AS без знания <code>code_verifier</code>.</p>
+<ol start="6">
+<li>Клиент предотвращает инъекцию (replay) кода в ответ авторизации через PKCE; допустимы параметр OpenID Connect <code>nonce</code> и соответствующий claim в ID Token. Challenge PKCE или <code>nonce</code> должны быть привязаны к транзакции и безопасно связаны с клиентом и пользовательским агентом, где начата транзакция. <strong>Примечание:</strong> PKCE защищает коды авторизации; access и refresh защищайте sender-constrained токенами.</li>
+<li>С PKCE клиент должен выбирать метод challenge так, чтобы <strong>не раскрывать verifier в запросе авторизации</strong>; иначе атакующий, читающий запрос, ломает PKCE. AS обязан поддерживать PKCE.</li>
+<li>Если клиент передал валидный <code>code_challenge</code>, AS на token endpoint обеспечивает корректное использование <code>code_verifier</code>.</li>
+<li>AS снижает риск downgrade PKCE: запрос токена с <code>code_verifier</code> принимается только если в запросе авторизации был <code>code_challenge</code>.</li>
+</ol>
+<h2 id="implicit-grant">Implicit grant</h2>
+<p>Implicit grant — упрощённый вариант кода для браузерных клиентов на JavaScript: вместо кода клиент сразу получает access token после авторизации владельца ресурса. Промежуточных учётных данных (кода) нет — отсюда «implicit».</p>
+<ol start="10">
+<li>Клиент использует response type <code>code</code> (authorization code) или другой тип, при котором access token выдаётся в <strong>ответе token endpoint</strong>, а не во фронт-канале (например <code>code id_token</code>). Так AS может обнаруживать replay, уменьшается поверхность атаки (токены не светятся в URL), проще применить sender-constraint (например DPoP).</li>
+</ol>
+<h2 id="token-replay-prevention">Защита от повторного использования токена</h2>
+<p>Безопасность токенов — ключевая часть OAuth 2.0. Sender-constrained токены связывают токен с клиентом. PoP — частный случай: криптографическая привязка к закрытому ключу клиента; при каждом использовании токена клиент доказывает владение ключом — дополнительная аутентификация на уровне использования токена.</p>
+<h3 id="pop-mechanisms-comparison">Сравнение механизмов PoP</h3>
+<p><strong>DPoP (Demonstration of Proof of Possession, RFC 9449):</strong></p>
+<ul>
+<li>Клиент генерирует пару ключей. AS может sender-constrain access token к публичному ключу клиента (например claim <code>cnf</code> с отпечатком JWK <code>jkt</code>) — опционально и зависит от реализации. На каждый запрос к API клиент добавляет proof владения закрытым ключом — обычно JWT, подписанный этим ключом, с хешем access token. RS проверяет и токен, и DPoP-proof (включая хеш токена), чтобы убедиться, что запрос от легитимного держателя токена.</li>
+<li>mTLS не обязателен; proof в HTTP-заголовках; подходит браузерам и мобильным клиентам; на запрос — дополнительные криптооперации.</li>
+</ul>
+<p><strong>Mutual TLS Certificate-Bound Access Tokens (RFC 8705):</strong></p>
+<ul>
+<li>Клиент аутентифицируется TLS client certificate при рукопожатии (mTLS). AS привязывает access token к отпечатку сертификата через <code>cnf</code>. RS проверяет, что сертификат в TLS-сессии совпадает с привязкой в токене.</li>
+<li>Работа на транспортном уровне; использует инфраструктуру TLS; PKI или самоподписанные сертификаты; аутентификация при установлении соединения; отдельный proof на каждый запрос не нужен.</li>
+</ul>
+<h3 id="when-to-use-pop-tokens">Когда использовать PoP-токены</h3>
+<p>PoP особенно уместен, когда нужны усиленные свойства токена. Рассмотрите PoP, если:</p>
+<ul>
+<li>access token используется для <strong>нескольких аудиторий (RS)</strong> — в отличие от bearer, который должен быть ограничен одной аудиторией;</li>
+<li>API обрабатывает чувствительные данные (финансы, здравоохранение, ПДн и т.д.);</li>
+<li>высокоценные операции (платежи, критичные действия);</li>
+<li>долгоживущие токены;</li>
+<li>кросс-организационный доступ (B2B, несколько доменов безопасности);</li>
+<li>мобильные и нативные приложения с особыми рисками среды;</li>
+<li>распределённая архитектура: токены пересекают несколько сетевых границ.</li>
+</ul>
+<p>Выбор подхода — по требованиям безопасности, текущей инфраструктуре, возможностям клиента и эксплуатационным ресурсам.</p>
+<ol start="11">
+<li>Для усиленной защиты от replay AS и RS могут sender-constrain access token: OAuth 2.0 с mTLS (RFC 8705) или DPoP (RFC 9449) — криптографическая привязка к клиенту через proof владения ключом.</li>
+<li>Refresh token — sender-constrained (DPoP или mTLS) или с <strong>ротацией</strong> (новый refresh, старый сразу инвалидируется для обнаружения replay). <strong>Примечание:</strong> PoP на refresh + ротация даёт defense in depth.</li>
+</ol>
+<h2 id="access-token-privilege-restriction">Ограничение привилегий access token</h2>
+<ol start="13">
+<li>Привилегии access token должны быть минимальны для сценария. Это ограничивает злоупотребление клиентом сверх разрешения владельца ресурса и пользователя сверх политики безопасности; при утечке токена ущерб меньше. <strong>Сочетайте с sender-constrained токенами.</strong></li>
+<li>Access token ограничен конкретными RS (audience), желательно <strong>одним</strong> RS. AS связывает токен с RS; каждый RS на каждом запросе проверяет, что токен предназначен именно для него — иначе отказ. Клиент и AS могут использовать <code>scope</code> и <code>resource</code> для указания целевого RS.</li>
+<li>Access token ограничен конкретными ресурсами и действиями на RS. AS связывает токен с ресурсом и действиями; RS проверяет соответствие каждому запросу — иначе отказ. Могут использоваться <code>scope</code> и <code>authorization_details</code>.</li>
+</ol>
+<h2 id="resource-owner-password-credentials-grant">Resource Owner Password Credentials Grant</h2>
+<ol start="16">
+<li>Grant <strong>Resource Owner Password Credentials не используется</strong>. Он небезопасно передаёт учётные данные владельца ресурса клиенту и расширяет поверхность атаки.</li>
+</ol>
+<h2 id="client-authentication">Аутентификация клиента</h2>
+<ol start="17">
+<li>AS по возможности применяет аутентификацию клиента. Рекомендуются <strong>асимметричные</strong> методы: mTLS или <code>private_key_jwt</code> (OpenID Connect). При асимметрии AS не хранит чувствительные симметричные ключи клиента — устойчивее к ряду атак.</li>
+</ol>
+<h2 id="other-recommendations">Прочие рекомендации</h2>
+<ol start="18">
+<li>AS не даёт клиентам влиять на значение <code>client_id</code>, <code>sub</code> или других claim, которые можно спутать с подлинным владельцем ресурса. Рекомендуется сквозной TLS.</li>
+<li>Ответы авторизации не передаются по незашифрованным каналам. AS не должен разрешать redirect URI со схемой <code>http</code>, кроме нативных клиентов с редиректом на loopback.</li>
+</ol>
+<p>Ссылки:</p>
+<ul>
+<li><a href="https://www.rfc-editor.org/info/rfc6749" target="_blank" rel="noopener">RFC 6749: OAuth 2.0 Authorization Framework</a></li>
+<li><a href="https://www.rfc-editor.org/info/rfc6750" target="_blank" rel="noopener">RFC 6750: OAuth 2.0 Bearer Token Usage</a></li>
+<li><a href="https://www.rfc-editor.org/info/rfc8705" target="_blank" rel="noopener">RFC 8705: OAuth 2.0 Mutual-TLS Client Authentication and Certificate-Bound Access Tokens</a></li>
+<li><a href="https://www.rfc-editor.org/info/rfc9207" target="_blank" rel="noopener">RFC 9207: OAuth 2.0 Security Best Current Practice</a></li>
+<li><a href="https://www.rfc-editor.org/info/rfc9449" target="_blank" rel="noopener">RFC 9449: OAuth 2.0 Demonstrating Proof of Possession (DPoP)</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9207.html#section-4.4" target="_blank" rel="noopener">Mix-Up Attacks (RFC 9207, раздел 4.4)</a></li>
+<li><a href="https://www.rfc-editor.org/rfc/rfc9207.html#section-4.4.2" target="_blank" rel="noopener">Контрмеры против mix-up (RFC 9207, раздел 4.4.2)</a></li>
+</ul>

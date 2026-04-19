@@ -2,3 +2,10 @@
 __pycache__/
 *.db
 .env
+
+# Генерируется scripts/build_dotnet_cheat_sheet_article.py (перед translate_dotnet_article_to_ru.py)
+templates/_owasp_dotnet_article_extracted.html
+templates/_owasp_grpc_article_extracted.html
+templates/_owasp_java_article_extracted.html
+templates/_owasp_nodejs_article_extracted.html
+templates/_owasp_rest_article_extracted.html

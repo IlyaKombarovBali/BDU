@@ -1,0 +1,465 @@
+<h1 id="nodejs-security-cheat-sheet"> Статья по безопасности NodeJS</h1>
+<h2 id="introduction"> Введение</h2>
+<p> В этой статье перечислены действия, которые разработчики могут предпринять для разработки безопасных приложений Node.js. Каждый элемент имеет краткое объяснение и решение, специфичное для среды Node.js.</p>
+<h2 id="context"> Контекст</h2>
+<p> Число приложений Node.js увеличивается, и они ничем не отличаются от других фреймворков и языков программирования. Приложения Node.js подвержены всевозможным уязвимостям веб-приложений.</p>
+<h2 id="objective"> Цель</h2>
+<p> Целью этой статьи является предоставление списка лучших практик, которым следует следовать при разработке приложений Node.js.</p>
+<h2 id="recommendations"> Рекомендации</h2>
+<p> Существует несколько рекомендаций по повышению безопасности ваших приложений Node.js. Они классифицируются как:</p>
+<ul>
+<li><strong> Безопасность приложений</strong></li>
+<li><strong> Обработка ошибок и исключений</strong></li>
+<li><strong> Безопасность сервера</strong></li>
+<li><strong> Безопасность платформы</strong></li>
+</ul>
+<h3 id="application-security"> Безопасность приложений</h3>
+<h4 id="use-flat-promise-chains"> Используйте плоские цепочки обещаний</h4>
+<p> Асинхронные функции обратного вызова — одна из самых сильных особенностей Node.js. Однако увеличение уровней вложенности внутри функций обратного вызова может стать проблемой. Любой многоэтапный процесс может быть вложен на 10 и более уровней. Эту проблему называют «Пирамидой Судьбы» или «Адом обратных вызовов». В таком коде ошибки и результаты теряются при обратном вызове. Промисы — хороший способ написать асинхронный код, не вдаваясь в вложенные пирамиды. Промисы обеспечивают выполнение сверху вниз, оставаясь при этом асинхронными, передавая ошибки и результаты следующим <code>.then</code> функция.</p>
+<p> Еще одним преимуществом Promises является то, как Promises обрабатывают ошибки. Если в классе Promise возникает ошибка, она пропускает <code>.then</code> функции и вызывает первый <code>.catch</code> функция, которую он находит. Таким образом, обещания обеспечивают более высокую уверенность в обнаружении и обработке ошибок. В принципе, вы можете заставить весь ваш асинхронный код (кроме эмиттеров) возвращать обещания. Следует отметить, что вызовы Promise также могут стать пирамидой. Чтобы полностью избежать «ада обратных вызовов», следует использовать плоские цепочки обещаний. Если используемый вами модуль не поддерживает обещания, вы можете преобразовать базовый объект в обещание, используя <code>Promise.promisifyAll()</code> функция.</p>
+<p> Следующий фрагмент кода является примером «Ада обратного вызова»:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">function func1(name, callback) {
+  // operations that takes a bit of time and then calls the callback
+}
+function func2(name, callback) {
+  // operations that takes a bit of time and then calls the callback
+}
+function func3(name, callback) {
+  // operations that takes a bit of time and then calls the callback
+}
+function func4(name, callback) {
+  // operations that takes a bit of time and then calls the callback
+}
+
+func1("input1", function(err, result1){
+   if(err){
+      // error operations
+   }
+   else {
+      //some operations
+      func2("input2", function(err, result2){
+         if(err){
+            //error operations
+         }
+         else{
+            //some operations
+            func3("input3", function(err, result3){
+               if(err){
+                  //error operations
+               }
+               else{
+                  // some operations
+                  func4("input 4", function(err, result4){
+                     if(err){
+                        // error operations
+                     }
+                     else {
+                        // some operations
+                     }
+                  });
+               }
+            });
+         }
+      });
+   }
+});</code></pre></div>
+<p> Приведенный выше код можно безопасно написать следующим образом, используя плоскую цепочку обещаний:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">function func1(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+function func2(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+function func3(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+function func4(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+
+func1("input1")
+   .then(function (result){
+      return func2("input2");
+   })
+   .then(function (result){
+      return func3("input3");
+   })
+   .then(function (result){
+      return func4("input4");
+   })
+   .catch(function (error) {
+      // error operations
+   });</code></pre></div>
+<p> И используя async/await:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">async function func1(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+async function func2(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+async function func3(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+async function func4(name) {
+  // operations that takes a bit of time and then resolves the promise
+}
+
+(async() =&gt; {
+  try {
+    let res1 = await func1("input1");
+    let res2 = await func2("input2");
+    let res3 = await func3("input2");
+    let res4 = await func4("input2");
+  } catch(err) {
+    // error operations
+  }
+})();</code></pre></div>
+<h4 id="set-request-size-limits"> Установить ограничения на размер запроса</h4>
+<p> Буферизация и анализ тел запросов могут оказаться ресурсоемкой задачей. Если нет ограничений на размер запросов, злоумышленники могут отправлять запросы с большими телами запросов, которые могут исчерпать память сервера и/или заполнить дисковое пространство. Вы можете ограничить размер тела запроса для всех запросов, используя <a href="https://www.npmjs.com/package/raw-body"> сырое тело</a>.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const contentType = require('content-type')
+const express = require('express')
+const getRawBody = require('raw-body')
+
+const app = express()
+
+app.use(function (req, res, next) {
+  if (!['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    next()
+    return
+  }
+
+  getRawBody(req, {
+    length: req.headers['content-length'],
+    limit: '1kb',
+    encoding: contentType.parse(req).parameters.charset
+  }, function (err, string) {
+    if (err) return next(err)
+    req.text = string
+    next()
+  })
+})</code></pre></div>
+<p> Однако фиксирование ограничения размера запроса для всех запросов может быть неправильным поведением, поскольку некоторые запросы могут иметь большую полезную нагрузку в теле запроса, например при загрузке файла. Кроме того, ввод типа JSON более опасен, чем составной ввод, поскольку анализ JSON является блокирующей операцией. Поэтому вам следует установить ограничения на размер запроса для разных типов контента. Вы можете сделать это очень легко с помощью экспресс-промежуточного программного обеспечения следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(express.urlencoded({ extended: true, limit: "1kb" }));
+app.use(express.json({ limit: "1kb" }));</code></pre></div>
+<p> Следует отметить, что злоумышленники могут изменить <code>Content-Type</code> заголовок запроса и обойти ограничения размера запроса. Поэтому перед обработкой запроса данные, содержащиеся в запросе, должны быть проверены на соответствие типу контента, указанному в заголовках запроса. Если проверка типа контента для каждого запроса серьезно влияет на производительность, вы можете проверять только определенные типы контента или запрашивать размер, превышающий заранее определенный.</p>
+<h4 id="do-not-block-the-event-loop"> Не блокируйте цикл событий</h4>
+<p>Node.js сильно отличается от распространенных платформ приложений, использующих потоки. Node.js имеет однопоточную архитектуру, управляемую событиями. Благодаря такой архитектуре пропускная способность становится высокой, а модель программирования упрощается. Node.js реализован на основе неблокирующего цикла событий ввода-вывода. Благодаря этому циклу событий нет ожидания ввода-вывода или переключения контекста. Цикл событий ищет события и отправляет их функциям-обработчикам. По этой причине при выполнении операций JavaScript с интенсивным использованием ЦП цикл событий ожидает их завершения. Именно поэтому такие операции называются «блокировками». Чтобы решить эту проблему, Node.js позволяет назначать обратные вызовы событиям с блокировкой ввода-вывода. Таким образом, основное приложение не блокируется, а обратные вызовы выполняются асинхронно. Поэтому, как правило, все операции блокировки должны выполняться асинхронно, чтобы цикл событий не блокировался.</p>
+<p> Даже если вы выполняете операции блокировки асинхронно, ваше приложение все равно может работать не так, как ожидалось. Это происходит, если есть код вне обратного вызова, который полагается на код внутри обратного вызова для запуска первым. Например, рассмотрим следующий код:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const fs = require('fs');
+fs.readFile('/file.txt', (err, data) =&gt; {
+  // perform actions on file content
+});
+fs.unlinkSync('/file.txt');</code></pre></div>
+<p> В приведенном выше примере <code>unlinkSync</code> Функция может выполняться перед обратным вызовом, который удалит файл до того, как будут выполнены желаемые действия с содержимым файла. Такие условия гонки также могут повлиять на безопасность вашего приложения. Примером может служить сценарий, в котором проверка подлинности выполняется в обратном вызове, а действия с проверкой подлинности выполняются синхронно. Чтобы исключить такие условия гонки, вы можете написать все операции, которые полагаются друг на друга, в одной неблокирующей функции. Поступая так, вы можете гарантировать, что все операции выполняются в правильном порядке. Например, приведенный выше пример кода можно записать неблокирующим способом следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const fs = require('fs');
+fs.readFile('/file.txt', (err, data) =&gt; {
+  // perform actions on file content
+  fs.unlink('/file.txt', (err) =&gt; {
+    if (err) throw err;
+  });
+});</code></pre></div>
+<p> В приведенном выше коде вызов для отключения файла и другие файловые операции находятся в одном обратном вызове. Это обеспечивает правильный порядок действий.</p>
+<h4 id="perform-input-validation"> Выполнить проверку ввода</h4>
+<p> Проверка входных данных — важнейшая часть безопасности приложения. Сбои проверки входных данных могут привести ко многим типам атак на приложения. К ним относятся SQL-инъекция, межсайтовый скриптинг, внедрение команд, включение локальных/удаленных файлов, отказ в обслуживании, обход каталогов, внедрение LDAP и многие другие атаки-инъекции. Чтобы избежать этих атак, входные данные вашего приложения должны быть сначала очищены. Лучший метод проверки входных данных — использовать список принятых входных данных. Однако, если это невозможно, сначала следует проверить входные данные на соответствие ожидаемой схеме ввода и экранировать опасные входные данные. Чтобы упростить проверку ввода в приложениях Node.js, существуют некоторые модули, такие как <a href="https://www.npmjs.com/package/validator"> валидатор</a> и <a href="https://www.npmjs.com/package/express-mongo-sanitize"> экспресс-монго-дезинфекция</a>.
+Подробную информацию о проверке ввода см.<a href="https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html"> Статья по проверке ввода</a>.</p>
+<p>JavaScript — это динамический язык, и в зависимости от того, как платформа анализирует URL-адрес, данные, видимые кодом приложения, могут принимать разные формы. Вот несколько примеров после анализа строки запроса в express.js:</p>
+<table>
+<thead>
+<tr>
+<th>URL-адрес</th>
+<th> Содержимое request.query.foo в коде</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>?foo=bar</code></td>
+<td><code>'bar'</code> (нить)</td>
+</tr>
+<tr>
+<td><code>?foo=bar&amp;foo=baz</code></td>
+<td><code>['bar', 'baz']</code> (массив строк)</td>
+</tr>
+<tr>
+<td><code>?foo[]=bar</code></td>
+<td><code>['bar']</code> (массив строк)</td>
+</tr>
+<tr>
+<td><code>?foo[]=bar&amp;foo[]=baz</code></td>
+<td><code>['bar', 'baz']</code> (массив строк)</td>
+</tr>
+<tr>
+<td><code>?foo[bar]=baz</code></td>
+<td><code>{ bar : 'baz' }</code> (предмет с ключом)</td>
+</tr>
+<tr>
+<td><code>?foo[]baz=bar</code></td>
+<td><code>['bar']</code> (массив строк — постфикс потерян)</td>
+</tr>
+<tr>
+<td><code>?foo[][baz]=bar</code></td>
+<td><code>[ { baz: 'bar' } ]</code> (массив объектов)</td>
+</tr>
+<tr>
+<td><code>?foo[bar][baz]=bar</code></td>
+<td><code>{ foo: { bar: { baz: 'bar' } } }</code> (дерево объектов)</td>
+</tr>
+<tr>
+<td><code>?foo[10]=bar&amp;foo[9]=baz</code></td>
+<td><code>[ 'baz', 'bar' ]</code> (массив строк – порядок уведомления)</td>
+</tr>
+<tr>
+<td><code>?foo[toString]=bar</code></td>
+<td><code>{}</code> (объект, куда вызывается <code>toString()</code> провалится)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="perform-output-escaping"> Выполнить экранирование вывода</h4>
+<p> Помимо проверки ввода, вам следует избегать всего содержимого HTML и JavaScript, показываемого пользователям через приложение, чтобы предотвратить атаки с использованием межсайтовых сценариев (XSS). Вы можете использовать <a href="https://github.com/component/escape-html">escape-html</a> или <a href="https://github.com/ESAPI/node-esapi"> узел-эсапи</a> библиотеки для выполнения экранирования вывода.</p>
+<h4 id="perform-application-activity-logging"> Ведение журнала активности приложения</h4>
+<p> Регистрация активности приложений является рекомендуемой хорошей практикой. Это упрощает отладку любых ошибок, возникающих во время выполнения приложения. Это также полезно для обеспечения безопасности, поскольку его можно использовать во время реагирования на инциденты. Кроме того, эти журналы можно использовать в системах обнаружения и предотвращения вторжений (IDS/IPS). В Node.js есть такие модули, как <a href="https://www.npmjs.com/package/winston"> Уинстон</a>, <a href="https://www.npmjs.com/package/bunyan"> Буньян</a>, или <a href="https://www.npmjs.com/package/pino"> Пино</a> для ведения журнала активности приложения. Эти модули обеспечивают потоковую передачу и запросы журналов, а также позволяют обрабатывать неперехваченные исключения.</p>
+<p> С помощью следующего кода вы можете регистрировать действия приложения как в консоли, так и в желаемом файле журнала:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const logger = new (Winston.Logger) ({
+    transports: [
+        new (winston.transports.Console)(),
+        new (winston.transports.File)({ filename: 'application.log' })
+    ],
+    level: 'verbose'
+});</code></pre></div>
+<p> Вы можете предоставить разные транспорты, чтобы сохранять ошибки в отдельный файл журнала, а общие журналы приложений — в другой файл журнала. Дополнительную информацию о ведении журнала безопасности можно найти в <a href="https://cheatsheetseries.owasp.org/cheatsheets/Logging_Cheat_Sheet.html"> Статья по ведению журналов</a>.</p>
+<h4 id="monitor-the-event-loop"> Мониторинг цикла событий</h4>
+<p> Когда ваш сервер приложений находится под интенсивным сетевым трафиком, он может быть не в состоянии обслуживать своих пользователей. По сути, это тип <a href="https://cheatsheetseries.owasp.org/cheatsheets/Denial_of_Service_Cheat_Sheet.html"> Отказ в обслуживании (DoS)</a> атака.<a href="https://www.npmjs.com/package/toobusy-js"> слишком занят-js</a> Модуль позволяет отслеживать цикл событий. Он отслеживает время ответа, и когда оно превышает определенный порог, этот модуль может указывать на то, что ваш сервер слишком занят. В этом случае вы можете прекратить обработку входящих запросов и отправить их.<code>503 Server Too Busy</code> сообщение, чтобы ваше приложение оставалось отзывчивым. Пример использования <a href="https://www.npmjs.com/package/toobusy-js"> слишком занят-js</a> модуль показан здесь:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const toobusy = require('toobusy-js');
+const express = require('express');
+const app = express();
+app.use(function(req, res, next) {
+    if (toobusy()) {
+        // log if you see necessary
+        res.status(503).send("Server Too Busy");
+    } else {
+    next();
+    }
+});</code></pre></div>
+<h4 id="take-precautions-against-brute-forcing"> Примите меры предосторожности против брутфорса</h4>
+<p> <a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#protect-against-automated-attacks"> Брутфорс</a> является общей угрозой для всех веб-приложений. Злоумышленники могут использовать брутфорс в качестве атаки по подбору пароля для получения паролей учетных записей. Поэтому разработчикам приложений следует принимать меры предосторожности против атак методом перебора, особенно на страницах входа.  Для этой цели в Node.js имеется несколько модулей.<a href="https://libraries.io/npm/express-bouncer"> Экспресс-вышибала</a>, <a href="https://libraries.io/npm/express-brute"> экспресс-грубияна</a> и <a href="https://libraries.io/npm/rate-limiter"> ограничитель скорости</a> это лишь некоторые примеры. В зависимости от ваших потребностей и требований вам следует выбрать один или несколько из этих модулей и использовать их соответствующим образом.<a href="https://libraries.io/npm/express-bouncer"> Экспресс-вышибала</a> и <a href="https://libraries.io/npm/express-brute"> экспресс-грубияна</a> модули работают аналогично. Они увеличивают задержку для каждого неудачного запроса и могут быть настроены для конкретного маршрута. Эти модули можно использовать следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const bouncer = require('express-bouncer');
+bouncer.whitelist.push('127.0.0.1'); // allow an IP address
+// give a custom error message
+bouncer.blocked = function (req, res, next, remaining) {
+    res.status(429).send("Too many requests have been made. Please wait " + remaining/1000 + " seconds.");
+};
+// route to protect
+app.post("/login", bouncer.block, function(req, res) {
+    if (LoginFailed){  }
+    else {
+        bouncer.reset( req );
+    }
+});</code></pre></div>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const ExpressBrute = require('express-brute');
+
+const store = new ExpressBrute.MemoryStore(); // stores state locally, don't use this in production
+const bruteforce = new ExpressBrute(store);
+
+app.post('/auth',
+    bruteforce.prevent, // error 429 if we hit this route too often
+    function (req, res, next) {
+        res.send('Success!');
+    }
+);</code></pre></div>
+<p> Кроме <a href="https://libraries.io/npm/express-bouncer"> экспресс-вышибала</a> и <a href="https://libraries.io/npm/express-brute"> экспресс-грубияна</a>,<a href="https://libraries.io/npm/rate-limiter"> ограничитель скорости</a> Модуль также может помочь предотвратить атаки грубой силы. Он позволяет указать, сколько запросов может выполнить конкретный IP-адрес в течение определенного периода времени.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const limiter = new RateLimiter();
+limiter.addLimit('/login', 'GET', 5, 500); // login page can be requested 5 times at max within 500 seconds</code></pre></div>
+<p> <a href="https://cheatsheetseries.owasp.org/cheatsheets/Credential_Stuffing_Prevention_Cheat_Sheet.html#captcha"> Использование капчи</a> Это также еще один распространенный механизм, используемый против грубого принуждения. Существуют модули, разработанные для Node.js CAPTCHA. Общий модуль, используемый в приложениях Node.js, —<a href="https://www.npmjs.com/package/svg-captcha">SVG-капча</a>. Его можно использовать следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const svgCaptcha = require('svg-captcha');
+app.get('/captcha', function (req, res) {
+    const captcha = svgCaptcha.create();
+    req.session.captcha = captcha.text;
+    res.type('svg');
+    res.status(200).send(captcha.data);
+});</code></pre></div>
+<p> <a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#account-lockout"> Блокировка аккаунта</a>— рекомендуемое решение, позволяющее держать злоумышленников подальше от ваших действительных пользователей. Блокировка учетной записи возможна с помощью многих модулей, таких как <a href="https://www.npmjs.com/package/mongoose"> мангуста</a>. Вы можете обратиться к <a href="http://devsmash.com/blog/implementing-max-login-attempts-with-mongoose"> этот пост в блоге</a> чтобы увидеть, как в mongoose реализована блокировка учетной записи.</p>
+<h4 id="use-anti-csrf-tokens"> Используйте токены Anti-CSRF</h4>
+<p> <a href="https://owasp.org/www-community/attacks/csrf"> Подделка межсайтового запроса (CSRF)</a> целью которого является выполнение авторизованных действий от имени аутентифицированного пользователя, при этом пользователь не знает об этом действии. CSRF-атаки обычно выполняются для запросов на изменение состояния, таких как изменение пароля, добавление пользователей или размещение заказов.<a href="https://www.npmjs.com/package/csurf"> Ксерфинг</a>— это экспресс-промежуточное программное обеспечение, которое использовалось для смягчения атак CSRF. Но недавно была обнаружена дыра в безопасности этого пакета. Команда, создавшая пакет, не устранила обнаруженную уязвимость и пометила пакет как устаревший, рекомендуя использовать любой другой пакет защиты CSRF.</p>
+<p> Подробную информацию об атаках с подделкой межсайтовых запросов (CSRF) и методах их предотвращения можно найти на странице <a href="https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html"> Предотвращение подделки межсайтовых запросов</a>.</p>
+<h4 id="remove-unnecessary-routes"> Удалить ненужные маршруты</h4>
+<p> Веб-приложение не должно содержать страниц, которые не используются пользователями, поскольку это может увеличить поверхность атаки приложения. Поэтому все неиспользуемые маршруты API следует отключить в приложениях Node.js. Это происходит особенно в таких средах, как <a href="https://sailsjs.com"> Паруса</a> и <a href="https://feathersjs.com"> Перья</a>, поскольку они автоматически генерируют конечные точки REST API. Например, в <a href="https://sailsjs.com"> Паруса</a>, если URL-адрес не соответствует пользовательскому маршруту, он может соответствовать одному из автоматических маршрутов и все равно генерировать ответ. Такая ситуация может привести к самым разным последствиям: от утечки информации до выполнения произвольной команды. Поэтому перед использованием таких фреймворков и модулей важно знать маршруты, которые они автоматически генерируют, и удалить или отключить эти маршруты.</p>
+<h4 id="prevent-http-parameter-pollution"> Предотвращение загрязнения параметров HTTP</h4>
+<p> <a href="https://owasp.org/www-project-web-security-testing-guide/stable/4-Web_Application_Security_Testing/07-Input_Validation_Testing/04-Testing_for_HTTP_Parameter_Pollution.html"> Загрязнение параметров HTTP (HPP)</a>— это атака, при которой злоумышленники отправляют несколько параметров HTTP с одним и тем же именем, в результате чего ваше приложение интерпретирует их непредсказуемо. Когда отправляется несколько значений параметров, Express заполняет их в массиве. Чтобы решить эту проблему, вы можете использовать <a href="https://www.npmjs.com/package/hpp"> ГЭС</a> модуль. При использовании этот модуль будет игнорировать все значения, представленные для параметра в <code>req.query</code> и/или <code>req.body</code> и просто выберите последнее отправленное значение параметра. Вы можете использовать его следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const hpp = require('hpp');
+app.use(hpp());</code></pre></div>
+<h4 id="only-return-what-is-necessary"> Возвращайте только то, что необходимо</h4>
+<p> Информация о пользователях приложения является одной из наиболее важных сведений о приложении. Таблицы пользователей обычно включают такие поля, как идентификатор, имя пользователя, полное имя, адрес электронной почты, дату рождения, пароль и, в некоторых случаях, номера социального страхования. Поэтому при запросе и использовании пользовательских объектов вам необходимо возвращать только необходимые поля, поскольку это может быть уязвимо для раскрытия личной информации. Это также верно для других объектов, хранящихся в базе данных. Если вам просто нужно определенное поле объекта, вам следует возвращать только определенные требуемые поля. Например, вы можете использовать функцию, подобную следующей, всякий раз, когда вам нужно получить информацию о пользователе. Таким образом, вы сможете вернуть только те поля, которые необходимы для вашей конкретной операции. Другими словами, если вам нужно указать только имена доступных пользователей, вы не возвращаете их адреса электронной почты или номера кредитных карт в дополнение к их полным именам.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">exports.sanitizeUser = function(user) {
+  return {
+    id: user.id,
+    username: user.username,
+    fullName: user.fullName
+  };
+};</code></pre></div>
+<h4 id="use-object-property-descriptors"> Используйте дескрипторы свойств объектов</h4>
+<p> Свойства объекта включают три скрытых атрибута:<code>writable</code> (если false, значение свойства не может быть изменено),<code>enumerable</code> (если false, свойство нельзя использовать в циклах for) и <code>configurable</code> (если false, свойство не может быть удалено). При определении свойства объекта посредством присвоения этим трем скрытым атрибутам по умолчанию присваивается значение true. Эти свойства можно установить следующим образом:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const o = {};
+Object.defineProperty(o, "a", {
+    writable: true,
+    enumerable: true,
+    configurable: true,
+    value: "A"
+});</code></pre></div>
+<p> Помимо этого, существует несколько специальных функций для атрибутов объектов.<code>Object.preventExtensions()</code> предотвращает добавление новых свойств к объекту.</p>
+<h4 id="use-access-control-lists"> Используйте списки контроля доступа</h4>
+<p> Авторизация не позволяет пользователям действовать за пределами предусмотренных ими разрешений. Для этого необходимо определить пользователей и их роли с учетом принципа наименьших привилегий. Каждая роль пользователя должна иметь доступ только к тем ресурсам, которые она должна использовать. Для ваших приложений Node.js вы можете использовать <a href="https://www.npmjs.com/package/acl">ACL</a> модуль для реализации ACL (списка контроля доступа). С помощью этого модуля вы можете создавать роли и назначать на эти роли пользователей.</p>
+<h3 id="permissions"> Разрешения</h3>
+<p> Начиная с Node.js v20, доступна модель разрешений для ограничения привилегий приложения. Начиная с Node.js версии 23.5.0, модель считается стабильной и ее можно включить с помощью <code>--permission</code> флаг (более ранние версии требуют <code>--experimental-permission</code>).</p>
+<h4 id="usage"> Использование</h4>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">node --permission [--allow-&lt;type&gt;=...] app.js</code></pre></div>
+<h4 id="examples"> Примеры</h4>
+<p> Используйте только <code>--permission</code> чтобы ограничить все разрешения по умолчанию:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">node --permission index.js</code></pre></div>
+<p> Использовать <code>--allow‑fs‑read</code> чтобы указать, какие файлы или каталоги Node.js разрешено читать. Это особенно полезно для предотвращения уязвимостей, связанных с включением локальных файлов (LFI):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">node --permission --allow-fs-read=/uploads/ index.js</code></pre></div>
+<p> Использовать <code>--allow-fs-write</code> чтобы указать, где Node.js разрешено записывать файлы:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">node --permission --allow-fs-write=/uploads/ index.js</code></pre></div>
+<p> Несанкционированный доступ вызывает ошибку времени выполнения:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">Error: Access to this API has been restricted
+code: 'ERR_ACCESS_DENIED'
+permission: 'FileSystemRead'
+resource: '/path/to/file'</code></pre></div>
+<p> Другие флаги:</p>
+<ul>
+<li><code>--allow-child-process</code>— позволяет использовать <code>child_process</code> API</li>
+<li><code>--allow-worker</code>— позволяет использовать <code>worker_threads</code> API</li>
+<li><code>--allow-addons</code>— позволяет загружать собственные аддоны</li>
+<li><code>--allow-wasi</code>— позволяет использовать модули WASI</li>
+</ul>
+<p><strong> Важное примечание:</strong> Символические ссылки выполняются, даже если они указывают за пределы разрешенных путей. Это означает, что относительные символические ссылки могут обходить ограничения и предоставлять непреднамеренный доступ. Чтобы обеспечить безопасность, при использовании модели разрешений убедитесь, что ни один из разрешенных путей не содержит относительных символических ссылок.</p>
+<p> Для получения более подробной информации см.<a href="https://nodejs.org/api/permissions.html"> официальная документация</a>.</p>
+<h3 id="error-exception-handling"> Обработка ошибок и исключений</h3>
+<h4 id="handle-uncaughtexception"> Обработка неперехваченного исключения</h4>
+<p> Поведение Node.js для неперехваченных исключений заключается в печати текущей трассировки стека и последующем завершении потока. Однако Node.js позволяет настроить это поведение. Он предоставляет глобальный объект с именем «процесс», доступный всем приложениям Node.js. Это объект EventEmitter, и в случае неперехваченного исключения генерируется событие uncaughtException, которое переносится в основной цикл событий. Чтобы обеспечить собственное поведение для неперехваченных исключений, вы можете привязаться к этому событию. Однако возобновление работы приложения после такого неперехваченного исключения может привести к дальнейшим проблемам. Поэтому, если вы не хотите пропустить ни одно неперехваченное исключение, вам следует выполнить привязку к событию uncaughtException и очистить все выделенные ресурсы, такие как файловые дескрипторы, дескрипторы и т. д., прежде чем завершать процесс. Возобновление работы приложения настоятельно не рекомендуется, поскольку приложение будет находиться в неизвестном состоянии. Важно отметить, что при отображении сообщений об ошибках пользователю в случае неперехваченного исключения подробная информация, такая как трассировка стека, не должна раскрываться пользователю. Вместо этого пользователям должны показываться специальные сообщения об ошибках, чтобы не вызвать утечку информации.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">process.on("uncaughtException", function(err) {
+    // clean up allocated resources
+    // log necessary error details to log files
+    process.exit(); // exit the process to avoid unknown state
+});</code></pre></div>
+<h4 id="listen-to-errors-when-using-eventemitter"> Слушайте ошибки при использовании EventEmitter</h4>
+<p> При использовании EventEmitter ошибки могут возникать в любом месте цепочки событий. Обычно, если в объекте EventEmitter возникает ошибка, вызывается событие ошибки, имеющее объект Error в качестве аргумента. Однако если к этому событию ошибки не подключены прослушиватели, объект Error, отправленный в качестве аргумента, выбрасывается и становится неперехваченным исключением. Короче говоря, если вы не обрабатываете ошибки внутри объекта EventEmitter должным образом, эти необработанные ошибки могут привести к сбою вашего приложения. Поэтому вам всегда следует прослушивать события ошибок при использовании объектов EventEmitter.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const events = require('events');
+const myEventEmitter = function(){
+    events.EventEmitter.call(this);
+}
+require('util').inherits(myEventEmitter, events.EventEmitter);
+myEventEmitter.prototype.someFunction = function(param1, param2) {
+    //in case of an error
+    this.emit('error', err);
+}
+const emitter = new myEventEmitter();
+emitter.on('error', function(err){
+    //Perform necessary error handling here
+});</code></pre></div>
+<h4 id="handle-errors-in-asynchronous-calls"> Обработка ошибок в асинхронных вызовах</h4>
+<p> Ошибки, возникающие при асинхронных обратных вызовах, легко не заметить. Поэтому, как правило, первым аргументом асинхронных вызовов должен быть объект Error. Кроме того, экспресс-маршруты сами обрабатывают ошибки, но всегда следует помнить, что ошибки, возникшие в асинхронных вызовах, выполненных внутри экспресс-маршрутов, не обрабатываются, если только объект Error не отправляется в качестве первого аргумента.</p>
+<p> Ошибки в этих обратных вызовах могут распространяться столько раз, сколько возможно. Каждый обратный вызов, на который была распространена ошибка, может игнорировать, обрабатывать или распространять ошибку.</p>
+<h3 id="server-security"> Безопасность сервера</h3>
+<h4 id="set-cookie-flags-appropriately"> Установите флаги cookie соответствующим образом</h4>
+<p> Обычно информация о сеансе отправляется с использованием файлов cookie в веб-приложениях. Однако неправильное использование файлов cookie HTTP может привести к возникновению в приложении нескольких уязвимостей управления сеансами. Для каждого файла cookie можно установить некоторые флаги, чтобы предотвратить подобные атаки.<code>httpOnly</code>, <code>Secure</code> и <code>SameSite</code> флаги очень важны для файлов cookie сеанса.<code>httpOnly</code> Флаг запрещает доступ к файлу cookie со стороны клиентского JavaScript. Это эффективная мера противодействия XSS-атакам.<code>Secure</code> Флаг позволяет отправлять файлы cookie только в том случае, если связь осуществляется через HTTPS.<code>SameSite</code> Флаг может предотвратить отправку файлов cookie в межсайтовых запросах, что помогает защититься от атак подделки межсайтовых запросов (CSRF). Помимо них, есть и другие флаги, такие как домен, путь и срок действия. Установка этих флагов приветствуется, но они в основном связаны с областью действия файлов cookie, а не с безопасностью файлов cookie. Пример использования этих флагов приведен в следующем примере:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const session = require('express-session');
+app.use(session({
+    secret: 'your-secret-key',
+    name: 'cookieName',
+    cookie: { secure: true, httpOnly: true, path: '/user', sameSite: true}
+}));</code></pre></div>
+<h4 id="use-appropriate-security-headers"> Используйте соответствующие заголовки безопасности</h4>
+<p> Есть несколько <a href="https://owasp.org/www-project-secure-headers/"> Заголовки безопасности HTTP</a> это может помочь вам предотвратить некоторые распространенные векторы атак.<a href="https://www.npmjs.com/package/helmet"> шлем</a> package может помочь установить эти заголовки:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const express = require("express");
+const helmet = require("helmet");
+
+const app = express();
+
+app.use(helmet()); // Add various HTTP headers</code></pre></div>
+<p> Высший уровень <code>helmet</code> Функция представляет собой оболочку 14 меньших промежуточных программ.
+Ниже приведен список заголовков безопасности HTTP, охватываемых <code>helmet</code> промежуточное ПО:</p>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security"> Строгая транспортная безопасность</a></strong>: <a href="https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Strict_Transport_Security_Cheat_Sheet.html"> Строгая транспортная безопасность HTTP (HSTS)</a> указывает браузерам, что доступ к приложению возможен только через HTTPS-соединения. Чтобы использовать его в своем приложении, добавьте следующие коды:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.hsts()); // default configuration
+app.use(
+  helmet.hsts({
+    maxAge: 123456,
+    includeSubDomains: false,
+  })
+); // custom configuration</code></pre></div>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options"> Параметры X-Frame</a>:</strong> определяет, можно ли загрузить страницу через <code>&lt;frame&gt;</code> или <code>&lt;iframe&gt;</code> элемент. Если разрешить размещение страницы в рамке, это может привести к <a href="https://owasp.org/www-community/attacks/Clickjacking"> Кликджекинг</a> атаки.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.frameguard()); // default behavior (SAMEORIGIN)</code></pre></div>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection">X-XSS-Защита</a>:</strong> останавливает загрузку страниц при обнаружении атак с использованием отраженного межсайтового скриптинга (XSS). Этот заголовок устарел в современных браузерах, и его использование может создать дополнительные проблемы безопасности на стороне клиента. Таким образом, рекомендуется установить заголовок как<strong>X-XSS-Защита: 0</strong> чтобы отключить XSS Auditor и не позволить ему использовать поведение браузера по умолчанию, обрабатывающего ответ.</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.xssFilter()); // sets "X-XSS-Protection: 0"</code></pre></div>
+<p> Для современных браузеров рекомендуется реализовать сильный<strong> Политика безопасности контента</strong> политику, как подробно описано в следующем разделе.</p>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy"> Политика безопасности контента</a>:</strong> Политика безопасности контента разработана для снижения риска таких атак, как <a href="https://owasp.org/www-community/attacks/xss/"> Межсайтовый скриптинг (XSS)</a> и <a href="https://owasp.org/www-community/attacks/Clickjacking"> Кликджекинг</a>. Это позволяет контент из списка, который вы решите. Он имеет несколько директив, каждая из которых запрещает загрузку определенного типа контента. Вы можете обратиться к <a href="https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html"> Статья по политике безопасности контента</a> для подробного объяснения каждой директивы и того, как ее использовать. Вы можете реализовать эти настройки в своем приложении следующим образом:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(
+  helmet.contentSecurityPolicy({
+    // the following directives will be merged into the default helmet CSP policy
+    directives: {
+      defaultSrc: ["'self'"],  // default value for all directives that are absent
+      scriptSrc: ["'self'"],   // helps prevent XSS attacks
+      frameAncestors: ["'none'"],  // helps prevent Clickjacking attacks
+      imgSrc: ["'self'", "'http://imgexample.com'"],
+      styleSrc: ["'none'"]
+    }
+  })
+);</code></pre></div>
+<p> Поскольку это промежуточное программное обеспечение выполняет очень мало проверок, рекомендуется полагаться на средства проверки CSP, такие как <a href="https://csp-evaluator.withgoogle.com/"> Оценщик CSP</a> вместо.</p>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options"> Параметры X-Content-Type</a>:</strong> Даже если сервер устанавливает действительный <code>Content-Type</code> в ответе, браузеры могут попытаться определить тип MIME запрошенного ресурса. Этот заголовок позволяет остановить такое поведение и указать браузеру не изменять типы MIME, указанные в <code>Content-Type</code> заголовок. Его можно настроить следующим образом:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.noSniff());</code></pre></div>
+<ul>
+<li><strong> <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control"> Кэш-Контроль</a> и <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Pragma"> Прагма</a>:</strong> Заголовок Cache-Control можно использовать, чтобы запретить браузерам кэшировать данные ответы. Это следует сделать для страниц, содержащих конфиденциальную информацию о пользователе или о приложении. Однако отключение кэширования для страниц, не содержащих конфиденциальной информации, может серьезно повлиять на производительность приложения. Поэтому кеширование следует отключать только для страниц, возвращающих конфиденциальную информацию. Соответствующие элементы управления кэшированием и заголовки можно легко настроить с помощью <a href="https://www.npmjs.com/package/nocache"> нокеш</a> упаковка:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">const nocache = require("nocache");
+
+app.use(nocache());</code></pre></div>
+<p> Приведенный выше код устанавливает заголовки Cache-Control, Surrogate-Control, Pragma и Expires соответственно.</p>
+<ul>
+<li><strong>X-Параметры загрузки:</strong> Этот заголовок не позволяет Internet Explorer выполнять загруженные файлы в контексте сайта. Это достигается с помощью директивы noopen. Вы можете сделать это с помощью следующего фрагмента кода:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.ieNoOpen());</code></pre></div>
+<ul>
+<li><strong>X-Powered-By:</strong> Заголовок X-Powered-By используется для информирования о том, какая технология используется на стороне сервера. Это ненужный заголовок, вызывающий утечку информации, поэтому его следует удалить из вашего приложения. Для этого вы можете использовать <code>hidePoweredBy</code> следующее:</li>
+</ul>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.hidePoweredBy());</code></pre></div>
+<p> Также в этом заголовке можно лгать об используемых технологиях. Например, даже если ваше приложение не использует PHP, вы можете настроить заголовок X-Powered-By так, чтобы он выглядел так.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">app.use(helmet.hidePoweredBy({ setTo: 'PHP 4.2.0' }));</code></pre></div>
+<h3 id="platform-security"> Безопасность платформы</h3>
+<h4 id="keep-your-packages-up-to-date"> Держите ваши пакеты в актуальном состоянии</h4>
+<p> Безопасность вашего приложения напрямую зависит от того, насколько безопасны сторонние пакеты, которые вы используете в своем приложении. Поэтому важно поддерживать пакеты в актуальном состоянии. Следует отметить, что <a href="https://owasp.org/www-project-top-ten/OWASP_Top_Ten_2017/Top_10-2017_A9-Using_Components_with_Known_Vulnerabilities"> Использование компонентов с известными уязвимостями</a> все еще входит в десятку лучших OWASP. Вы можете использовать <a href="https://jeremylong.github.io/DependencyCheck/analyzers/nodejs.html"> Проверка зависимостей OWASP</a> чтобы узнать, имеет ли какой-либо из пакетов, используемых в проекте, известную уязвимость. Кроме того, вы можете использовать <a href="https://github.com/retirejs/retire.js/"> Удалить.js</a> для проверки библиотек JavaScript с известными уязвимостями.</p>
+<p> Начиная с версии 6,<code>npm</code> представил <code>audit</code>, который предупредит об уязвимых пакетах:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">npm audit</code></pre></div>
+<p><code>npm</code> также представлен простой способ обновления затронутых пакетов:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">npm audit fix</code></pre></div>
+<p> Есть несколько других инструментов, которые вы можете использовать для проверки ваших зависимостей. Более полный список можно найти в <a href="https://cheatsheetseries.owasp.org/cheatsheets/Vulnerable_Dependency_Management_Cheat_Sheet.html#tools">CS Управление уязвимыми зависимостями</a>.</p>
+<h4 id="do-not-use-dangerous-functions"> Не используйте опасные функции</h4>
+<p> Некоторые функции JavaScript опасны и их следует использовать только там, где это необходимо или неизбежно. Первый пример – это <code>eval()</code> функция. Эта функция принимает строковый аргумент и выполняет его как любой другой исходный код JavaScript. В сочетании с пользовательским вводом такое поведение по своей сути приводит к уязвимости удаленного выполнения кода. Аналогично, вызовы <code>child_process.exec</code> также очень опасны. Эта функция действует как интерпретатор bash и отправляет свои аргументы в /bin/sh. Вводя входные данные в эту функцию, злоумышленники могут выполнять произвольные команды на сервере.</p>
+<p> Помимо этих функций, некоторые модули требуют особой осторожности при использовании. В качестве примера:<code>fs</code> модуль обрабатывает операции файловой системы. Однако если в этот модуль подается неправильно обработанный пользовательский ввод, ваше приложение может стать уязвимым для уязвимостей включения файлов и обхода каталогов. Сходным образом,<code>vm</code> Модуль предоставляет API для компиляции и запуска кода в контекстах виртуальной машины V8. Поскольку по своей природе он может выполнять опасные действия, его следует использовать в песочнице.</p>
+<p> Было бы несправедливо утверждать, что эти функции и модули вообще не следует использовать, однако использовать их следует осторожно, особенно когда они используются с пользовательским вводом. Также есть <a href="https://github.com/wisec/domxsswiki/wiki/Direct-Execution-Sinks"> некоторые другие функции</a> это может сделать ваше приложение уязвимым.</p>
+<h4 id="stay-away-from-evil-regexes"> Держитесь подальше от злых регулярных выражений</h4>
+<p> Отказ в обслуживании с использованием регулярных выражений (ReDoS) — это атака типа «отказ в обслуживании», в которой используется тот факт, что большинство реализаций регулярных выражений могут достигать экстремальных ситуаций, из-за которых они работают очень медленно (экспоненциально зависит от размера входных данных). Затем злоумышленник может заставить программу, использующую регулярное выражение, войти в эти экстремальные ситуации, а затем зависнуть на очень долгое время.</p>
+<p> <a href="https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS"> Отказ в обслуживании с помощью регулярных выражений (ReDoS)</a>— это тип атаки типа «отказ в обслуживании», в которой используются регулярные выражения. Некоторые реализации регулярных выражений (Regex) вызывают экстремальные ситуации, из-за которых приложение работает очень медленно. Злоумышленники могут использовать такие реализации регулярных выражений, чтобы заставить приложение попадать в такие экстремальные ситуации и зависать на долгое время.  Такие регулярные выражения называются злыми, если приложение может зависнуть на созданном вводе.  Обычно эти регулярные выражения используются для группировки с повторением и чередования с перекрытием. Например, следующее регулярное выражение <code>^(([a-z])+.)+[A-Z]([a-z])+$</code> может использоваться для указания имен классов Java. Однако этому регулярному выражению может соответствовать и очень длинная строка (аааа...аааааааааа...аааа). Существует несколько инструментов, позволяющих проверить, может ли регулярное выражение вызвать отказ в обслуживании. Одним из примеров является <a href="https://github.com/davisjam/vuln-regex-detector">vuln-regex-детектор</a>.</p>
+<h4 id="run-security-linters"> Запуск линтеров безопасности</h4>
+<p> При разработке кода учитывать все советы по безопасности может быть очень сложно. Кроме того, заставить всех членов команды соблюдать эти правила практически невозможно. Вот почему существуют инструменты статического анализа безопасности (SAST). Эти инструменты не выполняют ваш код, а просто ищут шаблоны, которые могут содержать угрозы безопасности. Поскольку JavaScript — это динамический язык со свободной типизацией, инструменты линтинга действительно важны в жизненном цикле разработки программного обеспечения. Правила линтинга следует периодически пересматривать, а результаты проверять. Еще одним преимуществом этих инструментов является возможность добавления собственных правил для шаблонов, которые могут показаться вам опасными.<a href="https://eslint.org/">ESLint</a> и <a href="http://jshint.com/">JSHint</a>— это обычно используемые инструменты SAST для проверки JavaScript.</p>
+<h4 id="use-strict-mode"> Использовать строгий режим</h4>
+<p> В JavaScript имеется ряд небезопасных и опасных устаревших функций, которые не следует использовать. Чтобы удалить эти функции, ES5 включил строгий режим для разработчиков. В этом режиме выдаются ошибки, о которых раньше не сообщалось. Это также помогает движкам JavaScript выполнять оптимизацию. В строгом режиме ранее принятый неправильный синтаксис приводит к реальным ошибкам. Из-за этих улучшений вам всегда следует использовать строгий режим в своем приложении. Для того, чтобы включить строгий режим, вам просто нужно написать <code>"use strict";</code> поверх вашего кода.</p>
+<p> Следующий код сгенерирует <code>ReferenceError: Can't find variable: y</code> на консоли, которая не будет отображаться, если не используется строгий режим:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-javascript">"use strict";
+
+func();
+function func() {
+  y = 3.14;   // This will cause an error (y is not defined)
+}</code></pre></div>
+<h4 id="adhere-to-general-application-security-principles"> Соблюдайте общие принципы безопасности приложений.</h4>
+<p> Этот список в основном посвящен проблемам, которые часто встречаются в приложениях Node.js, с рекомендациями и примерами. Помимо них, существуют общие <a href="https://wiki.owasp.org/index.php/Security_by_Design_Principles"> безопасность по принципам проектирования</a> которые применяются к веб-приложениям независимо от технологий, используемых на сервере приложений. Вам также следует помнить об этих принципах при разработке приложений. Вы всегда можете обратиться к <a href="https://24ib.ru/owasp"> Серия статей OWASP</a> чтобы узнать больше об уязвимостях веб-приложений и методах их устранения, используемых против них.</p>
+<h2 id="additional-resources-about-nodejs-security"> Дополнительные ресурсы о безопасности Node.js</h2>
+<p> <a href="https://github.com/lirantal/awesome-nodejs-security"> Потрясающие ресурсы по безопасности Node.js</a></p>

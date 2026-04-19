@@ -1,0 +1,93 @@
+<h1 id="django-rest-framework-drf-cheat-sheet">Статья по безопасности Django REST Framework (DRF Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Эта статья даёт рекомендации по безопасности Django REST Framework для разработчиков — базовый набор правил для тех, кто должен защитить ключевые аспекты приложения на DRF.</p>
+<h2 id="what-is-a-view-in-django">Что такое представление (view) в Django?</h2>
+<p>View в Django — это Python-класс или функция, которая после получения HTTP-запроса возвращает ответ. Ответ может быть простым HTTP, HTML-шаблоном или перенаправлением на другую страницу.</p>
+<h2 id="settings">Настройки</h2>
+<p>Конфигурация DRF задаётся в пространстве имён <code>REST_FRAMEWORK</code>, обычно в <code>settings.py</code>. С точки зрения безопасности важны в первую очередь:</p>
+<h3 id="default_authentication_classes">DEFAULT_AUTHENTICATION_CLASSES</h3>
+<p>Список классов аутентификации по умолчанию: по ним определяется пользователь при обращении к <code>request.user</code> и <code>request.auth</code>. Типично это <code>rest_framework.authentication.SessionAuthentication</code> (сессии) и <code>rest_framework.authentication.BasicAuthentication</code> (Basic).</p>
+<h3 id="default_permission_classes">DEFAULT_PERMISSION_CLASSES</h3>
+<p>Список классов прав по умолчанию: Django проверяет их до доступа к представлению. Значение по умолчанию — <code>rest_framework.permissions.AllowAny</code>, то есть <strong>пока вы не смените класс прав по умолчанию, любой может обращаться к любому представлению.</strong></p>
+<h3 id="default_throttle_classes">DEFAULT_THROTTLE_CLASSES</h3>
+<p>Список классов throttling, проверяемых в начале обработки запроса. <strong>По умолчанию throttling отключён: список пустой.</strong></p>
+<h3 id="default_pagination_class">DEFAULT_PAGINATION_CLASS</h3>
+<p>Класс пагинации для queryset по умолчанию. <strong>В Django пагинация по умолчанию выключена.</strong> Без пагинации при больших объёмах данных возможны проблемы доступности и DoS.</p>
+<h2 id="owasp-api-security-top-10-2019">OWASP API Security Top 10 (2019)</h2>
+<p><a href="https://owasp.org/www-project-api-security/">OWASP API Security Top 10</a> — перечень критичных рисков для API от <a href="https://owasp.org/">OWASP</a>, чтобы расставить приоритеты и внедрить контроли.</p>
+<p>Ниже используется редакция 2019 года. Рационально идти сверху вниз (от A1), чтобы время уходило на самые серьёзные угрозы. После Top 10 имеет смысл оценить другие риски и при необходимости заказать пентест.</p>
+<h3 id="api12019-broken-object-level-authorization">API1:2019 Broken Object Level Authorization</h3>
+<p>При проверке прав на уровне объекта убедитесь, что пользователю разрешён доступ к объекту, например через <code>.check_object_permissions(request, obj)</code>.</p>
+<p>Пример:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-python">def get_object(self):
+    obj = get_object_or_404(self.get_queryset(), pk=self.kwargs["pk"])
+    self.check_object_permissions(self.request, obj)
+    return obj
+</code></pre></div>
+<p><strong>Не</strong> переопределяйте <code>get_object()</code> без проверки, что запросу положен доступ к этому объекту.</p>
+<h3 id="api22019-broken-user-authentication">API2:2019 Broken User Authentication</h3>
+<p>Чтобы снизить риск слабой аутентификации, задайте в <code>DEFAULT_AUTHENTICATION_CLASSES</code> подходящие для проекта классы и включайте аутентификацию на всех непубличных эндпоинтах. Не переопределяйте <code>authentication_classes</code> на class-based view (атрибут) или function-based view (декоратор), если не уверены в последствиях.</p>
+<h3 id="api32019-excessive-data-exposure">API3:2019 Excessive Data Exposure</h3>
+<p>В ответах отдавайте минимум необходимых данных. Пересмотрите сериализатор и поля. Если наследуетесь от <code>ModelSerializer</code>, <strong>не</strong> используйте в Meta свойство <code>exclude</code> (подход «чёрного списка»): лучше явно перечислять разрешённые поля.</p>
+<h3 id="api42019-lack-of-resources-rate-limiting">API4:2019 Lack of Resources &amp; Rate Limiting</h3>
+<p>Настройте <code>DEFAULT_THROTTLE_CLASSES</code> и <strong>не</strong> отключайте throttling на отдельных представлениях через <code>throttle_classes</code>, если нет веской причины.</p>
+<p>Дополнительно: по возможности ограничивайте частоту запросов на WAF или аналоге; DRF — последний, а не единственный рубеж rate limiting.</p>
+<h3 id="api52019-broken-function-level-authorization">API5:2019 Broken Function Level Authorization</h3>
+<p>Смените значение по умолчанию <code>DEFAULT_PERMISSION_CLASSES</code> с <code>'rest_framework.permissions.AllowAny'</code> на классы, соответствующие политике проекта.</p>
+<p><code>rest_framework.permissions.AllowAny</code> — только для явно публичных API. Не переопределяйте <code>permission_classes</code> без понимания эффекта.</p>
+<h3 id="api62019-mass-assignment">API6:2019 Mass Assignment</h3>
+<p>Для <code>ModelForm</code> используйте <code>Meta.fields</code> (белый список). <strong>Не</strong> используйте <code>Meta.exclude</code> и <strong>не</strong> задавайте <code>ModelForms.Meta.fields = "__all__"</code>.</p>
+<h3 id="api72019-security-misconfiguration">API7:2019 Security Misconfiguration</h3>
+<p>Нужен повторяемый процесс укрепления и быстрого развёртывания заблокированной среды и автоматическая оценка эффективности настроек во всех окружениях.</p>
+<p><strong>Не используйте пароли по умолчанию. В Django выставьте <code>DEBUG</code> и <code>DEBUG_PROPAGATE_EXCEPTIONS</code> в <code>False</code>. Разрешайте только нужные HTTP-глаголы; остальные отключите. <code>SECRET_KEY</code> — случайное значение; секреты никогда не хардкодьте.</strong></p>
+<p><strong>Проверяйте, фильтруйте и нормализуйте все данные от клиента и из интеграций.</strong></p>
+<h3 id="api82019-injection">API8:2019 Injection</h3>
+<h4 id="sqli">SQLi</h4>
+<p><strong>Используйте параметризованные запросы.</strong> Осторожно с <code>raw()</code>, <code>extra()</code> и произвольным SQL через <code>cursor.execute()</code>. <strong>Не</strong> подставляйте пользовательский ввод в эти API.</p>
+<h4 id="rce">RCE</h4>
+<p>Для YAML указывайте <code>Loader=yaml.SafeLoader</code>. <strong>Не</strong> загружайте контролируемый пользователем YAML через <code>yaml.load()</code> без безопасного загрузчика.</p>
+<p>Также <strong>не</strong> передавайте пользовательский ввод в <code>eval()</code>, <code>exec()</code> (и в Python 2 — <code>execfile()</code>) и <strong>не</strong> загружайте pickle-файлы из недоверенных источников, включая <code>pandas.read_pickle()</code>.</p>
+<h3 id="api92019-improper-assets-management">API9:2019 Improper Assets Management</h3>
+<p>Ведите инвентаризацию хостов API: версия API, окружение (prod, staging, test, dev), кто должен иметь сетевой доступ (публично, только внутри, партнёры). Документируйте аутентификацию, ошибки, редиректы, rate limiting, CORS и эндпоинты с параметрами, телами запросов и ответов.</p>
+<h3 id="api102019-insufficient-logging-monitoring">API10:2019 Insufficient Logging &amp; Monitoring</h3>
+<p>Для журналирования и мониторинга:</p>
+<ul>
+<li>Логируйте неуспешную аутентификацию, отказ в доступе и ошибки валидации с достаточным контекстом пользователя.</li>
+<li>Формат логов должен подходить для SIEM/log management; деталей должно хватать, чтобы выявить злоумышленника.</li>
+<li>Относитесь к логам как к чувствительным данным; обеспечьте целостность в покое и при передаче.</li>
+<li>Настройте мониторинг инфраструктуры, сети и работы API.</li>
+<li>Агрегируйте логи со всего стека API в SIEM.</li>
+<li>Настройте дашборды и оповещения для раннего обнаружения подозрительной активности.</li>
+<li>Обеспечьте своевременную реакцию на инциденты.</li>
+</ul>
+<p><strong>Не делайте так:</strong></p>
+<ul>
+<li>Не пишите в лог только общие сообщения вроде <code>Log.Error("Error was thrown")</code> — добавляйте stack trace, текст ошибки и идентификатор пользователя.</li>
+<li>Не логируйте пароли, API-токены и персональные данные.</li>
+</ul>
+<h2 id="other-security-risks">Другие риски</h2>
+<p>Ниже — риски вне перечня OWASP API Security Top 10.</p>
+<h3 id="business-logic-bugs">Ошибки бизнес-логики</h3>
+<p>Ошибки бизнес-логики часто не ловятся автоматическими сканерами. Снижайте риск через моделирование угроз, security design review, code review, парное программирование и модульные тесты.</p>
+<h3 id="secret-management">Управление секретами</h3>
+<p><strong>Секреты не должны быть в коде. Предпочтительно использовать менеджер секретов.</strong> Подробнее — <a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html">Secrets Management Cheat Sheet</a>.</p>
+<h2 id="updating-django-and-drf-and-having-a-process-for-updating-dependencies">Обновление Django, DRF и зависимостей</h2>
+<p>У приложений есть зависимости; в них бывают уязвимости. Полезно регулярно аудировать зависимости и иметь процесс обновления. Пример триггеров:</p>
+<ul>
+<li>раз в месяц/квартал — плановое обновление зависимостей;</li>
+<li>раз в неделю — разбор критичных уязвимостей и при необходимости срочное обновление;</li>
+<li>в исключительных случаях — экстренные патчи.</li>
+</ul>
+<p>Команда безопасности Django публикует <a href="https://docs.djangoproject.com/en/stable/internals/security/#how-django-discloses-security-issues">как раскрываются проблемы безопасности</a>.</p>
+<p>Оценивайте «здоровье» библиотеки: частота обновлений, известные CVE, активность сообщества. Помогают инструменты вроде <a href="https://snyk.io/advisor/python">Snyk Advisor</a>.</p>
+<h2 id="sast-tools">SAST-инструменты</h2>
+<p>Примеры открытых статических анализаторов для Python:</p>
+<p><strong>Bandit</strong> — <a href="https://bandit.readthedocs.io/en/latest/">Bandit</a>: ищет типичные проблемы безопасности; строит AST и прогоняет плагины; в итоге отчёт. Изначально в OpenStack Security Project, затем в PyCQA.</p>
+<p><strong>Semgrep</strong> — <a href="https://semgrep.dev/">Semgrep</a>: быстрый SAST по правилам (безопасность, стиль кода и др.). Для Django есть набор правил.</p>
+<p><strong>PyCharm Security</strong> — <a href="https://pycharm-security.readthedocs.io/en/latest/index.html">pycharm-security</a>: плагин для PyCharm / JetBrains IDE с Python; ищет типичные уязвимости и предлагает исправления; можно запускать из Docker. Часть проверок специфична для Django.</p>
+<h2 id="related-articles-and-references">Связанные материалы</h2>
+<ul>
+<li><a href="https://openaccess.uoc.edu/handle/10609/147246">Django REST Framework (DRF) Secure Code Guidelines</a></li>
+<li><a href="https://docs.djangoproject.com/en/stable/internals/security/">Политика безопасности Django</a></li>
+<li><a href="https://docs.djangoproject.com/en/stable/topics/security/">Безопасность в Django</a></li>
+</ul>

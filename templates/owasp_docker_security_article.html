@@ -1,0 +1,235 @@
+<h1 id="docker-security-cheat-sheet">Статья по безопасности Docker (Docker Security Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Docker — самая распространённая технология контейнеризации. При грамотной настройке безопасность может быть выше, чем при запуске приложений напрямую на хосте. Однако ошибки конфигурации снижают уровень защиты или добавляют новые уязвимости.</p>
+<p>Цель этой статьи — дать простой перечень типичных ошибок и лучших практик для защиты Docker-контейнеров.</p>
+<h2 id="rules">Правила</h2>
+<h3 id="rule-0-keep-host-and-docker-up-to-date">ПРАВИЛО №0 — держите хост и Docker в актуальном состоянии</h3>
+<p>Чтобы защититься от известных уязвимостей выхода из контейнера (например, <a href="https://snyk.io/blog/cve-2024-21626-runc-process-cwd-container-breakout/">Leaky Vessels</a>), после которых атакующий часто получает root на хосте, необходимо регулярно обновлять и хост, и Docker Engine, в том числе ядро хоста.</p>
+<p>Контейнеры используют ядро хоста: если ядро уязвимо, уязвимы и контейнеры. Например, эксплойт повышения привилегий в ядре <a href="https://github.com/scumjr/dirtycow-vdso">Dirty COW</a>, выполненный внутри изолированного контейнера, на уязвимом хосте всё равно может привести к root на хосте.</p>
+<h3 id="rule-1-do-not-expose-the-docker-daemon-socket-even-to-the-containers">ПРАВИЛО №1 — не открывайте сокет демона Docker (даже контейнерам)</h3>
+<p>Сокет Docker <em>/var/run/docker.sock</em> — это UNIX-сокет, на котором слушает демон. Это главная точка входа в Docker API. Владелец сокета — root. Доступ к сокету эквивалентен неограниченному root-доступу к хосту.</p>
+<p><strong>Не включайте TCP-сокет демона Docker.</strong> Запуск с <code>-H tcp://0.0.0.0:XXX</code> или аналогом открывает нешифрованный и неаутентифицированный доступ к демону; при выходе хоста в интернет демоном на вашей машине может воспользоваться кто угодно. Если без этого <strong>совсем</strong> никак — защитите канал по <a href="https://docs.docker.com/engine/reference/commandline/dockerd/#daemon-socket-option">официальной документации Docker</a>.</p>
+<p><strong>Не монтируйте <em>/var/run/docker.sock</em> в другие контейнеры.</strong> Если образ запускается с <code>-v /var/run/docker.sock:/var/run/docker.sock</code>, измените подход. Монтирование только для чтения не решает проблему, а лишь усложняет эксплуатацию. В Compose это может выглядеть так:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">volumes:
+  - "/var/run/docker.sock:/var/run/docker.sock"
+</code></pre></div>
+<h3 id="rule-2-set-a-user">ПРАВИЛО №2 — задайте пользователя</h3>
+<p>Запуск контейнера от непривилегированного пользователя — лучший способ снизить риск эскалации привилегий. Три основных варианта:</p>
+<ol>
+<li>Во время запуска — опция <code>-u</code> у <code>docker run</code>, например:</li>
+</ol>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run -u 4000 alpine
+</code></pre></div>
+<ol start="2">
+<li>При сборке образа — пользователь в Dockerfile:</li>
+</ol>
+<div class="cheatsheet-code-window"><pre><code class="language-dockerfile">FROM alpine
+RUN groupadd -r myuser &amp;&amp; useradd -r -g myuser myuser
+#    &lt;ЗДЕСЬ ДЕЙСТВИЯ ОТ ROOT: УСТАНОВКА ПАКЕТОВ И Т.Д.&gt;
+USER myuser
+</code></pre></div>
+<ol start="3">
+<li>Включить пользовательские пространства имён (<code>--userns-remap=default</code>) в <a href="https://docs.docker.com/engine/security/userns-remap/#enable-userns-remap-on-the-daemon">настройках демона Docker</a>.</li>
+</ol>
+<p>Подробнее — в <a href="https://docs.docker.com/engine/security/userns-remap/">документации Docker</a>. Дополнительно можно использовать rootless-режим (см. <a href="#rule-11-run-docker-in-rootless-mode">правило №11</a>).</p>
+<p>В Kubernetes это задаётся в <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/">Security Context</a> полем <code>runAsUser</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: example
+      image: gcr.io/google-samples/node-hello:1.0
+      securityContext:
+        runAsUser: 4000  # UID процесса в поде
+</code></pre></div>
+<p>Администратор кластера может задать жёсткий профиль по умолчанию уровня <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"><code>Restricted</code></a> через встроенный <a href="https://kubernetes.io/docs/concepts/security/pod-security-admission/">Pod Security admission</a>; при необходимости тонкой настройки — <a href="https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#what-are-admission-webhooks">Admission Webhooks</a> или <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/#alternatives">сторонние решения</a>.</p>
+<h3 id="rule-3-limit-capabilities-grant-only-specific-capabilities-needed-by-a-container">ПРАВИЛО №3 — ограничивайте capabilities (выдавайте только нужные)</h3>
+<p><a href="http://man7.org/linux/man-pages/man7/capabilities.7.html">Capabilities ядра Linux</a> — набор привилегий для привилегированных операций. Docker по умолчанию запускает контейнер с подмножеством capability. Можно ужесточить образ, отбрасывая лишние (<code>--cap-drop</code>) или добавляя необходимые (<code>--cap-add</code>). Не запускайте контейнеры с флагом <code>--privileged</code> — он добавляет все capabilities ядра.</p>
+<p>Наиболее безопасная схема: <code>--cap-drop all</code> и затем точечный <code>--cap-add</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run --cap-drop all --cap-add CHOWN alpine
+</code></pre></div>
+<p><strong>Не используйте <em>--privileged</em>!</strong></p>
+<p>В Kubernetes — в <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/">Security Context</a>, поле <code>capabilities</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: example
+      image: gcr.io/google-samples/node-hello:1.0
+      securityContext:
+        capabilities:
+          drop:
+            - ALL
+          add: ["CHOWN"]
+</code></pre></div>
+<p>Администратор кластера снова может опереться на уровень <a href="https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted"><code>Restricted</code></a> и <a href="https://kubernetes.io/docs/concepts/security/pod-security-admission/">Pod Security admission</a>, при необходимости — webhooks и альтернативы из документации Kubernetes.</p>
+<h3 id="rule-4-prevent-in-container-privilege-escalation">ПРАВИЛО №4 — запретите повышение привилегий внутри контейнера</h3>
+<p>Запускайте образы с <code>--security-opt=no-new-privileges</code>, чтобы блокировать получение новых привилегий через бинарники с setuid/setgid.</p>
+<p>В Kubernetes — поле <code>allowPrivilegeEscalation</code> в <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/">Security Context</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: example
+      image: gcr.io/google-samples/node-hello:1.0
+      securityContext:
+        allowPrivilegeEscalation: false
+</code></pre></div>
+<p>Снова имеет смысл профиль <code>Restricted</code> и встроенный admission controller по ссылкам выше.</p>
+<h3 id="rule-5-be-mindful-of-inter-container-connectivity">ПРАВИЛО №5 — учитывайте связность между контейнерами</h3>
+<p>Межконтейнерная связность (icc) по умолчанию включена: все контейнеры могут общаться через <a href="https://docs.docker.com/network/drivers/bridge/">мост <code>docker0</code></a>. Вместо полного отключения <code>--icc=false</code> на демоне чаще лучше задать отдельные пользовательские сети Docker и явно подключать к ним только нужные контейнеры.</p>
+<p>Подробнее — <a href="https://docs.docker.com/network/#communication-between-containers">документация Docker по сетям</a>.</p>
+<p>В Kubernetes для изоляции трафика между подами используются <a href="https://kubernetes.io/docs/concepts/services-networking/network-policies/">Network Policies</a>; <a href="https://networkpolicy.io/">Network Policy Editor</a> упрощает составление правил.</p>
+<h3 id="rule-5a-be-careful-when-mapping-container-ports-to-the-host-with-firewalls-like-ufw">ПРАВИЛО №5a — осторожно с пробросом портов на хост при UFW и аналогах</h3>
+<p><a href="https://help.ubuntu.com/community/UFW">UFW</a> — популярный хостовый фаервол в Linux. Часто думают, что правила UFW защищают весь входящий трафик, включая контейнеры. На самом деле <strong>Docker сам управляет <code>iptables</code>/<code>nftables</code> и обходит UFW</strong>. Другие инструменты на базе iptables/nftables могут вести себя схоже — проверяйте фактическое поведение.</p>
+<p>При публикации порта <code>-p 8000:8000</code> Docker добавляет правила, открывающие порт <strong>на всех интерфейсах и для всех источников</strong>, и они часто срабатывают раньше явных <code>DENY</code> в фаерволе хоста. Сервис в контейнере может оказаться доступен из интернета вопреки ожиданиям.</p>
+<h4 id="recommended-mitigations">Рекомендуемые меры</h4>
+<p><strong>Вариант 1 — привязка только к localhost:</strong> укажите <code>127.0.0.1</code> на стороне хоста в маппинге порта:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash"># Небезопасно: порт на всех интерфейсах
+docker run -p 8000:8000 myimage
+
+# Безопаснее: только localhost
+docker run -p 127.0.0.1:8000:8000 myimage
+</code></pre></div>
+<p>В Docker Compose:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">services:
+  web:
+    image: myimage
+    ports:
+      - "127.0.0.1:8000:8000"  # только localhost
+</code></pre></div>
+<p><strong>Вариант 2 — <code>ufw-docker</code> или аналог</strong>, чтобы согласовать правила фаервола с сетями Docker. Для UFW проект <a href="https://github.com/chaifeng/ufw-docker">ufw-docker</a> добавляет правила, с которыми UFW начинает учитывать трафик к контейнерам:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">sudo ufw-docker install
+sudo ufw-docker allow mycontainer 8000/tcp
+</code></pre></div>
+<p>Детальнее о взаимодействии Docker и фаервола — <a href="https://docs.docker.com/engine/network/packet-filtering-firewalls/">документация Docker</a>.</p>
+<h3 id="rule-6-use-linux-security-module-seccomp-apparmor-or-selinux-for-runtime-security">ПРАВИЛО №6 — Linux Security Module (seccomp, AppArmor, SELinux) для защиты в рантайме</h3>
+<p><strong>Не отключайте профиль безопасности по умолчанию.</strong> Отправная точка — дефолтный профиль Docker или дистрибутива.</p>
+<p><strong>Рекомендации по профилям:</strong></p>
+<ul>
+<li><strong>Seccomp</strong> — ограничьте syscalls минимально необходимым набором; за основу возьмите дефолтный профиль Docker и доработайте под нагрузку. <a href="https://docs.docker.com/engine/security/seccomp/">Docker Seccomp</a></li>
+<li><strong>AppArmor</strong> — профили на контейнер для mandatory access control. <a href="https://docs.docker.com/engine/security/apparmor/">Docker AppArmor</a></li>
+<li><strong>SELinux</strong> — включите на хосте и корректно размечайте контейнеры. <a href="https://docs.docker.com/engine/security/selinux/">SELinux и Docker</a></li>
+</ul>
+<p><strong>Усиление в рантайме:</strong></p>
+<ul>
+<li><strong>Мониторинг поведения</strong> — <a href="https://falco.org/">Falco</a>, <a href="https://tetragon.io/">Tetragon</a>, <a href="https://cilium.io/">Cilium (eBPF)</a> для аномалий: неожиданные exec, попытки эскалации, нехарактерные сетевые соединения.</li>
+<li><strong>Детекция аномалий</strong> — непрерывный контроль процессов, ФС и сети контейнера.</li>
+<li><strong>Security Context в Kubernetes</strong> — seccomp и AppArmor в манифестах: <a href="https://kubernetes.io/docs/tutorials/security/seccomp/">туториал Kubernetes</a>.</li>
+</ul>
+<h3 id="rule-7-limit-resources-memory-cpu-file-descriptors-processes-restarts">ПРАВИЛО №7 — лимитируйте ресурсы (память, CPU, дескрипторы, процессы, рестарты)</h3>
+<p>Против DoS помогают лимиты: <a href="https://docs.docker.com/config/containers/resource_constraints/#memory">память</a>, <a href="https://docs.docker.com/config/containers/resource_constraints/#cpu">CPU</a>, число перезапусков (<code>--restart=on-failure:&lt;n&gt;</code>), лимиты файловых дескрипторов (<code>--ulimit nofile=&lt;n&gt;</code>) и процессов (<code>--ulimit nproc=&lt;n&gt;</code>). <a href="https://docs.docker.com/engine/reference/commandline/run/#set-ulimits-in-container---ulimit">Документация по ulimit</a>.</p>
+<p>В Kubernetes: <a href="https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/">память</a>, <a href="https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/">CPU</a>, <a href="https://kubernetes.io/docs/tasks/configure-pod-container/extended-resource/">расширенные ресурсы</a>.</p>
+<h3 id="rule-8-set-filesystem-and-volumes-to-read-only">ПРАВИЛО №8 — только для чтения: корневая ФС и тома</h3>
+<p><strong>Корневая ФС контейнера только для чтения</strong> — флаг <code>--read-only</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run --read-only alpine sh -c 'echo "whatever" &gt; /tmp'
+</code></pre></div>
+<p>Если приложению нужен временный writable слой, совместите <code>--read-only</code> с <code>--tmpfs</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run --read-only --tmpfs /tmp alpine sh -c 'echo "whatever" &gt; /tmp/file'
+</code></pre></div>
+<p>Эквивалент в Compose:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">version: "3"
+services:
+  alpine:
+    image: alpine
+    read_only: true
+</code></pre></div>
+<p>В Kubernetes — <a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/">Security Context</a>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: example
+spec:
+  containers:
+    - name: example
+      image: gcr.io/google-samples/node-hello:1.0
+      securityContext:
+        readOnlyRootFilesystem: true
+</code></pre></div>
+<p>Тома, которые должны быть только для чтения, монтируйте с суффиксом <code>:ro</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run -v volume-name:/path/in/container:ro alpine
+</code></pre></div>
+<p>Или <code>--mount</code>:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker run --mount source=volume-name,destination=/path/in/container,readonly alpine
+</code></pre></div>
+<h3 id="rule-9-integrate-container-scanning-tools-into-your-cicd-pipeline">ПРАВИЛО №9 — сканирование образов в CI/CD</h3>
+<p><a href="/owasp/cheatsheets/CI_CD_Security_Cheat_Sheet.html">Конвейеры CI/CD</a> — ключевая часть жизненного цикла; в них стоит включать линтеры, SAST и сканирование контейнеров.</p>
+<p>Много проблем снимается хорошим Dockerfile; дополнительно подключите security-linter в пайплайн. Часто проверяют:</p>
+<ul>
+<li>задана ли директива <code>USER</code>;</li>
+<li>закреплена ли версия базового образа;</li>
+<li>закреплены ли версии пакетов ОС;</li>
+<li>предпочтение <code>COPY</code> вместо <code>ADD</code>;</li>
+<li>отсутствие «curl | bash» в <code>RUN</code>.</li>
+</ul>
+<p>Ссылки: <a href="https://dev-sec.io/baselines/docker/">Docker Baselines (DevSec)</a>, <a href="https://docs.docker.com/engine/reference/commandline/cli/">CLI Docker</a>, <a href="https://docs.docker.com/compose/reference/overview/">Compose CLI</a>, <a href="https://docs.docker.com/config/containers/logging/configure/">драйверы логирования</a>, <a href="https://docs.docker.com/config/containers/logging/">просмотр логов</a>, <a href="https://cloudberry.engineering/article/dockerfile-security-best-practices/">практики безопасности Dockerfile</a>.</p>
+<p>Сканеры образов выявляют известные уязвимости, секреты и misconfiguration. Примеры:</p>
+<ul>
+<li>бесплатные: <a href="https://github.com/coreos/clair">Clair</a>, <a href="https://github.com/deepfence/ThreatMapper">ThreatMapper</a>, <a href="https://github.com/aquasecurity/trivy">Trivy</a>;</li>
+<li>коммерческие и гибридные: <a href="https://snyk.io/">Snyk</a>, <a href="https://github.com/anchore/grype/">Anchore Grype</a>, <a href="https://www.docker.com/products/docker-scout/">Docker Scout</a>, <a href="https://jfrog.com/xray/">JFrog XRay</a>, <a href="https://www.qualys.com/apps/container-security/">Qualys</a>.</li>
+</ul>
+<p>Секреты в образах: <a href="https://github.com/GitGuardian/ggshield">ggshield</a>, <a href="https://github.com/deepfence/SecretScanner">SecretScanner</a>.</p>
+<p>Misconfiguration в Kubernetes: <a href="https://github.com/Shopify/kubeaudit">kubeaudit</a>, <a href="https://kubesec.io/">kubesec.io</a>, <a href="https://github.com/aquasecurity/kube-bench">kube-bench</a>.</p>
+<p>Misconfiguration в Docker: <a href="https://www.inspec.io/docs/reference/resources/docker/">InSpec</a>, <a href="https://dev-sec.io/baselines/docker/">dev-sec.io</a>, <a href="https://github.com/docker/docker-bench-security">Docker Bench for Security</a>.</p>
+<h3 id="rule-10-keep-the-docker-daemon-logging-level-at-info">ПРАВИЛО №10 — уровень логов демона Docker: <code>info</code></h3>
+<p>По умолчанию базовый уровень логирования демона — <code>info</code>. Проверьте <code>/etc/docker/daemon.json</code> на ключ <code>log-level</code>; если его нет, действует значение по умолчанию. Флаг <code>--log-level</code> при запуске демона переопределяет файл. Проверка фактического уровня:</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">ps aux | grep '[d]ockerd.*--log-level' | awk '{for(i=1;i&lt;=NF;i++) if ($i ~ /--log-level/) print $i}'
+</code></pre></div>
+<p>Уровень <code>info</code> и выше фиксирует нужные события без шума отладочных логов; уровень <code>debug</code> включайте только при необходимости.</p>
+<h3 id="rule-11-run-docker-in-rootless-mode">ПРАВИЛО №11 — rootless-режим Docker</h3>
+<p>Rootless: демон и контейнеры работают от непривилегированного пользователя — при выходе из контейнера атакующий не получает root на хосте. Это не то же самое, что <a href="#rule-2-set-a-user">userns-remap</a>, где демон по-прежнему может требовать root.</p>
+<p>Оцените <a href="/owasp/cheatsheets/Attack_Surface_Analysis_Cheat_Sheet.html">поверхность атаки</a> и <a href="/owasp/cheatsheets/Threat_Modeling_Cheat_Sheet.html">модель угроз</a>. Если безопасность критична, а <a href="https://docs.docker.com/engine/security/rootless/#known-limitations">ограничения rootless</a> приемлемы — режим рекомендуется. Альтернатива — <a href="#podman-as-an-alternative-to-docker">Podman</a>.</p>
+<blockquote>
+<p>Rootless позволяет запускать демон и контейнеры без root и снижает риск при уязвимостях рантайма. Установка демона в rootless не требует root при выполнении <a href="https://docs.docker.com/engine/security/rootless/#prerequisites">предварительных условий</a>.</p>
+</blockquote>
+<p>Подробности, ограничения и установка — <a href="https://docs.docker.com/engine/security/rootless/">документация Docker</a>.</p>
+<h3 id="rule-12-utilize-docker-secrets-for-sensitive-data-management">ПРАВИЛО №12 — Docker Secrets для чувствительных данных</h3>
+<p>Secrets в Swarm дают способ хранить пароли, токены и ключи без засвета в образе или аргументах командной строки.</p>
+<div class="cheatsheet-code-window"><pre><code class="language-bash">docker secret create my_secret /path/to/super-secret-data.txt
+docker service create --name web --secret my_secret nginx:latest
+</code></pre></div>
+<p>Compose (пример):</p>
+<div class="cheatsheet-code-window"><pre><code class="language-yaml">version: "3.8"
+secrets:
+  my_secret:
+    file: ./super-secret-data.txt
+services:
+  web:
+    image: nginx:latest
+    secrets:
+      - my_secret
+</code></pre></div>
+<p>В Kubernetes «секреты по умолчанию» в etcd — отдельная тема: шифрование etcd, внешние хранилища и т.д. См. <a href="/owasp/cheatsheets/Secrets_Management_Cheat_Sheet.html">Secrets Management Cheat Sheet</a>.</p>
+<h3 id="rule-13-enhance-supply-chain-security">ПРАВИЛО №13 — усиление безопасности цепочки поставки</h3>
+<p>На базе <a href="#rule-9-integrate-container-scanning-tools-into-your-cicd-pipeline">правила №9</a> добавьте:</p>
+<ul>
+<li><a href="https://slsa.dev/spec/v1.0/provenance">происхождение образа (provenance)</a>;</li>
+<li><a href="https://cyclonedx.org/guides/CycloneDX%20One%20Pager.pdf">SBOM</a> (перечень компонентов образа);</li>
+<li><a href="https://github.com/notaryproject/notary">подпись образов</a>;</li>
+<li><a href="https://snyk.io/learn/container-security/container-registry-security/">доверенный реестр</a> с жёстким <a href="/owasp/cheatsheets/Access_Control_Cheat_Sheet.html">контролем доступа</a>;</li>
+<li><a href="https://www.openpolicyagent.org/docs/latest/#overview">безопасное развёртывание</a> — проверка образов, рантайм-защита, мониторинг.</li>
+</ul>
+<h2 id="podman-as-an-alternative-to-docker">Podman как альтернатива Docker</h2>
+<p><a href="https://podman.io/">Podman</a> — OCI-совместимый открытый инструмент (<a href="https://www.redhat.com/en">Red Hat</a>) с CLI, совместимым с Docker, и средствами управления контейнерами. Ориентирован на более безопасные умолчания. Среди плюсов для ИБ:</p>
+<ol>
+<li><strong>Без центрального демона</strong> — в отличие от <code>dockerd</code>, Podman использует модель fork/exec: при старте контейнера процесс форкается и exec в рантайм.</li>
+<li><strong>Rootless</strong> — та же модель упрощает запуск без root от обычного пользователя.</li>
+<li><strong>Интеграция с SELinux</strong> — дополнительный слой mandatory access control.</li>
+</ol>
+<h2 id="references-and-further-reading">Ссылки и дальнейшее чтение</h2>
+<ul>
+<li><a href="https://github.com/OWASP/Docker-Security">OWASP Docker Top 10</a></li>
+<li><a href="https://docs.docker.com/develop/security-best-practices/">Docker Security Best Practices</a></li>
+<li><a href="https://docs.docker.com/engine/security/">Docker Engine Security</a></li>
+<li><a href="/owasp/cheatsheets/Kubernetes_Security_Cheat_Sheet.html">Kubernetes Security Cheat Sheet</a></li>
+<li><a href="https://slsa.dev/">SLSA</a></li>
+<li><a href="https://sigstore.dev/">Sigstore</a></li>
+<li><a href="https://docs.docker.com/build/attestations/">Docker Build Attestation</a></li>
+<li><a href="https://docs.docker.com/engine/security/trust/">Docker Content Trust</a></li>
+</ul>

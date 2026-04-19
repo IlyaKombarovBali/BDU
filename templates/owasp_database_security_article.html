@@ -1,0 +1,104 @@
+<h1 id="database-security-cheat-sheet">Статья по безопасности баз данных (Database Security Cheat Sheet)</h1>
+<h2 id="introduction">Введение</h2>
+<p>Эта статья описывает безопасную настройку SQL-баз данных: MySQL, PostgreSQL, MariaDB и Microsoft SQL Server.</p>
+<p>Она ориентирована в первую очередь на разработчиков приложений и системных администраторов, которые сопровождают или используют реляционные СУБД.</p>
+<p>Защита от инъекций на уровне приложения — в <a href="/owasp/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html">SQL Injection Prevention Cheat Sheet</a>.</p>
+<p>Нереляционные системы (MongoDB, Redis, Cassandra, DynamoDB и др.) — в <a href="/owasp/cheatsheets/NoSQL_Security_Cheat_Sheet.html">NoSQL Security Cheat Sheet</a>.</p>
+<h2 id="protecting-the-backend-database">Защита серверной базы данных</h2>
+<p>Серверную БД приложения следует изолировать от остальных систем и разрешать подключения с минимального числа хостов. Конкретные шаги зависят от архитектуры сети и системы. Рассмотрите варианты:</p>
+<ul>
+<li>Отключить сетевой (TCP) доступ и требовать доступ только через локальный сокет или именованный канал.</li>
+<li>Настроить привязку СУБД только к localhost.</li>
+<li>Ограничить доступ к порту БД правилами фаервола для явно перечисленных хостов.</li>
+<li>Разместить сервер БД в отдельной DMZ, изолированной от прикладного сервера.</li>
+<li>Веб-инструменты администрирования (phpMyAdmin, pgAdmin и т.п.) защищать аутентификацией, HTTPS и сетевыми ограничениями.</li>
+</ul>
+<p>Если приложение выполняется на недоверенной системе (например толстый клиент), оно должно обращаться к бэкенду только через API, где можно применить контроль доступа и ограничения. <strong>Прямые</strong> подключения толстого клиента к серверной БД допускать <strong>нельзя</strong>.</p>
+<h3 id="implementing-transport-layer-protection">Защита на транспортном уровне</h3>
+<p>У многих СУБД по умолчанию сетевой трафик не шифруется, хотя часть продуктов шифрует первичную аутентификацию (например Microsoft SQL Server). Даже при шифровании входа остальной трафик может идти открытым текстом, включая конфиденциальные данные. Рекомендуется:</p>
+<ul>
+<li>Разрешить только зашифрованные соединения к БД.</li>
+<li>Установить на сервер доверенный цифровой сертификат.</li>
+<li>Подключать клиент по TLS 1.2+ с современными шифрами (например AES-GCM или ChaCha20).</li>
+<li>Проверять на клиенте корректность сертификата сервера.</li>
+</ul>
+<p>Дополнительно — <a href="/owasp/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html">Transport Layer Security Cheat Sheet</a>.</p>
+<h2 id="configuring-secure-authentication">Настройка безопасной аутентификации</h2>
+<p>СУБД всегда должна требовать аутентификацию, в том числе для подключений с локального сервера. Учётные записи БД должны:</p>
+<ul>
+<li>Использовать стойкие уникальные пароли.</li>
+<li>Принадлежать одному приложению или сервису.</li>
+<li>Иметь минимально необходимые права, как в <a href="#creating-secure-permissions">разделе о правах ниже</a>.</li>
+</ul>
+<p>Как и для любой системы с собственными учётными записями, нужны регулярные процессы:</p>
+<ul>
+<li>Проверка актуальности учётных записей.</li>
+<li>Проверка назначенных прав.</li>
+<li>Удаление учётных записей при выводе приложения из эксплуатации.</li>
+<li>Смена паролей при уходе сотрудников или подозрении на компрометацию.</li>
+</ul>
+<p>Для Microsoft SQL Server рассмотрите <a href="https://docs.microsoft.com/en-us/dotnet/framework/data/adonet/sql/authentication-in-sql-server">Windows или интегрированную аутентификацию</a>: используются учётные записи Windows, отдельные учётные записи SQL Server не нужны, а учётные данные приложения в конфиге не хранятся — соединение идёт от имени пользователя Windows, под которым запущено приложение. Для MySQL схожий подход дают <a href="https://dev.mysql.com/doc/connector-net/en/connector-net-programming-authentication-windows-native.html">плагины Windows Native Authentication</a>.</p>
+<h3 id="storing-database-credentials-securely">Безопасное хранение учётных данных БД</h3>
+<p>Учётные данные БД нельзя хранить в исходном коде приложения, особенно в открытом виде. Используйте конфигурационный файл, который:</p>
+<ul>
+<li>Лежит вне корня веб-сервера.</li>
+<li>Имеет права доступа так, что читать его могут только нужные пользователи.</li>
+<li>Не попадает в системы контроля версий.</li>
+</ul>
+<p>По возможности дополнительно шифруйте или защищайте встроенными средствами, например шифрованием секций <code>web.config</code> в <a href="https://docs.microsoft.com/en-us/dotnet/framework/data/adonet/connection-strings-and-configuration-files#encrypting-configuration-file-sections-using-protected-configuration">ASP.NET</a>.</p>
+<h2 id="creating-secure-permissions">Настройка безопасных прав доступа</h2>
+<p>При выдаче прав пользователям БД применяйте принцип наименьших привилегий: учётная запись получает только те права, без которых приложение не работает. Глубина детализации зависит от возможностей СУБД. Общие правила:</p>
+<ul>
+<li>Не используйте встроенные учётные записи <code>root</code>, <code>sa</code> или <code>SYS</code>.</li>
+<li>Не выдавайте учётной записи административные права на экземпляр СУБД.</li>
+<li>Разрешайте подключение только с разрешённых хостов — часто это <code>localhost</code> или адрес прикладного сервера.</li>
+<li>Учётная запись должна иметь доступ только к нужным базам. Для разработки, UAT и продакшена — отдельные базы и отдельные учётные записи.</li>
+<li>Выдавайте только необходимые права на объекты. Большинству приложений достаточно <code>SELECT</code>, <code>UPDATE</code> и <code>DELETE</code>. Учётная запись не должна быть владельцем базы — это снижает риск эскалации привилегий.</li>
+<li>По возможности избегайте database links и linked servers; если они нужны — отдельная учётная запись с минимальным набором прав на базы, таблицы и системные привилегии.</li>
+</ul>
+<p>В критичных по безопасности системах права задают ещё точнее:</p>
+<ul>
+<li>На уровне таблиц.</li>
+<li>На уровне столбцов.</li>
+<li>На уровне строк.</li>
+<li>Запрет прямого доступа к базовым таблицам и работа только через ограниченные <a href="https://en.wikipedia.org/wiki/View_(SQL)">представления (views)</a>.</li>
+</ul>
+<h2 id="database-configuration-and-hardening">Конфигурация и укрепление СУБД</h2>
+<p>Операционную систему сервера БД нужно укреплять по проверенным базовым профилям, например <a href="https://www.cisecurity.org/cis-benchmarks/">CIS Benchmarks</a> или <a href="https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-security-baselines">Microsoft Security Baselines</a>.</p>
+<p>Саму СУБД также следует правильно настроить и ужесточить. Универсальные принципы:</p>
+<ul>
+<li>Устанавливайте обновления безопасности и патчи.</li>
+<li>Запускайте службы СУБД от ограниченной учётной записи.</li>
+<li>Удалите учётные записи и базы по умолчанию, если они не нужны.</li>
+<li>Храните <a href="https://en.wikipedia.org/wiki/Transaction_log">журналы транзакций</a> на отдельном диске от основных файлов данных.</li>
+<li>Настройте регулярное резервное копирование; ограничьте доступ к бэкапам и по возможности шифруйте их.</li>
+</ul>
+<p>Ниже — дополнительные рекомендации по отдельным продуктам.</p>
+<h3 id="hardening-a-microsoft-sql-server">Укрепление Microsoft SQL Server</h3>
+<ul>
+<li>Отключите <code>xp_cmdshell</code>, <code>xp_dirtree</code> и другие хранимые процедуры, если они не нужны.</li>
+<li>Отключите выполнение Common Language Runtime (CLR).</li>
+<li>Отключите службу SQL Browser.</li>
+<li>Отключите <a href="https://docs.microsoft.com/en-us/sql/relational-databases/security/choose-an-authentication-mode?view=sql-server-ver15">смешанную аутентификацию (Mixed Mode)</a>, если она не обязательна.</li>
+<li>Убедитесь, что демонстрационные базы <a href="https://docs.microsoft.com/en-us/dotnet/framework/data/adonet/sql/linq/downloading-sample-databases">Northwind и AdventureWorks</a> удалены.</li>
+<li>См. материалы Microsoft по <a href="https://docs.microsoft.com/en-us/sql/relational-databases/security/securing-sql-server">защите SQL Server</a>.</li>
+</ul>
+<h3 id="hardening-a-mysql-or-a-mariadb-server">Укрепление MySQL или MariaDB</h3>
+<ul>
+<li>Выполните сценарий <code>mysql_secure_installation</code> для удаления баз и учётных записей по умолчанию.</li>
+<li>Отключите привилегию <a href="https://dev.mysql.com/doc/refman/8.0/en/privileges-provided.html#priv_file">FILE</a> у пользователей, которым не нужно чтение/запись файлов на сервере.</li>
+<li>См. руководства <a href="https://dev.mysql.com/doc/refman/8.0/en/security-guidelines.html">Oracle MySQL</a> и <a href="https://mariadb.com/kb/en/library/securing-mariadb/">MariaDB</a> по укреплению.</li>
+</ul>
+<h3 id="hardening-a-postgresql-server">Укрепление PostgreSQL</h3>
+<ul>
+<li>См. <a href="https://www.postgresql.org/docs/current/runtime.html">документацию по установке и эксплуатации сервера PostgreSQL</a> и <a href="https://www.postgresql.org/docs/7.0/security.htm">раздел о безопасности</a> (более ранняя версия документации).</li>
+</ul>
+<h3 id="mongodb">MongoDB</h3>
+<ul>
+<li>Общие рекомендации по NoSQL — в <a href="/owasp/cheatsheets/NoSQL_Security_Cheat_Sheet.html">NoSQL Security Cheat Sheet</a>.</li>
+<li>См. <a href="https://docs.mongodb.com/manual/administration/security-checklist/">чек-лист безопасности MongoDB</a>.</li>
+</ul>
+<h3 id="redis">Redis</h3>
+<ul>
+<li>См. <a href="https://redis.io/topics/security">руководство по безопасности Redis</a>.</li>
+</ul>
