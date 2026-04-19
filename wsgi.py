@@ -551,6 +551,11 @@ def feedback():
     return render_template('feedback.html')
 
 
+@app.route("/legal")
+def legal():
+    return render_template("legal.html")
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if session.get("user_id"):

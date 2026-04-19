@@ -1227,3 +1227,162 @@ document.addEventListener('DOMContentLoaded', function () {
     initOrgDomainDadataSuggest();
     initIpGeoMyClientFetch();
 });
+
+/**
+ * Первый визит: модальное окно с дисклеймером до принятия условий.
+ * Флаг localStorage: disclaimerAccepted === '1'
+ */
+(function () {
+    var STORAGE_KEY = 'disclaimerAccepted';
+
+    function storageAccepted() {
+        try {
+            return localStorage.getItem(STORAGE_KEY) === '1';
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function setAccepted() {
+        try {
+            localStorage.setItem(STORAGE_KEY, '1');
+        } catch (e) {}
+    }
+
+    function getFocusable(dialog) {
+        var sel = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+        return Array.prototype.slice.call(dialog.querySelectorAll(sel)).filter(function (el) {
+            return !el.hasAttribute('disabled') && el.tabIndex !== -1;
+        });
+    }
+
+    function onDocKeydown(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        var root = document.getElementById('proib-disclaimer-root');
+        if (!root) return;
+        var dialog = document.getElementById('proib-disclaimer-dialog');
+        if (!dialog) return;
+        var list = getFocusable(dialog);
+        if (list.length === 0) return;
+        var first = list[0];
+        var last = list[list.length - 1];
+        if (e.shiftKey) {
+            if (document.activeElement === first || !dialog.contains(document.activeElement)) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
+        }
+    }
+
+    function removeOverlay(root) {
+        if (root && root.parentNode) root.parentNode.removeChild(root);
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', onDocKeydown, true);
+    }
+
+    function showDisclaimerModal() {
+        if (document.getElementById('proib-disclaimer-root')) return;
+
+        var root = document.createElement('div');
+        root.id = 'proib-disclaimer-root';
+        root.setAttribute('role', 'presentation');
+        root.style.cssText = [
+            'position:fixed',
+            'inset:0',
+            'z-index:2147483000',
+            'display:flex',
+            'align-items:center',
+            'justify-content:center',
+            'padding:max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))',
+            'box-sizing:border-box',
+            'background:rgba(15,23,42,0.58)',
+            'backdrop-filter:blur(4px)',
+            '-webkit-backdrop-filter:blur(4px)',
+            'pointer-events:auto'
+        ].join(';');
+
+        var panel = document.createElement('div');
+        panel.id = 'proib-disclaimer-dialog';
+        panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+        panel.setAttribute('aria-labelledby', 'proib-disclaimer-title');
+        panel.style.cssText = [
+            'width:100%',
+            'max-width:26rem',
+            'max-height:min(90vh, 100%)',
+            'overflow:auto',
+            'box-sizing:border-box',
+            'background:var(--bg-card)',
+            'color:var(--text-primary)',
+            'border:1px solid var(--border-light)',
+            'border-radius:28px',
+            'padding:24px 22px',
+            'box-shadow:0 25px 50px -12px rgba(0,0,0,0.35)',
+            'pointer-events:auto',
+            '-webkit-overflow-scrolling:touch'
+        ].join(';');
+
+        panel.innerHTML =
+            '<p id="proib-disclaimer-title" style="margin:0 0 14px;font-size:17px;font-weight:800;line-height:1.35;color:var(--accent-red);">Важно!</p>' +
+            '<div style="font-size:14px;line-height:1.55;color:var(--text-primary);">' +
+            '<p style="margin:0 0 12px;">Все материалы на сайте «ПРО ИБ» (24ib.ru) носят <strong>образовательный</strong> характер.</p>' +
+            '<p style="margin:0 0 12px;">Администрация не несёт ответственности за их использование в целях, противоречащих законодательству РФ. Запрещается применять полученные знания для совершения киберпреступлений.</p>' +
+            '<p style="margin:0;">Продолжая использовать сайт, вы подтверждаете, что ознакомлены с условиями и обязуетесь их соблюдать.</p>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;align-items:stretch;">' +
+            '<button type="button" id="proib-disclaimer-accept" style="flex:1 1 12rem;cursor:pointer;border:none;border-radius:44px;padding:14px 18px;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg, var(--accent-red), var(--accent-red-dark));box-shadow:var(--shadow-md);">' +
+            'Я принимаю условия и подтверждаю' +
+            '</button>' +
+            '<a href="/legal" target="_blank" rel="noopener noreferrer" style="flex:1 1 8rem;display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;border-radius:44px;padding:14px 16px;font-size:14px;font-weight:600;color:var(--text-primary);background:var(--bg-meta);border:1px solid var(--border-light);">' +
+            'Подробнее' +
+            '</a>' +
+            '</div>';
+
+        root.appendChild(panel);
+        document.body.appendChild(root);
+        document.body.style.overflow = 'hidden';
+
+        document.addEventListener('keydown', onDocKeydown, true);
+
+        root.addEventListener(
+            'click',
+            function (e) {
+                if (e.target === root) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            },
+            true
+        );
+
+        var acceptBtn = document.getElementById('proib-disclaimer-accept');
+        if (acceptBtn) {
+            acceptBtn.addEventListener('click', function () {
+                setAccepted();
+                removeOverlay(root);
+            });
+            acceptBtn.focus();
+        }
+    }
+
+    function initDisclaimer() {
+        if (storageAccepted()) return;
+        showDisclaimerModal();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initDisclaimer);
+    } else {
+        initDisclaimer();
+    }
+})();

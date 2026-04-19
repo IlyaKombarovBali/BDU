@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    {% include "_theme_boot.html" %}
+    {% include "_favicon.html" %}
+    {% include "_yandex_metrika.html" %}
+    <title>Ограничение ответственности — ПРО ИБ</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <div class="nav-header">
+        <div class="header-row">
+            <div class="breadcrumb">
+                <a href="/">Главная</a>
+                <span>→</span>
+                <span style="color: var(--text-muted);">Юридическая информация</span>
+            </div>
+            <div class="header-right">
+                <button class="theme-toggle" id="themeToggle" aria-label="Переключить тему">
+                    <span id="themeIcon">☀️</span>
+                </button>
+                {% include '_profile_nav.html' %}
+                <a href="https://t.me/pdn_dtg_bot" target="_blank" rel="noopener noreferrer" class="bot-badge">
+                    🤖 PRO ИБ БОТ
+                </a>
+            </div>
+        </div>
+        <div class="title-section">
+            <h1>Ограничение ответственности</h1>
+        </div>
+    </div>
+
+    <div class="legal-page" style="padding: 16px 16px 100px;">
+        <div class="hero-block" style="text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 52px; margin-bottom: 12px;" aria-hidden="true">⚖️</div>
+            <p class="hero-desc" style="max-width: 36rem; margin: 0 auto; font-size: 14px;">
+                Ниже — правила использования материалов портала «ПРО ИБ» 24ib.ru. Пожалуйста, ознакомьтесь перед работой с контентом сайта.
+            </p>
+        </div>
+
+        <section class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 16px; border: 0.5px solid var(--border-light);">
+            <h2 class="info-card-title" style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px;">
+                <span aria-hidden="true">📚</span> Образовательная цель
+            </h2>
+            <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-primary);">
+                Все материалы, опубликованные на портале «ПРО ИБ» 24ib.ru (далее — Портал), включая, но не ограничиваясь: базы данных уязвимостей (БДУ), примеры кода, описания атак, переводы документации OWASP, предназначены исключительно для <strong>образовательных и научных целей</strong>.
+            </p>
+        </section>
+
+        <section class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 16px; border: 0.5px solid var(--border-light);">
+            <h2 class="info-card-title" style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px;">
+                <span aria-hidden="true">🛡️</span> Законность использования
+            </h2>
+            <p style="margin: 0 0 14px; font-size: 14px; line-height: 1.55; color: var(--text-primary);">
+                Администрация Портала не несёт ответственности за любое использование опубликованной информации, противоречащее законодательству Российской Федерации и международным нормам. Запрещается применять полученные знания для:
+            </p>
+            <ul style="margin: 0; padding-left: 1.25rem; font-size: 14px; line-height: 1.6; color: var(--text-primary);">
+                <li style="margin-bottom: 10px;">несанкционированного доступа к компьютерной информации (<span style="color: var(--text-muted);">ст.&nbsp;272 УК РФ</span>);</li>
+                <li style="margin-bottom: 10px;">создания и распространения вредоносных программ (<span style="color: var(--text-muted);">ст.&nbsp;273 УК РФ</span>);</li>
+                <li>любых действий, направленных на нарушение работы информационных систем (<span style="color: var(--text-muted);">ст.&nbsp;274 УК РФ</span>).</li>
+            </ul>
+        </section>
+
+        <section class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 16px; border: 0.5px solid var(--border-light);">
+            <h2 class="info-card-title" style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px;">
+                <span aria-hidden="true">👤</span> Ответственность пользователя
+            </h2>
+            <p style="margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-primary);">
+                Пользователь самостоятельно несёт полную ответственность за любые последствия, возникшие в результате использования материалов Портала в противоправных целях. Администрация Портала категорически осуждает любые формы киберпреступности и не предоставляет инструкций для их совершения.
+            </p>
+        </section>
+
+        <section class="info-card" style="background: var(--bg-card); border-radius: 28px; padding: 20px; margin-bottom: 16px; border: 0.5px solid var(--border-light);">
+            <h2 class="info-card-title" style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0 0 12px; display: flex; align-items: center; gap: 8px;">
+                <span aria-hidden="true">📄</span> Информация от правообладателей
+            </h2>
+            <p style="margin: 0 0 16px; font-size: 14px; line-height: 1.55; color: var(--text-primary);">
+                Материалы основаны на открытых источниках, в том числе на официальном проекте <a href="https://cheatsheetseries.owasp.org/" target="_blank" rel="noopener noreferrer" style="color: var(--accent-blue);">OWASP Cheat Sheet Series</a> (лицензия CC BY-SA 4.0). Если вы считаете, что ваши авторские права были нарушены, пожалуйста, свяжитесь с нами через форму обратной связи для оперативного решения вопроса.
+            </p>
+            <a href="/feedback" class="fullwidth-card" style="margin: 0; text-decoration: none; display: flex; align-items: center; gap: 14px; background: var(--bg-meta); border-radius: 20px; padding: 14px;">
+                <div class="full-icon" style="font-size: 28px;">💌</div>
+                <div class="full-content" style="flex: 1;">
+                    <div class="full-title" style="font-size: 15px; font-weight: 600; color: var(--text-primary);">Форма обратной связи</div>
+                    <div class="full-desc" style="font-size: 12px; color: var(--text-muted);">Вопросы по правам и контенту</div>
+                </div>
+                <div class="arrow" style="color: var(--accent-blue);">→</div>
+            </a>
+        </section>
+    </div>
+
+    <div class="bottom-tab-bar">
+        <a href="/" class="tab-item">
+            <div class="tab-icon">🏠</div>
+            <span>Главная</span>
+        </a>
+        <a href="/donate" class="tab-item">
+            <div class="tab-icon">❤️</div>
+            <span>Поддержка</span>
+        </a>
+        <a href="/feedback" class="tab-item">
+            <div class="tab-icon">💬</div>
+            <span>Обратная связь</span>
+        </a>
+        <a href="/profile" class="tab-item">
+            <div class="tab-icon">👤</div>
+            <span>Профиль</span>
+        </a>
+    </div>
+</div>
+
+<script src="/static/theme.js"></script>
+</body>
+</html>
