@@ -6,8 +6,8 @@
     {% include "_theme_boot.html" %}
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
-    <title>{{ law['laws'] }} | {{ law['title'][:50] }}</title>
-    {% set seo_meta_title = law['laws'] ~ ' | ' ~ law['title'][:50] %}
+    <title>{{ law['laws'] }} | {{ law['title'][:50] }} | ПРО ИБ</title>
+    {% set seo_meta_title = law['laws'] ~ ' | ' ~ law['title'][:50] ~ ' | ПРО ИБ' %}
     {% set seo_meta_description = law['laws'] ~ ': ' ~ law['title'][:120] ~ ' — законы и НПА по ИБ на ПРО ИБ (24ib.ru).' %}
     {% set seo_meta_keywords = law['laws'] ~ ', ' ~ law['title'][:40] ~ ', законы ИБ, ПРО ИБ' %}
     {% include '_seo_meta.html' %}

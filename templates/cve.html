@@ -6,8 +6,8 @@
     {% include "_theme_boot.html" %}
     {% include "_favicon.html" %}
     {% include "_yandex_metrika.html" %}
-    <title>{{ vuln['identifier'] }} | {{ vuln['name'][:50] }}</title>
-    {% set seo_meta_title = vuln['identifier'] ~ ' | ' ~ vuln['name'][:50] %}
+    <title>{{ vuln['identifier'] }} | {{ vuln['name'][:50] }} | ПРО ИБ</title>
+    {% set seo_meta_title = vuln['identifier'] ~ ' | ' ~ vuln['name'][:50] ~ ' | ПРО ИБ' %}
     {% set seo_meta_description = 'Уязвимость ' ~ vuln['identifier'] ~ ' в БДУ ФСТЭК: ' ~ vuln['name'][:120] ~ '. ПРО ИБ (24ib.ru).' %}
     {% set seo_meta_keywords = vuln['identifier'] ~ ', CVE, БДУ, уязвимость, ' ~ vuln['name'][:40] ~ ', ПРО ИБ' %}
     {% include '_seo_meta.html' %}
